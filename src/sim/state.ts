@@ -9,7 +9,7 @@ import type {
   Candidate, ChapterId, Contract, Cooler, DifficultyId, Facing, GameState, LogKind, PartId, Rack, Tech, Vec,
 } from './types';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 const LOG_CAP = 200;
 
 export function newId(s: GameState, prefix: string): string {

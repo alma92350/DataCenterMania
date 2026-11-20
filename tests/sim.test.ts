@@ -117,6 +117,26 @@ describe('save / load', () => {
     expect(serialize(b)).toEqual(serialize(a));
   });
 
+  it('migrates a version-1 save (before chapter 3) and keeps simulating sanely', () => {
+    const s = createGame('ch2', 'sysadmin', 3);
+    advance(s, 300);
+    const old = JSON.parse(serialize(s));
+    old.version = 1;
+    for (const r of old.racks) { delete r.facing; delete r.switchFailed; delete r.maintenance; delete r.recirculation; }
+    for (const c of old.coolers) { delete c.health; delete c.broken; }
+    for (const t of old.techs) { delete t.fatigue; delete t.morale; delete t.onBreak; }
+    for (const c of old.candidates) delete c.role;
+    for (const c of old.contracts) delete c.bandwidthPerUnit;
+    for (const r of old.reports) delete r.network;
+    delete old.uplinks; delete old.bandwidthUsed; delete old.coffeeLevel;
+    for (const p of ['crac', 'filter', 'switch', 'coffee']) delete old.inventory[p];
+    const loaded = deserialize(JSON.stringify(old));
+    expect(loaded.version).toBe(2);
+    advance(loaded, 1440);
+    expect(loaded.racks.every((r) => Number.isFinite(r.temp))).toBe(true);
+    expect(Number.isFinite(loaded.cash)).toBe(true);
+  });
+
   it('rejects garbage and wrong versions', () => {
     expect(() => deserialize('not json')).toThrow();
     expect(() => deserialize(JSON.stringify({ version: 999 }))).toThrow(/version/);
