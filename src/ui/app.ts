@@ -7,12 +7,13 @@ import { contractAssignedUnits, contractById, firstFreeSlot, rackById } from '..
 import { tileAt } from '../sim/grid';
 import type { Facing, GameState, LogEntry, PartId, ProjectId, ServerModelId, ShiftReport } from '../sim/types';
 import { formatClock } from '../core/time';
-import { clampCamera, createCamera, fitCamera, panBy, screenToWorld, zoomAt } from '../render/camera';
+import { clampCamera, createCamera, panBy, pickNearest, screenToWorld, touchFitCamera, zoomAt } from '../render/camera';
 import { drawFrame, techColor, type Overlay } from '../render/renderer';
 import { Sound } from './audio';
 import { effectiveSpeed, minutesToAdvance, shouldAutoPause } from './clock';
 import { Persistence, type Settings } from './storage';
 import { browserEnv, resolveEink, shouldRedraw } from './display';
+import { morph } from './morph';
 import {
   alarmsPanel, contractsPanel, coolerModal, endScreen, goalBar, goalsPanel, networkPanel, pauseMenu, rackModal, recapModal, shiftReportModal, shopPanel, startScreen, tabs,
   teamPanel, tipCard, topBar, visiblePanels, type PanelId,
@@ -98,7 +99,7 @@ export class App {
     document.body.classList.remove('at-start');
     this.html('#screen', '');
     this.resize();
-    fitCamera(this.cam, s.grid.w, s.grid.h, this.canvas.clientWidth, this.canvas.clientHeight);
+    this.fitMap();
     // replay the chapter intro and any tip shown in the first minute
     for (const l of s.log.slice(-3)) if (l.kind === 'story') this.toast(l.text, 'story', 7000);
     this.renderUi(true);
@@ -180,7 +181,7 @@ export class App {
     this.seenLog = fresh[fresh.length - 1]!.id;
     for (const l of fresh) {
       if (l.kind === 'tip') this.tips.push(l.text);
-      else if (l.kind === 'story') this.toast(l.text, 'story', 7000);
+      else if (l.kind === 'story') this.toast(l.text, 'story', window.matchMedia('(max-width: 820px)').matches ? 4500 : 7000);
       else if (l.kind === 'fail' || l.kind === 'success') this.toast(l.text, l.kind, 4500);
       else if (l.kind === 'money' && l.text.startsWith('Day')) {
         this.toast(l.text, 'money', 6000);
@@ -196,15 +197,20 @@ export class App {
     const el = $(sel);
     // never yank a control out from under the player's finger
     if (!force && el.contains(document.activeElement) && document.activeElement?.matches('select, input')) return;
+    // ...nor while a finger or mouse button is down on it: the tap must land on the element it started on
+    if (!force && this.pressing && el.contains(this.pressing)) return;
     this.lastHtml.set(sel, content);
-    el.innerHTML = content;
+    morph(el, content);
   }
+
+  /** Element under an active press (touch or mouse), or null. */
+  private pressing: Element | null = null;
 
   private renderUi(force = false): void {
     const s = this.state;
     if (!s) return;
     if (!visiblePanels(s).includes(this.panel)) this.panel = 'alarms';
-    this.html('#topbar', topBar(s, this.speed, effectiveSpeed(this.speed, s, this.settings.nightSkip)), force);
+    this.html('#topbar', topBar(s, this.speed, this.tips.length ? 0 : effectiveSpeed(this.speed, s, this.settings.nightSkip)), force);
     this.html('#tabs', tabs(s, this.panel), force);
     const panelHtml = { alarms: alarmsPanel, team: teamPanel, contracts: contractsPanel, network: networkPanel, shop: shopPanel, goals: goalsPanel }[this.panel](s);
     this.html('#panel', panelHtml, force);
@@ -246,7 +252,8 @@ export class App {
     el.className = `toast toast-${kind}`;
     el.textContent = text;
     host.appendChild(el);
-    while (host.children.length > 4) host.firstElementChild?.remove();
+    const max = window.matchMedia('(max-width: 820px)').matches ? 2 : 4;
+    while (host.children.length > max) host.firstElementChild?.remove();
     if (this.eink) ms *= 1.5;
     setTimeout(() => {
       el.classList.add('out');
@@ -510,6 +517,19 @@ export class App {
     this.renderUi(true);
   }
 
+  /** Fit the map, but never below a finger-friendly tile size on small screens; centre on the racks. */
+  private fitMap(): void {
+    const s = this.state;
+    if (!s) return;
+    const items = [...s.racks, ...s.coolers].map((o) => o.pos);
+    const focus = items.length
+      ? { x0: Math.min(...items.map((p) => p.x)), y0: Math.min(...items.map((p) => p.y)), x1: Math.max(...items.map((p) => p.x)), y1: Math.max(...items.map((p) => p.y)) }
+      : { x0: 0, y0: 0, x1: s.grid.w - 1, y1: s.grid.h - 1 };
+    const touch = window.matchMedia('(pointer: coarse)').matches;
+    touchFitCamera(this.cam, s.grid.w, s.grid.h, this.canvas.clientWidth, this.canvas.clientHeight, focus, touch ? 30 : 12);
+    this.clamp();
+  }
+
   private openRack(id: string): void {
     this.modal = { kind: 'rack', id };
     this.renderUi(true);
@@ -519,6 +539,7 @@ export class App {
 
   private bindInput(): void {
     const handler = (ev: Event) => {
+      if (ev.type === 'click') this.pressing = null; // the press completed: refreshes may resume
       const el = (ev.target as HTMLElement).closest<HTMLElement>('[data-action]');
       if (!el) return;
       const isField = el.matches('select, input');
@@ -527,6 +548,10 @@ export class App {
       this.onAction(el, ev);
     };
     document.addEventListener('click', handler);
+    document.addEventListener('pointerdown', (ev) => (this.pressing = ev.target as Element), { capture: true, passive: true });
+    const release = () => setTimeout(() => (this.pressing = null), 0);
+    document.addEventListener('pointerup', release, { capture: true, passive: true });
+    document.addEventListener('pointercancel', release, { capture: true, passive: true });
     document.addEventListener('change', handler);
     $('#modal').addEventListener('click', (ev) => {
       if (ev.target === ev.currentTarget && this.modal?.kind !== 'end') {
@@ -609,8 +634,8 @@ export class App {
       const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-zoom]');
       if (!b) return;
       const z = b.dataset.zoom;
-      if (z === 'fit' && this.state) fitCamera(this.cam, this.state.grid.w, this.state.grid.h, c.clientWidth, c.clientHeight);
-      else if (z === 'heat') this.overlay = this.overlay === 'heat' ? 'none' : 'heat';
+      if (z === 'fit' && this.state) this.fitMap();
+      else if (z === 'heat') this.overlay = this.overlay === 'none' ? 'heat' : this.overlay === 'heat' && this.state?.features.includes('power') ? 'power' : 'none';
       else if (z === 'power') this.overlay = this.overlay === 'power' ? 'none' : 'power';
       else zoomAt(this.cam, z === 'in' ? 1.25 : 0.8, c.clientWidth / 2, c.clientHeight / 2);
       b.closest('#zoom')?.querySelectorAll('[data-zoom="heat"],[data-zoom="power"]').forEach((x) =>
@@ -643,9 +668,13 @@ export class App {
       this.renderUi(true);
       return;
     }
-    const rack = s.racks.find((r) => r.pos.x === x && r.pos.y === y);
-    if (rack) return this.openRack(rack.id);
-    const cooler = s.coolers.find((c) => c.pos.x === x && c.pos.y === y);
+    // forgiving taps: anything within about a tile of the finger counts
+    const reach = Math.max(0.75, 22 / this.cam.scale);
+    const rack = pickNearest(s.racks, w, reach);
+    const cooler = pickNearest(s.coolers, w, reach);
+    const rd = rack ? Math.hypot(rack.pos.x + 0.5 - w.x, rack.pos.y + 0.5 - w.y) : Infinity;
+    const cd = cooler ? Math.hypot(cooler.pos.x + 0.5 - w.x, cooler.pos.y + 0.5 - w.y) : Infinity;
+    if (rack && rd <= cd) return this.openRack(rack.id);
     if (cooler) {
       this.modal = { kind: 'cooler', id: cooler.id };
       this.renderUi(true);

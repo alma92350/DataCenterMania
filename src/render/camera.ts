@@ -43,3 +43,35 @@ export function clampCamera(c: Camera, w: number, h: number, vw: number, vh: num
   c.x = Math.min(mw - vw * 0.25, Math.max(-vw * 0.75, c.x));
   c.y = Math.min(mh - vh * 0.25, Math.max(-vh * 0.75, c.y));
 }
+
+/**
+ * Like fitCamera, but never lets tiles get smaller than `minScale` pixels (so a finger can hit
+ * them). If the whole map does not fit at that size, it centres on `focus` and the player pans.
+ */
+export function touchFitCamera(
+  c: Camera, w: number, h: number, vw: number, vh: number,
+  focus: { x0: number; y0: number; x1: number; y1: number }, minScale: number,
+): void {
+  fitCamera(c, w, h, vw, vh);
+  if (c.scale >= minScale) return;
+  c.scale = minScale;
+  const cx = (focus.x0 + focus.x1 + 1) / 2;
+  const cy = (focus.y0 + focus.y1 + 1) / 2;
+  // per axis: if the whole map fits, centre the map; otherwise centre on the focus area
+  c.x = w * c.scale <= vw ? (w * c.scale - vw) / 2 : cx * c.scale - vw / 2;
+  c.y = h * c.scale <= vh ? (h * c.scale - vh) / 2 : cy * c.scale - vh / 2;
+}
+
+/** Nearest target whose tile centre is within `maxDist` tiles of a tapped world point. */
+export function pickNearest<T extends { pos: { x: number; y: number } }>(targets: readonly T[], at: { x: number; y: number }, maxDist: number): T | null {
+  let best: T | null = null;
+  let bestD = maxDist;
+  for (const t of targets) {
+    const d = Math.hypot(t.pos.x + 0.5 - at.x, t.pos.y + 0.5 - at.y);
+    if (d <= bestD) {
+      bestD = d;
+      best = t;
+    }
+  }
+  return best;
+}

@@ -1,4 +1,4 @@
-import { createCamera, screenToWorld, worldToScreen, zoomAt, panBy, fitCamera, clampCamera } from '../src/render/camera';
+import { createCamera, screenToWorld, worldToScreen, zoomAt, panBy, fitCamera, clampCamera, touchFitCamera, pickNearest } from '../src/render/camera';
 import { minutesToAdvance, effectiveSpeed, shouldAutoPause } from '../src/ui/clock';
 import { escapeHtml, money, stars, countdown } from '../src/ui/format';
 import { createGame } from '../src/sim/state';
@@ -104,5 +104,36 @@ describe('formatting', () => {
     expect(stars(3.4)).toBe('★★★☆☆');
     expect(countdown(125)).toBe('2h05');
     expect(countdown(9)).toBe('9m');
+  });
+});
+
+describe('touch-friendly camera & taps (mobile responsiveness)', () => {
+  it('keeps tiles big enough to tap and centres on the area of interest', () => {
+    const cam = createCamera(32);
+    // a 25x13 floor in a 360px-wide phone: plain fit gives ~13px tiles
+    fitCamera(cam, 25, 13, 360, 600);
+    expect(cam.scale).toBeLessThan(20);
+    touchFitCamera(cam, 25, 13, 360, 600, { x0: 3, y0: 3, x1: 11, y1: 7 }, 28);
+    expect(cam.scale).toBeGreaterThanOrEqual(28);
+    const c = worldToScreen(cam, 7.5, 5.5); // centre of the focus box
+    expect(Math.abs(c.x - 180)).toBeLessThan(2); // too wide: centred on the racks
+    const mid = worldToScreen(cam, 12.5, 6.5); // map centre
+    expect(Math.abs(mid.y - 300)).toBeLessThan(2); // fits vertically: whole map centred
+  });
+
+  it('on a big screen it is a plain fit', () => {
+    const a = createCamera(32);
+    const b = createCamera(32);
+    fitCamera(a, 25, 13, 1000, 700);
+    touchFitCamera(b, 25, 13, 1000, 700, { x0: 3, y0: 3, x1: 11, y1: 7 }, 28);
+    expect(b).toEqual(a);
+  });
+
+  it('a tap near a rack picks it; a tap far away picks nothing', () => {
+    const targets = [{ id: 'r1', pos: { x: 3, y: 3 } }, { id: 'r2', pos: { x: 5, y: 3 } }];
+    expect(pickNearest(targets, { x: 3.5, y: 3.5 }, 1)?.id).toBe('r1'); // centre of the tile
+    expect(pickNearest(targets, { x: 4.1, y: 4.0 }, 1)?.id).toBe('r1'); // just off the tile
+    expect(pickNearest(targets, { x: 5.1, y: 2.9 }, 1)?.id).toBe('r2');
+    expect(pickNearest(targets, { x: 9, y: 9 }, 1)).toBeNull();
   });
 });

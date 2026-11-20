@@ -55,7 +55,7 @@ export function topBar(s: GameState, speed: Speed, effective: Speed): string {
     <div class="stat clock" title="Time left: ${countdown(left)}"><span class="k">Ch${ch.number} · ${countdown(left)} left</span><b>${formatClock(s.minute)}</b></div>
     <div class="speed" role="group" aria-label="Game speed">
       ${speeds.map((sp) => `<button data-action="speed" data-speed="${sp}" class="${sp === speed ? 'on' : ''}" aria-pressed="${sp === speed}" title="${sp === 0 ? 'Pause (Space)' : `${sp}× speed`}">${sp === 0 ? '⏸' : `${sp}×`}</button>`).join('')}
-      ${effective !== speed ? '<span class="night" title="Night skip">🌙4×</span>' : ''}
+      ${speed > 0 && effective === 0 ? '<span class="night paused" title="Read the tip to continue">⏸ Tip</span>' : effective !== speed ? '<span class="night" title="Night skip">🌙4×</span>' : ''}
     </div>
     <button class="alarm-pill ${worst ? `sev-bg-${worst}` : ''}" data-action="panel" data-panel="alarms" aria-label="${alarms.length} alarms">🔔 ${alarms.length}</button>
     <button class="menu-btn" data-action="menu" aria-label="Menu">☰</button>`;

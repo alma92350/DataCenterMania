@@ -109,6 +109,12 @@ try {
     while (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
     await page.tap('#tabs [data-panel="alarms"]');
     check(await page.isVisible('#panel .alarm'), 'phone: alarm list opens as a bottom sheet');
+    const tipOnTop = await page.evaluate(() => {
+      const t = document.querySelector('#tip');
+      const p = document.querySelector('#panel');
+      return Number(getComputedStyle(t).zIndex) > Number(getComputedStyle(p).zIndex);
+    });
+    check(tipOnTop, 'phone: mentor tips stack above the open bottom sheet');
     await page.screenshot({ path: `${outDir}/phone-sheet.png` });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     check(!overflow, 'phone: no horizontal page scroll');
@@ -129,6 +135,27 @@ try {
     while (await page.isVisible('.tip-card')) await page.click('[data-action="dismissTip"]');
     await page.click('#tabs [data-panel="network"]');
     check((await page.textContent('#panel')).includes('MetroFiber A'), 'network tab lists the uplink');
+    await page.click('[data-action="speed"][data-speed="4"]');
+    const held = await page.evaluate(() => new Promise((resolve) => {
+      let survived = 0;
+      let presses = 0;
+      const loop = async () => {
+        for (let i = 0; i < 8; i++) {
+          const btn = document.querySelector('#panel button');
+          if (!btn) break;
+          btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+          presses++;
+          await new Promise((r) => setTimeout(r, 200));
+          if (btn.isConnected) survived++;
+          btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        resolve({ survived, presses });
+      };
+      loop();
+    }));
+    check(held.presses > 0 && held.survived === held.presses, `a held button in a live panel survives refreshes (${held.survived}/${held.presses})`);
+    await page.click('[data-action="speed"][data-speed="1"]');
     await page.click('#tabs [data-panel="team"]');
     check((await page.textContent('#panel')).includes('Network engineer') || (await page.textContent('#panel')).includes('HVAC tech'), 'team tab shows specialist candidates');
     await page.keyboard.press('h');
