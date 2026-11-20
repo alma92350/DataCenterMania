@@ -1,4 +1,6 @@
-# DataCenterMania — Product Requirements Document (brainstorm draft v0.1)
+# DataCenterMania — Product Requirements Document (v0.2)
+
+> **v0.2 (2026-11-20):** updated after the product review of build v0.3 (Chapters 0–3). The full review and its measurements are in [`PRODUCT_REVIEW.md`](PRODUCT_REVIEW.md). Changes are summarised in §21, and items marked *proposed* await a decision.
 
 > A management/sim game for the browser (desktop and mobile) where you run a data center: you start in a server closet and end up running a whole floor of servers, AI wing included. You keep machines alive, keep customers happy, and keep the attackers out, mostly by sending the right technician to the right rack at the right moment.
 
@@ -34,6 +36,9 @@
 | Game speed | **1 real second = 3 game minutes at 1×.** One game day ≈ 8 real minutes, which is one mobile session. See §3.1. |
 | Cyber layer | **Fun and arcade-like, not a security simulator.** Short, readable, humorous. See §9. |
 | Monetisation | **Free.** |
+| Session unit | *Proposed:* the **Shift** (one game day, ~8 real minutes) with an end-of-shift report card. Chapters are 3–5 shifts. See §21.1. |
+| Chapter order | *Proposed:* respect "1–2 new systems per chapter". Network moves to a new Ch4 "Launch Week", and fatigue moves to the Enterprise chapter. See §21.5. |
+| Telemetry | *Proposed:* opt-in only, anonymous, export-as-JSON first. No accounts, no tracking by default. See §21.10. |
 
 ---
 
@@ -476,7 +481,17 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 
 ## 18. Scope & Milestones
 
-### MVP (vertical slice): Chapters 0–2
+**Status (build v0.3):** MVP plus Chapter 3 and On-Call Nightmare shipped and deployed. The roadmap below has been **revised by the v0.2 review**. The original milestone lists are kept underneath for reference.
+
+| Release | Theme | Contents | Exit criteria |
+|---|---|---|---|
+| **v0.4 "First Hour"** | Onboarding and pacing | Shifts and report cards, 8-minute Ch0, live money and projection chip, goal chip, ops projects, walk-in requests | Ch0 ≤ 9 min; quiet daytime ≤ 50%; 5/5 testers finish Ch0 and 4/5 start Ch1 |
+| **v0.5 "Mastery"** | Replay reasons | Hard ★★★ constraints, achievements, career title, seeded daily challenge with share card, incident post-mortems | Default bot gets ★★★ in ≤ 20% of runs |
+| **v0.6 "Launch Week"** | Re-sequence and automation | Ch3/Ch4 split, auto-dispatch from Ch2, proactive specialists, juice pass | ≤ 2 new systems per chapter; actions/min flat from Ch2 to Ch4 |
+| **v0.7 "Hackers"** | Differentiator | Hacker Weekend event (2 villains, 3 micro-games), sandbox/endless mode | Event playable in ≤ 10 min |
+| **v1.0** | Enterprise and polish | UPS/generator/shifts chapter (fatigue moves here), accessibility audit, FR localisation | §19 KPIs met in a 20-player test |
+
+### MVP (vertical slice): Chapters 0–2 (shipped)
 - Floor map, rack view, 1–3 HW techs, dispatch, pathfinding, inventory and deliveries
 - Devices: 1U/2U servers. Failures: disk, PSU, overheating. Basic zone temp and power budget
 - Contracts with SLA and demand curves, economy, reputation
@@ -503,6 +518,12 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 | D1 / D7 return (PWA installs) | 35% / 15% |
 | "Unfair" deaths: failures with no prior warning | ~0 (every outage traceable to an ignored signal) |
 | Performance | 60 fps at 200 racks on mid-range phone |
+| Shift length (1×, Sysadmin) | 6–9 real minutes |
+| Quiet daytime (no alarm, no job) | ≤ 50% of daytime game minutes, no stretch > 90 real seconds |
+| ★ / ★★ / ★★★ rates | ≈ 80% / 40% / 10% of players per chapter |
+| New systems per chapter | ≤ 2 |
+
+*The engagement rows are also checked by the autopilot bot in CI (see §21.10), so design regressions fail the build.*
 
 ---
 
@@ -516,6 +537,84 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 6. **Micro-management fatigue:** Mitigated by the automation layer (§13). Needs playtesting at Ch4–Ch5.
 7. ~~Monetisation~~ **Decided:** free, with no ads and no purchases.
 8. **Branding:** All customers, vendors and products fictional. No real company names or logos.
+
+---
+
+## 21. v0.2 Changes from the Product Review
+
+Measured on build v0.3 with the autopilot bot (Sysadmin, 3 seeds, 1× with night skip):
+
+| Chapter | Real minutes | Incidents / day | Quiet daytime | Longest quiet | New systems |
+|---|---:|---:|---:|---:|---:|
+| 0 | 23.7 | 1.2 | n/a¹ | 2.8 min | 1 |
+| 1 | 18.2 | 3.7 | 88% | 3.7 min | 2 |
+| 2 | 31.8 | 3.6 | 89% | 4.9 min | 3 |
+| 3 | 32.1 | 7.2 | 80% | 4.5 min | **5** |
+
+¹ The weekend overheat alarm stays open, so Ch0 never counts as quiet.
+
+The main issues are dead air, chapters too long for a session, a thin tutorial, invisible money, the Ch3 overload, free ★★★, and no meta progression. The requirements below address them.
+
+### 21.1 Shifts (session unit), *proposed*
+- A chapter is split into **Shifts** of one game day (06:00–22:00 by default), each with one **shift goal** (e.g. "ByteBank ≥ 99.5% today", "Install 3 servers before 18:00").
+- At 22:00 an **end-of-shift report card** appears: shift stars, P&L, highlights, and "the incident of the day". Then the game autosaves. This is the natural place to stop.
+- **Nights** become a "Sleep" fast-forward, followed by a recap of what happened ("Mia swapped a disk at 02:14; the ISP fixed the fiber").
+- **Target:** 6–9 real minutes per shift.
+
+### 21.2 Tutorial rebuilt (Ch0)
+- Ch0 runs Friday 09:00 to 22:00 only, which is one shift, about 8 minutes.
+- A scripted beat every 60–90 seconds: disk failure, new contract, install a server, power warning, the AC turns off, then a choice (portable AC or power servers off).
+- The weekend becomes an optional **bonus shift** in Ch1.
+
+### 21.3 Live money and goal visibility
+- Revenue and costs accrue every game hour. Floating "+$" over paying racks and "−$" on missed SLA minutes. The midnight report stays as the daily summary.
+- Each contract card shows its **margin**: revenue minus server power minus its share of rent.
+- The HUD gets a **goal chip** (the current ★ objective with live progress) and a **projection** ("On track: $6.2k / $5k ✓").
+
+### 21.4 Calm-time activities (fixing dead air)
+- **Ops projects:** optional 1–3 minute jobs that pay back later. Cable tidy (fewer wrong-cable mistakes), labelling (faster repairs), firmware campaign (fewer hangs), preventive filter changes.
+- **Walk-in requests:** timed customer favours for small rewards ("Reboot ByteBank's box within 20 min: +$300").
+- **Contract negotiation:** when an offer arrives, choose one of 3 cards trading price, SLA and duration.
+
+### 21.5 Chapter re-sequencing (respect pillar #4), *proposed*
+
+| New # | Chapter | New systems |
+|---|---|---|
+| 0 | The Closet | Inspect, dispatch, install (tutorial) |
+| 1 | Server Room | Hiring, contracts |
+| 2 | Startup Colo | Power budgets, building racks/coolers, **auto-dispatch toggle** |
+| 3 | Colocation Floor | Hot/cold aisles, CRAC maintenance and HVAC role |
+| 4 | **Launch Week** *(new)* | Switches, uplinks and bandwidth, fiber cuts, network role |
+| 5 | Enterprise DC | UPS/generator/redundancy, electrician, **shifts, fatigue and morale** |
+| 6 | Cloud Region | Cyber villains, SOC, runbooks |
+| 7 | AI Wing | GPU racks, liquid cooling, demand response |
+
+- Tips fire at **teaching moments** (the first time a system matters), never as a timed burst.
+
+### 21.6 Automation earlier
+- In **Ch2**, a single toggle, *"Auto-send the best tech to hardware alarms"*, which requires hiring a Shift Lead (salary). Rule cards arrive in Ch4 and runbooks in Ch6.
+- **Idle specialists do proactive work:** HVAC techs run preventive maintenance and network engineers run cable audits. Badges show the value ("prevented 2 incidents today").
+
+### 21.7 Mastery and meta progression
+- **★★★ becomes a constraint challenge** the default bot does not meet (e.g. "≤ 2 techs", "never pause", "no server above 30°C", "PUE < 1.5").
+- **Career title** from total stars: Intern → Sysadmin → Architect → CTO.
+- **Achievements** (PRD §16 list) and **cosmetics only**: technician outfits, rack LEDs, NOC pets.
+- **Daily Challenge:** a date-seeded single-shift scenario that is the same for everyone. It needs no backend, thanks to the deterministic simulation. Results come as an emoji share line, e.g. "DataCenterMania #42 ★★☆ 99.93% 🔥🔥".
+- **Sandbox / Endless** unlocks after Ch2.
+
+### 21.8 Learning from failure
+- **Incident post-mortem card** after any outage longer than 10 game minutes: a what / why / prevent timeline, with a one-tap remedy where possible ("Order 2 spare disks").
+
+### 21.9 Juice
+- Money pops, confetti for a clean shift, technician speech bubbles, a streak counter (SLA-perfect hours), and gentle screen shake on criticals (off with reduced motion).
+
+### 21.10 Measurement
+- **Opt-in anonymous telemetry**, export-as-JSON first: chapter and shift starts/completions, quits mid-shift, time to first dispatch. Plus an in-game "Send feedback" link.
+- **5-player think-aloud playtests** per milestone, on desktop and phone.
+- **CI engagement guardrails** using the bot: shift length, quiet-time ratio, longest quiet stretch, and ★★★ not reached by the default bot.
+
+### 21.11 Early differentiator
+- Ship the cyber villains (*Script Kiddies*, *Captain Phish*) first as a self-contained **Hacker Weekend** event with the 3 micro-games from §9, before the full Ch6 cyber layer.
 
 ---
 
