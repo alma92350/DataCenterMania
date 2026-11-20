@@ -2,18 +2,19 @@ import type { Grid, TileKind, Vec } from './types';
 
 const CHAR_TO_TILE: Record<string, TileKind> = {
   ' ': 'void', '#': 'wall', '.': 'floor', '~': 'locked', S: 'storage', D: 'dock', N: 'noc',
-  R: 'floor', A: 'floor',
+  R: 'floor', A: 'floor', C: 'floor',
 };
 
 export interface ParsedMap {
   grid: Grid;
   racks: Vec[];
   coolers: Vec[];
+  cracs: Vec[];
 }
 
 /**
  * Map legend: '#' wall, '.' floor, '~' locked floor (future expansion), 'S' storage,
- * 'D' loading dock, 'N' NOC / staff room, 'R' rack, 'A' air conditioner, ' ' void.
+ * 'D' loading dock, 'N' NOC / staff room, 'R' rack, 'A' air conditioner, 'C' CRAC unit, ' ' void.
  */
 export function parseMap(rows: readonly string[]): ParsedMap {
   const h = rows.length;
@@ -21,6 +22,7 @@ export function parseMap(rows: readonly string[]): ParsedMap {
   const tiles: TileKind[] = [];
   const racks: Vec[] = [];
   const coolers: Vec[] = [];
+  const cracs: Vec[] = [];
   rows.forEach((row, y) => {
     if (row.length !== w) throw new Error(`map row ${y} has length ${row.length}, expected ${w}`);
     [...row].forEach((ch, x) => {
@@ -29,9 +31,10 @@ export function parseMap(rows: readonly string[]): ParsedMap {
       tiles.push(tile);
       if (ch === 'R') racks.push({ x, y });
       if (ch === 'A') coolers.push({ x, y });
+      if (ch === 'C') cracs.push({ x, y });
     });
   });
-  return { grid: { w, h, tiles }, racks, coolers };
+  return { grid: { w, h, tiles }, racks, coolers, cracs };
 }
 
 export const idx = (g: Grid, x: number, y: number): number => y * g.w + x;

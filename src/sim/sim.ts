@@ -8,6 +8,9 @@ import { updateTechs } from './jobs';
 import { checkEnd, checkLose } from './objectives';
 import { facilityPowerW, updatePower } from './power';
 import { updateThermal } from './thermal';
+import { updateCoolers } from './maintenance';
+import { updateNetwork } from './network';
+import { updateFatigue } from './fatigue';
 import type { GameState } from './types';
 
 /** Advances the world by exactly one game minute. Order matters and is part of the contract. */
@@ -15,12 +18,15 @@ export function step(s: GameState): void {
   if (s.progress.status !== 'playing') return;
   const dt = 1;
   runScriptedEvents(s);
+  updateNetwork(s, dt);
   updateDemand(s, dt);
   updatePower(s);
+  updateCoolers(s, dt);
   updateThermal(s, dt);
   rollFailures(s, dt);
   escalateAlarms(s);
   updateTechs(s, dt);
+  updateFatigue(s, dt);
   updateOrders(s);
   s.energyTodayKwh += (facilityPowerW(s) / 1000) * (dt / 60);
 

@@ -4,18 +4,18 @@ import { applyFault } from '../src/sim/failures';
 import { applyCommand } from '../src/sim/commands';
 import {
   alarmsPanel, contractsPanel, coolerModal, endScreen, goalsPanel, pauseMenu, rackLayout, rackModal, shopPanel,
-  startScreen, tabs, teamPanel, techStatus, topBar, visiblePanels,
+  networkPanel, startScreen, tabs, teamPanel, techStatus, topBar, visiblePanels,
 } from '../src/ui/views';
 import { DEFAULT_SETTINGS } from '../src/ui/storage';
 import type { ChapterId } from '../src/sim/types';
 
 describe('views', () => {
-  it.each(['ch0', 'ch1', 'ch2'] as ChapterId[])('render every panel for %s without throwing', (ch) => {
+  it.each(['ch0', 'ch1', 'ch2', 'ch3'] as ChapterId[])('render every panel for %s without throwing', (ch) => {
     const s = createGame(ch, 'sysadmin', 1);
     advance(s, 600);
     applyFault(s, s.devices[0]!, 'disk');
     const html = [
-      topBar(s, 1, 1), tabs(s, 'alarms'), alarmsPanel(s), teamPanel(s), contractsPanel(s), shopPanel(s), goalsPanel(s),
+      topBar(s, 1, 1), tabs(s, 'alarms'), alarmsPanel(s), teamPanel(s), contractsPanel(s), shopPanel(s), goalsPanel(s), networkPanel(s),
       rackModal(s, s.racks[0]!.id), coolerModal(s, s.coolers[0]!.id), pauseMenu(s, DEFAULT_SETTINGS), endScreen(s),
     ].join('');
     expect(html).toContain('Rack 1');
@@ -68,5 +68,21 @@ describe('views', () => {
     expect(html).toContain('data-chapter="ch0"');
     expect(html).not.toContain('data-chapter="ch1"');
     expect(startScreen({ ch0: { intern: 1 } }, DEFAULT_SETTINGS, true)).toContain('data-chapter="ch1"');
+  });
+
+  it('chapter 3 shows the network tab, aisle info and cooler maintenance', () => {
+    const s = createGame('ch3', 'sysadmin', 1);
+    advance(s, 120);
+    expect(visiblePanels(s)).toContain('network');
+    expect(networkPanel(s)).toContain('MetroFiber A');
+    expect(rackModal(s, s.racks[0]!.id)).toMatch(/Front faces|Rotate/);
+    const crac = s.coolers.find((c) => c.kind === 'crac')!;
+    expect(coolerModal(s, crac.id)).toContain('Change filter');
+    expect(teamPanel(s)).toContain('HVAC tech');
+  });
+
+  it('nightmare difficulty is locked until chapter 3 is beaten', () => {
+    expect(startScreen({}, DEFAULT_SETTINGS, false)).not.toContain('data-difficulty="nightmare"');
+    expect(startScreen({ ch3: { senior: 1 } }, DEFAULT_SETTINGS, false)).toContain('data-difficulty="nightmare"');
   });
 });

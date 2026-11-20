@@ -1,9 +1,11 @@
 import { chance } from '../core/rng';
-import { JOB_LABEL, JOB_WORK_MIN, RACK_CAPACITY_U } from '../data/catalog';
+import { JOB_LABEL, JOB_ROLES, JOB_WORK_MIN, MANAGER_SPECIALIST_RATE, RACK_CAPACITY_U } from '../data/catalog';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
 import { clearAlarms } from './alarms';
-import { accessTile, findPath, nearestTile } from './grid';
+import { accessTile, findPath, isWalkable, nearestTile } from './grid';
+import { mistakeFactor, staminaFactor } from './fatigue';
+import { restoreUplink } from './network';
 import { addLog, homeTile, makeCooler, makeRack, newId, showTip } from './state';
 import { blockedTiles, deviceById, isIdle, rackById, techById, techQueueLength } from './selectors';
 import type { GameState, Job, JobKind, PartId, ServerModelId, Tech, Vec } from './types';
@@ -18,6 +20,9 @@ export interface JobSpec {
   slot?: number;
   contractId?: string | null;
   coolerKind?: Job['coolerKind'];
+  coolerId?: string;
+  uplinkId?: string;
+  facing?: Job['facing'];
   workMin?: number;
 }
 
@@ -26,6 +31,7 @@ export function createJob(s: GameState, spec: JobSpec): Job {
     id: newId(s, 'j'), kind: spec.kind, rackId: spec.rackId ?? null, deviceId: spec.deviceId ?? null,
     techId: null, stage: 'queued', workLeft: spec.workMin ?? JOB_WORK_MIN[spec.kind], workTotal: spec.workMin ?? JOB_WORK_MIN[spec.kind], part: spec.part,
     site: { ...spec.site }, model: spec.model, slot: spec.slot, contractId: spec.contractId, coolerKind: spec.coolerKind,
+    coolerId: spec.coolerId, uplinkId: spec.uplinkId, facing: spec.facing,
   };
   if (spec.part) s.inventory[spec.part]--;
   s.jobs.push(job);
@@ -35,20 +41,24 @@ export function createJob(s: GameState, spec: JobSpec): Job {
 const tile = (p: Vec): Vec => ({ x: Math.round(p.x), y: Math.round(p.y) });
 const manhattan = (a: Vec, b: Vec) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
-/** Prefer idle techs close to the site, then the shortest queue. */
-export function bestTech(s: GameState, site: Vec): Tech {
-  const ranked = [...s.techs].sort((a, b) => {
-    const qa = techQueueLength(s, a);
-    const qb = techQueueLength(s, b);
-    if (qa !== qb) return qa - qb;
-    const skill = (t: Tech) => (t.role === 'manager' ? 0 : 3);
-    return manhattan(a.pos, site) - skill(a) - (manhattan(b.pos, site) - skill(b));
-  });
-  return ranked[0]!;
+/** Specialists only take their own kind of job; the manager can do anything (PRD §6.1). */
+export function canDo(t: Tech, kind: JobKind): boolean {
+  return t.role === 'manager' || JOB_ROLES[kind].includes(t.role);
 }
 
+/** Prefer rested specialists close to the site with a short queue; the manager is the fallback. */
+export function bestTech(s: GameState, site: Vec, kind: JobKind = 'reboot'): Tech {
+  const able = s.techs.filter((t) => canDo(t, kind) && !t.onBreak);
+  const pool = able.length ? able : s.techs.filter((t) => t.role === 'manager');
+  const score = (t: Tech) =>
+    techQueueLength(s, t) * 40 + manhattan(t.pos, site) + (t.role === 'manager' ? (kind in SPECIALIST ? 30 : 3) : 0) + t.fatigue * 0.2;
+  return [...pool].sort((a, b) => score(a) - score(b))[0]!;
+}
+
+const SPECIALIST: Partial<Record<JobKind, true>> = { serviceCooler: true, repairCooler: true, replaceSwitch: true, repairUplink: true };
+
 export function assignJob(s: GameState, job: Job, techId: string | 'best'): Tech {
-  const tech = techId === 'best' ? bestTech(s, job.site) : techById(s, techId);
+  const tech = techId === 'best' ? bestTech(s, job.site, job.kind) : techById(s, techId);
   if (!tech) throw new Error(`unknown tech ${techId}`);
   job.techId = tech.id;
   if (tech.jobId === null) startJob(s, tech, job);
@@ -62,8 +72,16 @@ function routeTo(s: GameState, tech: Tech, target: Vec): boolean {
   return true;
 }
 
+/** Rack work happens at the rack's front; everything else at any free neighbouring tile. */
 function siteAccess(s: GameState, job: Job): Vec | null {
-  return accessTile(s.grid, blockedTiles(s), job.site);
+  const blocked = blockedTiles(s);
+  const rack = rackById(s, job.rackId);
+  if (rack && job.kind !== 'buildRack') {
+    const front = { x: rack.pos.x, y: rack.pos.y + (rack.facing === 'S' ? 1 : -1) };
+    if (isWalkable(s.grid, blocked, front.x, front.y)) return front;
+  }
+  if (job.kind === 'repairUplink' && isWalkable(s.grid, blocked, job.site.x, job.site.y)) return job.site;
+  return accessTile(s.grid, blocked, job.site);
 }
 
 function startJob(s: GameState, tech: Tech, job: Job): void {
@@ -86,6 +104,10 @@ function failJob(s: GameState, tech: Tech, job: Job, why: string): void {
 
 function removeJob(s: GameState, job: Job, refund: boolean): void {
   if (refund && job.part) s.inventory[job.part]++;
+  if (job.kind === 'rotateRack') {
+    const rack = rackById(s, job.rackId);
+    if (rack) rack.maintenance = false;
+  }
   s.jobs = s.jobs.filter((j) => j.id !== job.id);
   const tech = techById(s, job.techId);
   if (tech && tech.jobId === job.id) {
@@ -102,9 +124,19 @@ export function cancelJob(s: GameState, jobId: string): boolean {
   return true;
 }
 
-function workRate(t: Tech): number {
+function workRate(t: Tech, kind: JobKind): number {
   const trait = traitOf(t.trait);
-  return (0.6 + 0.2 * t.skill) * (trait?.workMult ?? 1);
+  const offRole = t.role === 'manager' && kind in SPECIALIST ? MANAGER_SPECIALIST_RATE : 1;
+  return (0.6 + 0.2 * t.skill) * (trait?.workMult ?? 1) * staminaFactor(t) * offRole;
+}
+
+/** Puts a not-yet-started job back in the shared queue (e.g. its tech went on a break). */
+function releaseJob(s: GameState, tech: Tech, job: Job): void {
+  job.techId = null;
+  job.stage = 'queued';
+  tech.jobId = null;
+  tech.carrying = null;
+  routeTo(s, tech, homeTile(s));
 }
 
 function walkSpeed(t: Tech): number {
@@ -134,9 +166,20 @@ function walk(t: Tech, dt: number): number {
 export function updateTechs(s: GameState, dt: number): void {
   for (const tech of s.techs) {
     let time = dt;
-    if (tech.jobId === null) {
-      const next = s.jobs.find((j) => j.techId === tech.id && j.stage === 'queued');
-      if (next) startJob(s, tech, next);
+    const current = s.jobs.find((j) => j.id === tech.jobId);
+    if (tech.onBreak) {
+      // finish what is in your hands, hand back everything else, then rest
+      if (current && current.stage !== 'working') releaseJob(s, tech, current);
+      for (const j of s.jobs) if (j.techId === tech.id && j.stage === 'queued') j.techId = null;
+    }
+    if (tech.jobId === null && !tech.onBreak) {
+      const next =
+        s.jobs.find((j) => j.techId === tech.id && j.stage === 'queued') ??
+        s.jobs.find((j) => j.techId === null && j.stage === 'queued' && canDo(tech, j.kind));
+      if (next) {
+        next.techId = tech.id;
+        startJob(s, tech, next);
+      }
     }
     const job = s.jobs.find((j) => j.id === tech.jobId);
     if (!job) {
@@ -158,9 +201,13 @@ export function updateTechs(s: GameState, dt: number): void {
         if (tech.path.length) continue;
       }
       job.stage = 'working';
+      if (job.kind === 'rotateRack') {
+        const rack = rackById(s, job.rackId);
+        if (rack) rack.maintenance = true;
+      }
     }
     if (job.stage === 'working' && time > 0) {
-      job.workLeft -= time * workRate(tech);
+      job.workLeft -= time * workRate(tech, job.kind);
       if (job.workLeft <= 0) finishWork(s, tech, job);
     }
   }
@@ -168,7 +215,7 @@ export function updateTechs(s: GameState, dt: number): void {
 
 function finishWork(s: GameState, tech: Tech, job: Job): void {
   const diff = DIFFICULTIES[s.difficulty];
-  const mistake = diff.mistakeChance * (traitOf(tech.trait)?.mistakeMult ?? 1);
+  const mistake = diff.mistakeChance * (traitOf(tech.trait)?.mistakeMult ?? 1) * mistakeFactor(tech);
   if (!job.botched && chance(s.rng, mistake)) {
     job.botched = true;
     job.workLeft = JOB_WORK_MIN[job.kind] * 0.5;
@@ -185,11 +232,11 @@ function finishWork(s: GameState, tech: Tech, job: Job): void {
   tech.carrying = null;
   const home = homeTile(s);
   const next = s.jobs.find((j) => j.techId === tech.id && j.stage === 'queued');
-  if (next) startJob(s, tech, next);
+  if (next && !tech.onBreak) startJob(s, tech, next);
   else routeTo(s, tech, home);
 }
 
-const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker']);
+const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker', 'replaceSwitch', 'repairCooler', 'repairUplink']);
 
 /** Applies a finished job's effect on the world. */
 export function completeJob(s: GameState, job: Job): void {
@@ -235,12 +282,41 @@ export function completeJob(s: GameState, job: Job): void {
       break;
     case 'buildRack': {
       const budget = s.racks[0]?.powerBudgetW ?? 3000;
-      s.racks.push({ ...makeRack(s, job.site, budget), capacityU: RACK_CAPACITY_U });
+      s.racks.push({ ...makeRack(s, job.site, budget, job.facing ?? 'S'), capacityU: RACK_CAPACITY_U });
       break;
     }
     case 'placeCooler':
       s.coolers.push(makeCooler(s, job.coolerKind ?? 'portableAc', job.site));
       break;
+    case 'rotateRack': {
+      const rack = rackById(s, job.rackId);
+      if (rack) {
+        rack.facing = rack.facing === 'S' ? 'N' : 'S';
+        rack.maintenance = false;
+      }
+      break;
+    }
+    case 'serviceCooler':
+    case 'repairCooler': {
+      const c = s.coolers.find((x) => x.id === job.coolerId);
+      if (c) {
+        c.health = 1;
+        c.broken = false;
+      }
+      clearAlarms(s, (a) => (a.kind === 'filter' || a.kind === 'coolerDown') && a.coolerId === job.coolerId);
+      break;
+    }
+    case 'replaceSwitch': {
+      const rack = rackById(s, job.rackId);
+      if (rack) rack.switchFailed = false;
+      clearFor(['switch']);
+      break;
+    }
+    case 'repairUplink': {
+      const u = s.uplinks.find((x) => x.id === job.uplinkId);
+      if (u && !u.up) restoreUplink(s, u, false);
+      break;
+    }
   }
 }
 

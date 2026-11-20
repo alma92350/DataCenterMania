@@ -116,6 +116,37 @@ try {
       [...document.querySelectorAll('#tabs button, .speed button, .zoom button')].filter((b) => b.getBoundingClientRect().height < 36).length);
     check(small === 0, 'phone: touch targets are at least 36px tall');
   });
+  await session('chapter 3', { viewport: { width: 1366, height: 820 }, deviceScaleFactor: 1 }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 2 } }));
+    });
+    await page.reload();
+    await page.waitForSelector('[data-chapter="ch3"]');
+    check(true, 'chapter 3 is unlocked after chapter 2');
+    await page.click('[data-chapter="ch3"]');
+    await page.waitForSelector('.tip-card', { timeout: 5000 });
+    check((await page.textContent('.tip-card')).includes('exhaust'), 'mentor explains hot/cold aisles');
+    while (await page.isVisible('.tip-card')) await page.click('[data-action="dismissTip"]');
+    await page.click('#tabs [data-panel="network"]');
+    check((await page.textContent('#panel')).includes('MetroFiber A'), 'network tab lists the uplink');
+    await page.click('#tabs [data-panel="team"]');
+    check((await page.textContent('#panel')).includes('Network engineer') || (await page.textContent('#panel')).includes('HVAC tech'), 'team tab shows specialist candidates');
+    await page.keyboard.press('h');
+    await page.screenshot({ path: `${outDir}/ch3-heat.png` });
+    await page.keyboard.press('h');
+    const geo = await page.evaluate(() => {
+      const c = document.querySelector('#map');
+      const r = c.getBoundingClientRect();
+      return { x: r.x, y: r.y, w: c.clientWidth, h: c.clientHeight };
+    });
+    const scale = Math.min((geo.w - 32) / 25, (geo.h - 32) / 13);
+    const ox = (geo.w - 25 * scale) / 2;
+    const oy = (geo.h - 13 * scale) / 2;
+    await page.mouse.click(geo.x + ox + 3.5 * scale, geo.y + oy + 3.5 * scale);
+    await page.waitForSelector('.modal-card .slots', { timeout: 5000 });
+    check((await page.textContent('.modal-card')).includes('Front faces'), 'rack view shows facing and airflow');
+    await page.screenshot({ path: `${outDir}/ch3-rack.png` });
+  });
 } finally {
   server?.kill();
 }

@@ -1,18 +1,18 @@
-import { CONTRACT_GRACE_MIN, PARTS, SERVER_MODELS } from '../data/catalog';
+import { CONTRACT_GRACE_MIN, EXTRA_UPLINK, PARTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
 import { dayOf } from '../core/time';
 import { deliveryTime } from './economy';
-import { assignJob, cancelJob, createJob } from './jobs';
-import { isWalkable, tileAt } from './grid';
-import { addLog, homeTile, showTip, techFromCandidate } from './state';
-import { blockedTiles, contractById, deviceById, hasFeature, rackById, slotFree } from './selectors';
-import type { AlarmKind, Cooler, GameState, JobKind, PartId, ServerModelId, Vec } from './types';
+import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
+import { isWalkable, nearestTile, tileAt } from './grid';
+import { addLog, homeTile, newId, showTip, techFromCandidate } from './state';
+import { blockedTiles, contractById, deviceById, hasFeature, rackById, slotFree, techById } from './selectors';
+import type { AlarmKind, Cooler, Facing, GameState, JobKind, PartId, ServerModelId, Vec } from './types';
 
 type TechChoice = string | 'best';
 
 export type Command =
-  | { type: 'dispatch'; job: Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove'>; deviceId?: string; rackId?: string; techId: TechChoice }
+  | { type: 'dispatch'; job: DispatchJob; deviceId?: string; rackId?: string; uplinkId?: string; techId: TechChoice }
   | { type: 'install'; rackId: string; slot: number; model: ServerModelId; contractId: string | null; techId: TechChoice }
-  | { type: 'buildRack'; pos: Vec; techId: TechChoice }
+  | { type: 'buildRack'; pos: Vec; facing?: Facing; techId: TechChoice }
   | { type: 'placeCooler'; coolerKind: Exclude<Cooler['kind'], 'officeAc'>; pos: Vec; techId: TechChoice }
   | { type: 'cancelJob'; jobId: string }
   | { type: 'order'; part: PartId; qty: number }
@@ -23,15 +23,24 @@ export type Command =
   | { type: 'assign'; deviceId: string; contractId: string | null }
   | { type: 'setPower'; deviceId: string; on: boolean }
   | { type: 'toggleCooler'; coolerId: string; on: boolean }
-  | { type: 'ackAlarm'; alarmId: string };
+  | { type: 'ackAlarm'; alarmId: string }
+  | { type: 'serviceCooler'; coolerId: string; techId: TechChoice }
+  | { type: 'repairCooler'; coolerId: string; techId: TechChoice }
+  | { type: 'buyUplink' };
+
+export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink'>;
 
 export type CommandResult = { ok: true } | { ok: false; error: string };
 
 const ok = (): CommandResult => ({ ok: true });
 const fail = (error: string): CommandResult => ({ ok: false, error });
 
-export function suggestedJob(kind: AlarmKind): Extract<Command, { type: 'dispatch' }>['job'] | null {
+export function suggestedJob(kind: AlarmKind): DispatchJob | null {
   switch (kind) {
+    case 'switch':
+      return 'replaceSwitch';
+    case 'uplink':
+      return 'repairUplink';
     case 'disk':
     case 'dataloss':
       return 'swapDisk';
@@ -68,17 +77,55 @@ function buildable(s: GameState, pos: Vec): string | null {
   return null;
 }
 
+/** Cooler alarms are fixed with cooler commands rather than dispatch jobs. */
+export function suggestedCoolerJob(kind: AlarmKind): 'serviceCooler' | 'repairCooler' | null {
+  return kind === 'filter' ? 'serviceCooler' : kind === 'coolerDown' ? 'repairCooler' : null;
+}
+
+function dispatchJob(s: GameState, spec: JobSpec, techId: TechChoice): CommandResult {
+  if (techId !== 'best') {
+    const tech = techById(s, techId);
+    if (!tech) return fail('Unknown technician.');
+    if (!canDo(tech, spec.kind)) return fail(`${tech.name} is a ${ROLE_LABEL[tech.role]} and can\u2019t do that. Pick someone else.`);
+  }
+  assignJob(s, createJob(s, spec), techId);
+  return ok();
+}
+
 export function applyCommand(s: GameState, cmd: Command): CommandResult {
   if (s.progress.status !== 'playing') return fail('The chapter is over.');
   switch (cmd.type) {
     case 'dispatch': {
+      if (cmd.job === 'rotateRack') {
+        const rack = rackById(s, cmd.rackId ?? null);
+        if (!rack) return fail('Unknown rack.');
+        if (pendingFor(s, 'rotateRack', rack.id)) return fail('Someone is already on it.');
+        const flipped = { x: rack.pos.x, y: rack.pos.y + (rack.facing === 'S' ? -1 : 1) };
+        if (!isWalkable(s.grid, blockedTiles(s), flipped.x, flipped.y)) return fail('No room in front of the rack once rotated.');
+        return dispatchJob(s, { kind: 'rotateRack', rackId: rack.id, part: null, site: rack.pos }, cmd.techId);
+      }
+      if (cmd.job === 'replaceSwitch') {
+        const rack = rackById(s, cmd.rackId ?? null);
+        if (!rack) return fail('Unknown rack.');
+        if (!rack.switchFailed) return fail('That switch is fine.');
+        if (pendingFor(s, 'replaceSwitch', rack.id)) return fail('Someone is already on it.');
+        if (s.inventory.switch < 1) return fail('No spare switch in stock. Order one from the Shop.');
+        return dispatchJob(s, { kind: 'replaceSwitch', rackId: rack.id, part: 'switch', site: rack.pos }, cmd.techId);
+      }
+      if (cmd.job === 'repairUplink') {
+        const u = s.uplinks.find((x) => x.id === cmd.uplinkId);
+        if (!u) return fail('Unknown uplink.');
+        if (u.up) return fail('That uplink is working.');
+        if (s.jobs.some((j) => j.kind === 'repairUplink' && j.uplinkId === u.id)) return fail('Someone is already on it.');
+        const site = nearestTile(s.grid, 'dock', homeTile(s)) ?? homeTile(s);
+        return dispatchJob(s, { kind: 'repairUplink', uplinkId: u.id, part: null, site }, cmd.techId);
+      }
       if (cmd.job === 'resetBreaker') {
         const rack = rackById(s, cmd.rackId ?? null);
         if (!rack) return fail('Unknown rack.');
         if (!rack.tripped) return fail('That breaker is not tripped.');
         if (pendingFor(s, 'resetBreaker', rack.id)) return fail('Someone is already on it.');
-        assignJob(s, createJob(s, { kind: 'resetBreaker', rackId: rack.id, part: null, site: rack.pos }), cmd.techId);
-        return ok();
+        return dispatchJob(s, { kind: 'resetBreaker', rackId: rack.id, part: null, site: rack.pos }, cmd.techId);
       }
       const dev = deviceById(s, cmd.deviceId ?? null);
       if (!dev) return fail('Unknown server.');
@@ -93,8 +140,7 @@ export function applyCommand(s: GameState, cmd: Command): CommandResult {
       }
       const rack = rackById(s, dev.rackId)!;
       const workMin = cmd.job === 'swapDisk' && dev.faults.includes('dataloss') ? 60 : undefined;
-      assignJob(s, createJob(s, { kind: cmd.job, rackId: rack.id, deviceId: dev.id, part: need.part, site: rack.pos, workMin }), cmd.techId);
-      return ok();
+      return dispatchJob(s, { kind: cmd.job, rackId: rack.id, deviceId: dev.id, part: need.part, site: rack.pos, workMin }, cmd.techId);
     }
     case 'install': {
       const rack = rackById(s, cmd.rackId);
@@ -103,32 +149,33 @@ export function applyCommand(s: GameState, cmd: Command): CommandResult {
       if (!slotFree(s, rack, cmd.slot, model.u)) return fail('Those rack slots are not free.');
       if (s.inventory[cmd.model] < 1) return fail(`No ${model.name} in stock.`);
       if (cmd.contractId !== null && contractById(s, cmd.contractId)?.status !== 'active') return fail('Unknown contract.');
-      assignJob(s, createJob(s, {
+      return dispatchJob(s, {
         kind: 'install', rackId: rack.id, part: cmd.model, site: rack.pos, model: cmd.model, slot: cmd.slot, contractId: cmd.contractId,
-      }), cmd.techId);
-      return ok();
+      }, cmd.techId);
     }
     case 'buildRack': {
       if (!hasFeature(s, 'buildRack')) return fail('Building racks unlocks in a later chapter.');
       if (s.inventory.rack < 1) return fail('Buy a rack in the Shop first.');
       const why = buildable(s, cmd.pos);
       if (why) return fail(why);
-      assignJob(s, createJob(s, { kind: 'buildRack', part: 'rack', site: cmd.pos }), cmd.techId);
-      return ok();
+      return dispatchJob(s, { kind: 'buildRack', part: 'rack', site: cmd.pos, facing: cmd.facing ?? 'S' }, cmd.techId);
     }
     case 'placeCooler': {
       if (s.inventory[cmd.coolerKind] < 1) return fail(`Buy a ${PARTS[cmd.coolerKind].name} in the Shop first.`);
       const why = buildable(s, cmd.pos);
       if (why) return fail(why);
-      assignJob(s, createJob(s, { kind: 'placeCooler', part: cmd.coolerKind, site: cmd.pos, coolerKind: cmd.coolerKind }), cmd.techId);
-      return ok();
+      return dispatchJob(s, { kind: 'placeCooler', part: cmd.coolerKind, site: cmd.pos, coolerKind: cmd.coolerKind }, cmd.techId);
     }
     case 'cancelJob':
       return cancelJob(s, cmd.jobId) ? ok() : fail('Unknown job.');
     case 'order': {
       if (!hasFeature(s, 'shop')) return fail('The shop is closed.');
       if (!Number.isInteger(cmd.qty) || cmd.qty < 1) return fail('Quantity must be at least 1.');
-      if ((cmd.part === 'rack' && !hasFeature(s, 'buildRack')) || (cmd.part === 'wallAc' && !hasFeature(s, 'coolers'))) {
+      const gated: Partial<Record<PartId, Parameters<typeof hasFeature>[1]>> = {
+        rack: 'buildRack', wallAc: 'coolers', crac: 'maintenance', filter: 'maintenance', switch: 'network', coffee: 'fatigue',
+      };
+      const need = gated[cmd.part];
+      if (need && !hasFeature(s, need)) {
         return fail('Not available yet.');
       }
       const cost = PARTS[cmd.part].price * cmd.qty;
@@ -192,6 +239,26 @@ export function applyCommand(s: GameState, cmd: Command): CommandResult {
       const c = s.coolers.find((x) => x.id === cmd.coolerId);
       if (!c) return fail('Unknown cooler.');
       c.on = cmd.on;
+      return ok();
+    }
+    case 'serviceCooler':
+    case 'repairCooler': {
+      const c = s.coolers.find((x) => x.id === cmd.coolerId);
+      if (!c || c.kind === 'officeAc') return fail('Facilities look after that unit.');
+      if (cmd.type === 'repairCooler' && !c.broken) return fail('That cooler is not broken.');
+      if (cmd.type === 'serviceCooler' && c.broken) return fail('That cooler is broken: repair it instead.');
+      if (s.jobs.some((j) => (j.kind === 'serviceCooler' || j.kind === 'repairCooler') && j.coolerId === c.id)) return fail('Someone is already on it.');
+      const part = cmd.type === 'serviceCooler' ? 'filter' : null;
+      if (part && s.inventory.filter < 1) return fail('No spare filter in stock. Order one from the Shop.');
+      return dispatchJob(s, { kind: cmd.type, coolerId: c.id, part, site: c.pos }, cmd.techId);
+    }
+    case 'buyUplink': {
+      if (!hasFeature(s, 'network')) return fail('Networking unlocks in Chapter 3.');
+      if (s.uplinks.some((u) => u.name === EXTRA_UPLINK.name)) return fail('You already have a second route.');
+      if (s.cash < EXTRA_UPLINK.setupCost) return fail('Not enough cash.');
+      s.cash -= EXTRA_UPLINK.setupCost;
+      s.uplinks.push({ id: newId(s, 'u'), name: EXTRA_UPLINK.name, capacityGbps: EXTRA_UPLINK.capacityGbps, costPerDay: EXTRA_UPLINK.costPerDay, up: true, repairAt: null });
+      addLog(s, 'success', `${EXTRA_UPLINK.name} is live: +${EXTRA_UPLINK.capacityGbps} Gbps on a separate route.`);
       return ok();
     }
     case 'ackAlarm': {

@@ -15,7 +15,7 @@ export function deviceUp(s: GameState, d: Device): boolean {
   if (!d.poweredOn || d.thermalShutdown) return false;
   if (d.faults.some((f) => BLOCKING_FAULTS.has(f))) return false;
   const rack = rackById(s, d.rackId);
-  return !!rack && !rack.tripped;
+  return !!rack && !rack.tripped && !rack.switchFailed && !rack.maintenance;
 }
 
 export const unitsOf = (d: Device): number => SERVER_MODELS[d.model].units;

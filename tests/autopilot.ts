@@ -1,4 +1,5 @@
-import { applyCommand, suggestedJob } from '../src/sim/commands';
+import { applyCommand, suggestedCoolerJob, suggestedJob } from '../src/sim/commands';
+import { hourOf } from '../src/core/time';
 import { firstFreeSlot, activeContracts, contractAssignedUnits } from '../src/sim/selectors';
 import { PARTS } from '../src/data/catalog';
 import type { GameState } from '../src/sim/types';
@@ -9,14 +10,49 @@ export function autopilot(s: GameState): void {
     const job = suggestedJob(a.kind);
     if (!job) continue;
     if (s.jobs.some((j) => (a.deviceId ? j.deviceId === a.deviceId : j.rackId === a.rackId) && j.kind === job)) continue;
-    applyCommand(s, { type: 'dispatch', job, deviceId: a.deviceId ?? undefined, rackId: a.rackId, techId: 'best' });
+    applyCommand(s, { type: 'dispatch', job, deviceId: a.deviceId ?? undefined, rackId: a.rackId ?? undefined, uplinkId: a.uplinkId ?? undefined, techId: 'best' });
   }
-  for (const part of ['disk', 'psu'] as const) {
+  for (const a of s.alarms) {
+    const job = suggestedCoolerJob(a.kind);
+    if (!job || !a.coolerId || s.jobs.some((j) => j.coolerId === a.coolerId)) continue;
+    applyCommand(s, { type: job, coolerId: a.coolerId, techId: 'best' });
+  }
+  const spares: ('disk' | 'psu' | 'filter' | 'switch')[] = ['disk', 'psu'];
+  if (s.features.includes('maintenance')) spares.push('filter');
+  if (s.features.includes('network')) spares.push('switch');
+  for (const part of spares) {
     const incoming = s.orders.filter((o) => o.part === part).reduce((n, o) => n + o.qty, 0);
     if (s.inventory[part] + incoming < 2 && s.cash > 2000) applyCommand(s, { type: 'order', part, qty: 2 });
   }
   if (s.features.includes('hire') && s.techs.length < 2 && s.candidates[0]) {
     applyCommand(s, { type: 'hire', candidateId: s.candidates[0].id });
+  }
+  if (s.features.includes('roles')) {
+    for (const role of ['hvac', 'net'] as const) {
+      const cand = s.candidates.find((c) => c.role === role);
+      if (!s.techs.some((t) => t.role === role) && cand) applyCommand(s, { type: 'hire', candidateId: cand.id });
+    }
+  }
+  if (s.features.includes('fatigue') && s.coffeeLevel === 0 && s.cash > 9000 && !s.orders.some((o) => o.part === 'coffee')) {
+    applyCommand(s, { type: 'order', part: 'coffee', qty: 1 });
+  }
+  if (s.features.includes('network') && s.uplinks.length < 2 && s.cash > 6000) {
+    const fullTraffic = s.contracts
+      .filter((c) => c.status !== 'ended')
+      .reduce((sum, c) => sum + c.units * c.bandwidthPerUnit, 0);
+    const cap = s.uplinks.reduce((sum, u) => sum + u.capacityGbps, 0);
+    if (fullTraffic > cap * 0.8 || s.alarms.some((a) => a.kind === 'bandwidth' || a.kind === 'uplink')) applyCommand(s, { type: 'buyUplink' });
+  }
+  // fix the airflow at night, when rotating a rack hurts least
+  if (s.features.includes('aisles') && hourOf(s.minute) < 5) {
+    for (const a of s.racks) {
+      if (a.recirculation <= 0) continue;
+      const d = a.facing === 'S' ? 1 : -1;
+      const offender = [1, 2].map((k) => s.racks.find((r) => r.pos.x === a.pos.x && r.pos.y === a.pos.y + d * k)).find(Boolean);
+      if (offender && !s.jobs.some((j) => j.kind === 'rotateRack')) {
+        applyCommand(s, { type: 'dispatch', job: 'rotateRack', rackId: offender.id, techId: 'best' });
+      }
+    }
   }
   const unfilled = (c: GameState['contracts'][number]) =>
     c.units + 1 - contractAssignedUnits(s, c.id) - s.jobs.filter((j) => j.kind === 'install' && j.contractId === c.id).length;

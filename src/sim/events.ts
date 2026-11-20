@@ -1,5 +1,6 @@
 import { CHAPTERS, type ScriptedAction } from '../data/chapters';
 import { applyFault } from './failures';
+import { cutUplink } from './network';
 import { addLog, makeContract, showTip } from './state';
 import type { GameState } from './types';
 
@@ -28,6 +29,17 @@ function run(s: GameState, a: ScriptedAction): void {
     case 'failures':
       s.failuresEnabled = a.enabled;
       break;
+    case 'filter': {
+      const c = s.coolers[a.cooler];
+      if (c) c.health = Math.min(c.health, a.health);
+      break;
+    }
+    case 'cutUplink': {
+      const u = s.uplinks[a.uplink];
+      if (a.text) addLog(s, 'story', a.text);
+      if (u) cutUplink(s, u);
+      break;
+    }
   }
 }
 

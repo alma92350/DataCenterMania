@@ -112,3 +112,8 @@ export function isUnlocked(p: Progress, chapter: ChapterId): boolean {
 export function bestStars(p: Progress, chapter: ChapterId): number {
   return Math.max(0, ...Object.values(p[chapter] ?? {}).map((v) => v ?? 0));
 }
+
+/** On-Call Nightmare unlocks once Chapter 3 is won on any difficulty (PRD §12.1). */
+export function isDifficultyUnlocked(p: Progress, d: DifficultyId): boolean {
+  return d !== 'nightmare' || bestStars(p, 'ch3') > 0;
+}

@@ -1,4 +1,4 @@
-import type { Cooler, JobKind, PartId, ServerModelId } from '../sim/types';
+import type { Cooler, JobKind, PartId, ServerModelId, TechRole } from '../sim/types';
 
 export interface ServerModel {
   id: ServerModelId;
@@ -30,12 +30,17 @@ export const PARTS: Record<PartId, PartInfo> = {
   rack: { id: 'rack', name: '42U rack', price: 2000, deliveryMin: 240, icon: '🗃️' },
   portableAc: { id: 'portableAc', name: 'Portable AC (2 kW)', price: 600, deliveryMin: 60, icon: '❄️' },
   wallAc: { id: 'wallAc', name: 'Wall AC unit (8 kW)', price: 4000, deliveryMin: 240, icon: '🧊' },
+  crac: { id: 'crac', name: 'CRAC unit (15 kW)', price: 9000, deliveryMin: 360, icon: '🏭' },
+  filter: { id: 'filter', name: 'CRAC air filter', price: 90, deliveryMin: 90, icon: '🧻' },
+  switch: { id: 'switch', name: 'Top-of-rack switch', price: 450, deliveryMin: 120, icon: '🔀' },
+  coffee: { id: 'coffee', name: 'Coffee machine upgrade', price: 1500, deliveryMin: 60, icon: '☕' },
 };
 
 export const COOLERS: Record<Cooler['kind'], { capacityKw: number; powerW: number; radius: number; name: string }> = {
   officeAc: { capacityKw: 1.6, powerW: 0, radius: 8, name: 'Office AC' },
   portableAc: { capacityKw: 2, powerW: 700, radius: 4, name: 'Portable AC' },
   wallAc: { capacityKw: 8, powerW: 2500, radius: 7, name: 'Wall AC' },
+  crac: { capacityKw: 15, powerW: 4500, radius: 9, name: 'CRAC unit' },
 };
 
 /** Hands-on work duration in game minutes (PRD §3.1 buckets). */
@@ -48,6 +53,11 @@ export const JOB_WORK_MIN: Record<JobKind, number> = {
   remove: 20,
   placeCooler: 30,
   buildRack: 180,
+  rotateRack: 60,
+  serviceCooler: 20,
+  repairCooler: 90,
+  replaceSwitch: 20,
+  repairUplink: 90,
 };
 
 export const JOB_LABEL: Record<JobKind, string> = {
@@ -59,7 +69,26 @@ export const JOB_LABEL: Record<JobKind, string> = {
   remove: 'Remove server',
   placeCooler: 'Set up cooling',
   buildRack: 'Build rack',
+  rotateRack: 'Rotate rack',
+  serviceCooler: 'Change filter',
+  repairCooler: 'Repair cooler',
+  replaceSwitch: 'Replace switch',
+  repairUplink: 'Splice fiber',
 };
+
+/**
+ * Which specialists may take a job (PRD §6.1). The manager can do anything,
+ * but works slower outside basic hardware jobs.
+ */
+export const JOB_ROLES: Record<JobKind, TechRole[]> = {
+  reboot: ['hw'], resetBreaker: ['hw'], swapDisk: ['hw'], replacePsu: ['hw'], install: ['hw'], remove: ['hw'],
+  buildRack: ['hw'], rotateRack: ['hw'], placeCooler: ['hw', 'hvac'],
+  serviceCooler: ['hvac'], repairCooler: ['hvac'], replaceSwitch: ['net'], repairUplink: ['net'],
+};
+
+export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer' };
+/** Manager work-speed factor on specialist (non-hardware) jobs. */
+export const MANAGER_SPECIALIST_RATE = 0.5;
 
 export const RACK_CAPACITY_U = 42;
 export const RACK_RENT_PER_DAY = 40;
@@ -79,6 +108,24 @@ export const THERMAL = {
   derateFrom: 25, // coolers lose capacity above this ambient temperature...
   deratePerDeg: 0.06, // ...6% per °C
 };
+
+/** Hot/cold aisles: exhaust of a rack blowing into another rack's intake (PRD §4.3). */
+export const AISLES = { reach: 2, baseDeg: 3, perKwDeg: 2.5, maxDeg: 15 } as const;
+
+/** Cooler filters clog over time; dirty coolers lose capacity and eventually break. */
+export const MAINTENANCE = { filterWearPerDay: 0.4, filterAlarmBelow: 0.4, minEfficiency: 0.5, breakPerDayAtZero: 2 } as const;
+
+export const NETWORK = { switchFailPerDay: 0.03, uplinkCutPerDay: 0.04, ispRepairMin: 480, warnRatio: 0.9 } as const;
+
+/** Second ISP uplink, bought from the Network tab. */
+export const EXTRA_UPLINK = { name: 'SkyLink Fiber B (separate route)', capacityGbps: 15, setupCost: 3500, costPerDay: 220 } as const;
+
+export const FATIGUE = {
+  workPerMin: 0.11, walkPerMin: 0.06, restPerMin: 0.35, idlePerMin: 0.05,
+  tiredAbove: 60, breakAt: 90, backToWorkBelow: 25, tiredWorkMult: 0.8, tiredMistakeMult: 2,
+} as const;
+
+export const MORALE = { base: 65, perCoffee: 12, fatiguePenalty: 0.4, driftPerMin: 0.02, quitBelow: 20, quitChance: 0.4 } as const;
 
 /** Base failure probability per server per game day at reference temperature. */
 export const FAILURE_PER_DAY = { disk: 0.12, psu: 0.05, hung: 0.08 } as const;

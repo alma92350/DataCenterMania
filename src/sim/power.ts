@@ -6,7 +6,7 @@ import type { Device, GameState } from './types';
 
 export function devicePowerW(s: GameState, d: Device): number {
   const rack = rackById(s, d.rackId);
-  if (!d.poweredOn || d.thermalShutdown || !rack || rack.tripped) return 0;
+  if (!d.poweredOn || d.thermalShutdown || !rack || rack.tripped || rack.maintenance) return 0;
   if (d.faults.includes('psu')) return 0;
   const m = SERVER_MODELS[d.model];
   if (d.faults.includes('hung')) return m.idleW;

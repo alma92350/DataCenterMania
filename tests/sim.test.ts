@@ -88,6 +88,7 @@ describe('simulation loop', () => {
 describe('balance: a competent player beats every chapter (autopilot bot)', () => {
   const cases: [ChapterId, DifficultyId][] = [
     ['ch0', 'intern'], ['ch0', 'sysadmin'], ['ch1', 'sysadmin'], ['ch1', 'senior'], ['ch2', 'sysadmin'],
+    ['ch3', 'sysadmin'], ['ch3', 'senior'],
   ];
   it.each(cases)('%s on %s', (chapter, difficulty) => {
     let wins = 0;
@@ -97,6 +98,11 @@ describe('balance: a competent player beats every chapter (autopilot bot)', () =
 
   it('doing nothing in chapter 1 does not win', () => {
     const s = play('ch1', 'sysadmin', 1, false);
+    expect(s.progress.status).toBe('lost');
+  });
+
+  it('doing nothing in chapter 3 does not win', () => {
+    const s = play('ch3', 'sysadmin', 1, false);
     expect(s.progress.status).toBe('lost');
   });
 });

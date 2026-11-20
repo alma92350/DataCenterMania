@@ -1,4 +1,4 @@
-import { ESCALATION_MIN } from '../data/catalog';
+import { COOLERS, ESCALATION_MIN } from '../data/catalog';
 import { DIFFICULTIES } from '../data/difficulty';
 import { addLog, newId, showTip } from './state';
 import { deviceById, rackById } from './selectors';
@@ -13,7 +13,17 @@ export const ALARM_TEXT: Record<AlarmKind, string> = {
   overheat: 'Rack overheating',
   breaker: 'Breaker tripped (rack down)',
   powerHigh: 'Rack power above 90% of budget',
+  filter: 'Cooler filter clogged',
+  coolerDown: 'Cooler broken down',
+  switch: 'Top-of-rack switch failed (rack offline)',
+  uplink: 'Fiber uplink cut',
+  bandwidth: 'Uplink bandwidth exhausted',
 };
+
+export interface AlarmTarget {
+  coolerId?: string;
+  uplinkId?: string;
+}
 
 export function escalationDelay(s: GameState, severity: Severity): number | null {
   const mult = DIFFICULTIES[s.difficulty].escalation;
@@ -23,6 +33,12 @@ export function escalationDelay(s: GameState, severity: Severity): number | null
 }
 
 export function alarmLabel(s: GameState, a: Alarm): string {
+  if (a.coolerId) {
+    const c = s.coolers.find((x) => x.id === a.coolerId);
+    return `${ALARM_TEXT[a.kind]} · ${c ? COOLERS[c.kind].name : 'Cooler'}`;
+  }
+  if (a.uplinkId) return `${ALARM_TEXT[a.kind]} · ${s.uplinks.find((u) => u.id === a.uplinkId)?.name ?? 'Uplink'}`;
+  if (a.rackId === null) return ALARM_TEXT[a.kind];
   const rack = rackById(s, a.rackId);
   const rackName = rack ? `Rack ${s.racks.indexOf(rack) + 1}` : 'Rack ?';
   const dev = deviceById(s, a.deviceId);
@@ -38,9 +54,14 @@ function flag(s: GameState, a: Alarm): void {
 
 /** Raises an alarm, or updates the severity of the matching open one. */
 export function raiseAlarm(
-  s: GameState, kind: AlarmKind, rackId: string, deviceId: string | null, severity: Severity, escalateAfter: number | null,
+  s: GameState, kind: AlarmKind, rackId: string | null, deviceId: string | null, severity: Severity, escalateAfter: number | null,
+  target: AlarmTarget = {},
 ): Alarm {
-  const existing = s.alarms.find((a) => a.kind === kind && a.rackId === rackId && a.deviceId === deviceId);
+  const coolerId = target.coolerId ?? null;
+  const uplinkId = target.uplinkId ?? null;
+  const existing = s.alarms.find(
+    (a) => a.kind === kind && a.rackId === rackId && a.deviceId === deviceId && (a.coolerId ?? null) === coolerId && (a.uplinkId ?? null) === uplinkId,
+  );
   if (existing) {
     if (severity > existing.severity) {
       existing.severity = severity;
@@ -49,11 +70,11 @@ export function raiseAlarm(
     return existing;
   }
   const alarm: Alarm = {
-    id: newId(s, 'a'), kind, severity, rackId, deviceId, raisedAt: s.minute,
+    id: newId(s, 'a'), kind, severity, rackId, deviceId, coolerId, uplinkId, raisedAt: s.minute,
     escalateAt: escalateAfter === null ? null : s.minute + escalateAfter, acknowledged: false,
   };
   s.alarms.push(alarm);
-  if (kind !== 'powerHigh') s.stats.incidents++;
+  if (kind !== 'powerHigh' && kind !== 'bandwidth') s.stats.incidents++;
   addLog(s, 'alarm', `${SEVERITY_LABEL[severity]}: ${alarmLabel(s, alarm)}`);
   flag(s, alarm);
   showTip(s, 'firstAlarm');

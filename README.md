@@ -2,7 +2,7 @@
 
 A top-down data center management game for desktop and mobile browsers. You start with one rack in a broom closet and keep machines alive, keep customers happy, and send the right technician to the right rack at the right moment.
 
-**Play it:** https://alma92350.github.io/DataCenterMania/ (deployed by GitHub Pages on every push to `main`)
+**Play it:** https://alma92350.github.io/DataCenterMania/ (redeployed automatically: every push runs the tests, builds, and publishes to the `gh-pages` branch)
 
 Free, no ads, works offline (PWA). See the full design in [`docs/PRD.md`](docs/PRD.md).
 
@@ -34,10 +34,11 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 
 | Area | Implemented |
 |------|-------------|
-| Chapters | 0 *The Closet* (tutorial), 1 *Server Room*, 2 *Startup Colo*, each with ★/★★/★★★ goals |
-| Difficulty | Intern, Sysadmin, Senior Engineer (all multipliers in `src/data/difficulty.ts`) |
+| Chapters | 0 *The Closet* (tutorial), 1 *Server Room*, 2 *Startup Colo*, 3 *Colocation Floor*, each with ★/★★/★★★ goals |
+| Difficulty | Intern, Sysadmin, Senior Engineer, On-Call Nightmare (unlocked by beating Ch3); multipliers in `src/data/difficulty.ts` |
 | Simulation | Demand curves, SLA with onboarding grace + setup fee, rack power budgets and breakers, thermal model with hot-weather cooler derating, temperature-driven failures (×2 per +10 °C), escalating alarms (disk → data loss), incident director |
-| Technicians | Hire/fire, skills, traits, A* pathfinding, visible job chain (storage → rack → work), botched jobs, job queues |
+| Chapter 3 systems | Hot/cold aisles (rack facing, exhaust recirculation, rotate racks), CRAC units with clogging filters and breakdowns, top-of-rack switch failures, ISP uplinks with bandwidth limits and fiber cuts, second-route uplink |
+| Technicians | Roles (HW, HVAC, network) with the manager as a slow generalist, fatigue, breaks, morale, quitting, coffee machine upgrades, hire/fire, skills, traits, A* pathfinding, visible job chain (storage → rack → work), botched jobs, job queues |
 | Economy | Daily settlement (revenue, penalties, salaries, electricity with PUE, rent), shop with delivery times, contract offers that scale with reputation |
 | UX | Progressive disclosure, mentor tips, colour-blind-safe alarm shapes, auto-pause, night skip, heat/power overlays, responsive desktop sidebar / mobile bottom sheet, autosave + continue |
 

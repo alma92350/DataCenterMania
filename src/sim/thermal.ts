@@ -1,8 +1,8 @@
-import { COOLERS, THERMAL } from '../data/catalog';
+import { AISLES, COOLERS, MAINTENANCE, THERMAL } from '../data/catalog';
 import { clearAlarms, raiseAlarm } from './alarms';
 import { addLog, showTip } from './state';
 import { devicesInRack } from './selectors';
-import type { GameState, Rack } from './types';
+import type { Cooler, GameState, Rack } from './types';
 
 const dist = (a: Rack['pos'], b: Rack['pos']) => Math.hypot(a.x - b.x, a.y - b.y);
 
@@ -11,11 +11,42 @@ export function coolerCapacityKw(s: GameState, nominalKw: number): number {
   return nominalKw * Math.max(0.3, 1 - Math.max(0, s.ambient - THERMAL.derateFrom) * THERMAL.deratePerDeg);
 }
 
+/** Dirty filters cut capacity; broken or switched-off coolers give nothing. */
+export function coolerEffectiveKw(s: GameState, c: Cooler): number {
+  if (!c.on || c.broken) return 0;
+  const condition = MAINTENANCE.minEfficiency + (1 - MAINTENANCE.minEfficiency) * c.health;
+  return coolerCapacityKw(s, c.capacityKw) * condition;
+}
+
+const frontDir = (r: Rack) => (r.facing === 'S' ? 1 : -1);
+
+/**
+ * Hot/cold aisles (PRD §4.2): a rack whose intake faces the back of another (heat-producing) rack
+ * within reach breathes its exhaust. Rows should face front-to-front and back-to-back.
+ */
+export function computeRecirculation(s: GameState): Map<string, number> {
+  const out = new Map<string, number>(s.racks.map((r) => [r.id, 0]));
+  if (!s.features.includes('aisles')) return out;
+  for (const a of s.racks) {
+    const d = frontDir(a);
+    let deg = 0;
+    for (let k = 1; k <= AISLES.reach; k++) {
+      const b = s.racks.find((r) => r.pos.x === a.pos.x && r.pos.y === a.pos.y + d * k);
+      if (!b) continue;
+      // b's back points at a when both face the same way
+      if (b.facing === a.facing && b.loadW > 0) deg += AISLES.baseDeg + AISLES.perKwDeg * (b.loadW / 1000);
+      break; // the nearest rack blocks anything behind it
+    }
+    out.set(a.id, Math.min(AISLES.maxDeg, deg));
+  }
+  return out;
+}
+
 /** Cooling (kW) each rack receives, plus whether any cooler reaches it. */
 export function coolingByRack(s: GameState): Map<string, { kw: number; reached: boolean }> {
   const out = new Map(s.racks.map((r) => [r.id, { kw: 0, reached: false }]));
   for (const c of s.coolers) {
-    if (!c.on) continue;
+    if (!c.on || c.broken) continue;
     const radius = COOLERS[c.kind].radius;
     const inRange = s.racks.filter((r) => dist(r.pos, c.pos) <= radius);
     const weights = inRange.map((r) => (1 / (1 + dist(r.pos, c.pos))) * (r.loadW / 1000));
@@ -25,7 +56,7 @@ export function coolingByRack(s: GameState): Map<string, { kw: number; reached: 
       entry.reached = true;
       if (total > 0) {
         const efficiency = 1 - (dist(r.pos, c.pos) / (radius + 1)) * 0.4;
-        entry.kw += coolerCapacityKw(s, c.capacityKw) * (weights[i]! / total) * efficiency;
+        entry.kw += coolerEffectiveKw(s, c) * (weights[i]! / total) * efficiency;
       }
     });
   }
@@ -36,13 +67,15 @@ export function rackTargetTemp(s: GameState, rack: Rack, cooling: { kw: number; 
   const heatKw = rack.loadW / 1000;
   const excess = Math.max(0, heatKw - cooling.kw);
   const base = cooling.reached ? Math.min(THERMAL.coolTarget, s.ambient) : s.ambient;
-  return base + THERMAL.kPerKw * excess;
+  return base + THERMAL.kPerKw * excess + rack.recirculation;
 }
 
 export function updateThermal(s: GameState, dt: number): void {
   const cooling = coolingByRack(s);
+  const recirculation = computeRecirculation(s);
   const alpha = 1 - Math.exp(-dt / THERMAL.tau);
   for (const rack of s.racks) {
+    rack.recirculation = recirculation.get(rack.id) ?? 0;
     const target = rackTargetTemp(s, rack, cooling.get(rack.id)!);
     rack.temp += (target - rack.temp) * alpha;
     const devices = devicesInRack(s, rack.id);

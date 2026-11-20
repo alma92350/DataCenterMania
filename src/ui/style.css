@@ -256,3 +256,12 @@ body.at-start #topbar, body.at-start #stage, body.at-start #sidebar { visibility
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- chapter 3 ---------- */
+.banner.warn { background: color-mix(in srgb, var(--warn) 14%, var(--panel)); border: 1px solid var(--warn); }
+.banner.info { background: var(--panel-2); border: 1px solid var(--line); }
+.banner > span { flex: 1 1 200px; }
+.bar.mini { flex: 1; max-width: 120px; margin-top: 0; }
+.bar.big { height: 10px; margin: 8px 0; }
+.vitals { gap: 6px; }
+.diff.locked { cursor: not-allowed; }

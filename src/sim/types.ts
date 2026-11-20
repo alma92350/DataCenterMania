@@ -20,11 +20,15 @@ export interface Grid {
   tiles: TileKind[]; // row-major, index = y * w + x
 }
 
-export type DifficultyId = 'intern' | 'sysadmin' | 'senior';
-export type ChapterId = 'ch0' | 'ch1' | 'ch2';
-export type FeatureFlag = 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote';
+export type DifficultyId = 'intern' | 'sysadmin' | 'senior' | 'nightmare';
+export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3';
+export type FeatureFlag =
+  | 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote'
+  | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance';
 
-export type PartId = 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc';
+export type PartId =
+  | 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc'
+  | 'crac' | 'filter' | 'switch' | 'coffee';
 export type ServerModelId = 'server1u' | 'server2u';
 
 export type FaultKind = 'disk' | 'dataloss' | 'psu' | 'hung';
@@ -41,6 +45,9 @@ export interface Device {
   load: number; // 0..1, computed each tick
 }
 
+/** Direction the rack's front (cold-air intake) faces. Exhaust leaves the back. */
+export type Facing = 'N' | 'S';
+
 export interface Rack {
   id: string;
   pos: Vec;
@@ -49,18 +56,28 @@ export interface Rack {
   tripped: boolean;
   temp: number;
   loadW: number; // computed
+  facing: Facing;
+  /** Top-of-rack switch failed: every server in the rack loses network. */
+  switchFailed: boolean;
+  /** Being rotated / serviced: servers are offline. */
+  maintenance: boolean;
+  /** °C of hot exhaust recirculated into this rack's intake (computed). */
+  recirculation: number;
 }
 
 export interface Cooler {
   id: string;
-  kind: 'officeAc' | 'portableAc' | 'wallAc';
+  kind: 'officeAc' | 'portableAc' | 'wallAc' | 'crac';
   pos: Vec;
   capacityKw: number;
   on: boolean;
   powerW: number;
+  /** Filter condition 1 (clean) .. 0 (clogged). Only degrades with the 'maintenance' feature. */
+  health: number;
+  broken: boolean;
 }
 
-export type TechRole = 'manager' | 'hw';
+export type TechRole = 'manager' | 'hw' | 'hvac' | 'net';
 
 export interface Tech {
   id: string;
@@ -74,11 +91,17 @@ export interface Tech {
   jobId: string | null;
   carrying: PartId | null;
   trait: string | null;
+  /** 0 (fresh) .. 100 (exhausted). */
+  fatigue: number;
+  /** 0 (miserable) .. 100 (happy). */
+  morale: number;
+  onBreak: boolean;
 }
 
 export interface Candidate {
   id: string;
   name: string;
+  role: TechRole;
   skill: number;
   speed: number;
   salaryPerDay: number;
@@ -93,7 +116,12 @@ export type JobKind =
   | 'install'
   | 'remove'
   | 'buildRack'
-  | 'placeCooler';
+  | 'placeCooler'
+  | 'rotateRack'
+  | 'serviceCooler'
+  | 'repairCooler'
+  | 'replaceSwitch'
+  | 'repairUplink';
 
 export type JobStage = 'queued' | 'toStorage' | 'toSite' | 'working' | 'done';
 
@@ -113,17 +141,24 @@ export interface Job {
   slot?: number;
   contractId?: string | null;
   coolerKind?: Cooler['kind'];
+  coolerId?: string;
+  uplinkId?: string;
+  facing?: Facing;
   botched?: boolean;
 }
 
-export type AlarmKind = 'disk' | 'dataloss' | 'psu' | 'hung' | 'overheat' | 'breaker' | 'powerHigh';
+export type AlarmKind =
+  | 'disk' | 'dataloss' | 'psu' | 'hung' | 'overheat' | 'breaker' | 'powerHigh'
+  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth';
 
 export interface Alarm {
   id: string;
   kind: AlarmKind;
   severity: Severity;
-  rackId: string;
+  rackId: string | null;
   deviceId: string | null;
+  coolerId?: string | null;
+  uplinkId?: string | null;
   raisedAt: number;
   escalateAt: number | null;
   acknowledged: boolean;
@@ -141,6 +176,8 @@ export interface Contract {
   penaltyPerBreach: number;
   durationDays: number;
   profile: DemandProfileId;
+  /** Gbps of uplink bandwidth per compute unit at full demand. */
+  bandwidthPerUnit: number;
   status: 'offered' | 'active' | 'ended';
   startDay: number | null;
   /** Minute SLA measurement started (null = still onboarding). */
@@ -153,6 +190,16 @@ export interface Contract {
   breaches: number;
   totalMinutes: number;
   totalOkMinutes: number;
+}
+
+export interface Uplink {
+  id: string;
+  name: string;
+  capacityGbps: number;
+  costPerDay: number;
+  up: boolean;
+  /** When the ISP fixes a cut on its own (null = not cut). */
+  repairAt: number | null;
 }
 
 export interface Order {
@@ -177,6 +224,7 @@ export interface DayReport {
   salaries: number;
   electricity: number;
   rent: number;
+  network: number;
   net: number;
   slaMet: number;
   slaBreached: number;
@@ -206,6 +254,10 @@ export interface GameState {
   racks: Rack[];
   devices: Device[];
   coolers: Cooler[];
+  uplinks: Uplink[];
+  /** Gbps used right now (computed). */
+  bandwidthUsed: number;
+  coffeeLevel: number; // 0 = sad office coffee, 1+ = upgrades
   techs: Tech[];
   candidates: Candidate[];
   jobs: Job[];

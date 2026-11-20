@@ -1,23 +1,23 @@
 import type { Speed } from '../core/time';
 import { PARTS } from '../data/catalog';
-import { applyCommand, suggestedJob, type Command } from '../sim/commands';
+import { applyCommand, suggestedCoolerJob, suggestedJob, type Command, type DispatchJob } from '../sim/commands';
 import { step } from '../sim/sim';
 import { createGame } from '../sim/state';
 import { contractAssignedUnits, contractById, firstFreeSlot, rackById } from '../sim/selectors';
 import { tileAt } from '../sim/grid';
-import type { GameState, LogEntry, PartId, ServerModelId } from '../sim/types';
+import type { Facing, GameState, LogEntry, PartId, ServerModelId } from '../sim/types';
 import { clampCamera, createCamera, fitCamera, panBy, screenToWorld, zoomAt } from '../render/camera';
 import { drawFrame, techColor, type Overlay } from '../render/renderer';
 import { Sound } from './audio';
 import { effectiveSpeed, minutesToAdvance, shouldAutoPause } from './clock';
 import { Persistence, type Settings } from './storage';
 import {
-  alarmsPanel, contractsPanel, coolerModal, endScreen, goalsPanel, pauseMenu, rackModal, shopPanel, startScreen, tabs,
+  alarmsPanel, contractsPanel, coolerModal, endScreen, goalsPanel, networkPanel, pauseMenu, rackModal, shopPanel, startScreen, tabs,
   teamPanel, tipCard, topBar, visiblePanels, type PanelId,
 } from './views';
 
 type Modal = { kind: 'rack'; id: string } | { kind: 'cooler'; id: string } | { kind: 'menu' } | { kind: 'end' } | null;
-type BuildMode = { part: Extract<PartId, 'rack' | 'portableAc' | 'wallAc'> } | null;
+type BuildMode = { part: Extract<PartId, 'rack' | 'portableAc' | 'wallAc' | 'crac'>; facing: Facing } | null;
 
 const $ = <T extends HTMLElement>(sel: string): T => {
   const el = document.querySelector<T>(sel);
@@ -172,7 +172,7 @@ export class App {
     if (!visiblePanels(s).includes(this.panel)) this.panel = 'alarms';
     this.html('#topbar', topBar(s, this.speed, effectiveSpeed(this.speed, s, this.settings.nightSkip)), force);
     this.html('#tabs', tabs(s, this.panel), force);
-    const panelHtml = { alarms: alarmsPanel, team: teamPanel, contracts: contractsPanel, shop: shopPanel, goals: goalsPanel }[this.panel](s);
+    const panelHtml = { alarms: alarmsPanel, team: teamPanel, contracts: contractsPanel, network: networkPanel, shop: shopPanel, goals: goalsPanel }[this.panel](s);
     this.html('#panel', panelHtml, force);
     document.body.classList.toggle('sheet-open', this.sheetOpen);
     this.paintTechDots(s);
@@ -190,7 +190,9 @@ export class App {
 
     this.html('#tip', this.tips.length ? tipCard(this.tips[0]!) : '', force);
     this.html('#buildbar', this.build
-      ? `<div class="buildbar">Tap a free floor tile to place: <b>${PARTS[this.build.part].name}</b> <button data-action="cancelBuild">Cancel</button></div>`
+      ? `<div class="buildbar">Tap a free floor tile: <b>${PARTS[this.build.part].name}</b>
+          ${this.build.part === 'rack' && s.features.includes('aisles') ? `<button data-action="buildFacing">Front ${this.build.facing === 'S' ? '⬇️ south' : '⬆️ north'}</button>` : ''}
+          <button data-action="cancelBuild">Cancel</button></div>`
       : '', force);
   }
 
@@ -297,10 +299,19 @@ export class App {
     switch (d.action) {
       case 'fix': {
         const alarm = s.alarms.find((a) => a.id === d.alarm);
-        const job = alarm && suggestedJob(alarm.kind);
-        if (!alarm || !job) return;
+        if (!alarm) return;
         const techId = el.parentElement?.querySelector<HTMLSelectElement>('.tech-pick')?.value ?? 'best';
-        this.run({ type: 'dispatch', job, deviceId: alarm.deviceId ?? undefined, rackId: alarm.rackId, techId });
+        const coolerJob = suggestedCoolerJob(alarm.kind);
+        if (coolerJob && alarm.coolerId) {
+          this.run({ type: coolerJob, coolerId: alarm.coolerId, techId });
+          return;
+        }
+        const job = suggestedJob(alarm.kind);
+        if (!job) return;
+        this.run({
+          type: 'dispatch', job, deviceId: alarm.deviceId ?? undefined, rackId: alarm.rackId ?? undefined,
+          uplinkId: alarm.uplinkId ?? undefined, techId,
+        });
         return;
       }
       case 'openRack':
@@ -310,7 +321,24 @@ export class App {
         this.run({ type: 'dispatch', job: d.job as 'swapDisk', deviceId: d.device, techId: 'best' });
         return;
       case 'dispatchRack':
-        this.run({ type: 'dispatch', job: 'resetBreaker', rackId: d.rack, techId: 'best' });
+        this.run({ type: 'dispatch', job: (d.job ?? 'resetBreaker') as DispatchJob, rackId: d.rack, techId: 'best' });
+        return;
+      case 'dispatchUplink':
+        this.run({ type: 'dispatch', job: 'repairUplink', uplinkId: d.uplink, techId: 'best' });
+        return;
+      case 'coolerJob':
+        this.run({ type: d.job as 'serviceCooler' | 'repairCooler', coolerId: d.cooler!, techId: 'best' });
+        return;
+      case 'openCooler':
+        this.modal = { kind: 'cooler', id: d.cooler! };
+        this.renderUi(true);
+        return;
+      case 'buyUplink':
+        this.run({ type: 'buyUplink' });
+        return;
+      case 'buildFacing':
+        if (this.build) this.build.facing = this.build.facing === 'S' ? 'N' : 'S';
+        this.renderUi(true);
         return;
       case 'assign':
         if (ev.type === 'change') this.run({ type: 'assign', deviceId: d.device!, contractId: (el as HTMLSelectElement).value || null });
@@ -389,7 +417,7 @@ export class App {
         this.run({ type: 'order', part: d.part as PartId, qty: Number(d.qty) });
         return;
       case 'build':
-        this.build = { part: d.part as 'rack' };
+        this.build = { part: d.part as 'rack', facing: 'S' };
         this.sheetOpen = false;
         this.renderUi(true);
         return;
@@ -527,7 +555,7 @@ export class App {
     if (this.build) {
       const part = this.build.part;
       const ok = part === 'rack'
-        ? this.run({ type: 'buildRack', pos: { x, y }, techId: 'best' })
+        ? this.run({ type: 'buildRack', pos: { x, y }, facing: this.build.facing, techId: 'best' })
         : this.run({ type: 'placeCooler', coolerKind: part, pos: { x, y }, techId: 'best' });
       if (ok && s.inventory[part] < 1) this.build = null;
       this.renderUi(true);

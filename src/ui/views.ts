@@ -1,10 +1,11 @@
-import { CONTRACT_GRACE_MIN, JOB_LABEL, PARTS, SERVER_MODELS, THERMAL } from '../data/catalog';
+import { CONTRACT_GRACE_MIN, COOLERS, EXTRA_UPLINK, JOB_LABEL, PARTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
 import { CHAPTERS, CHAPTER_ORDER } from '../data/chapters';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
 import { MINUTES_PER_DAY, formatClock, dayOf, type Speed } from '../core/time';
 import { alarmLabel } from '../sim/alarms';
-import { suggestedJob } from '../sim/commands';
+import { suggestedCoolerJob, suggestedJob } from '../sim/commands';
+import { bandwidthCapacity } from '../sim/network';
 import { demandFactor } from '../sim/demand';
 import { deliveryTime } from '../sim/economy';
 import { objectiveStatus } from '../sim/objectives';
@@ -15,20 +16,22 @@ import {
 import type { Alarm, Contract, Device, DifficultyId, GameState, LogEntry, PartId, Rack, Tech } from '../sim/types';
 import { SEVERITY_LABEL } from '../sim/types';
 import { countdown, escapeHtml as e, money, stars } from './format';
-import { bestStars, isUnlocked, type Progress, type Settings } from './storage';
+import { bestStars, isDifficultyUnlocked, isUnlocked, type Progress, type Settings } from './storage';
 
-export type PanelId = 'alarms' | 'team' | 'contracts' | 'shop' | 'goals';
+export type PanelId = 'alarms' | 'team' | 'contracts' | 'network' | 'shop' | 'goals';
 
 export const PANEL_META: Record<PanelId, { icon: string; label: string }> = {
   alarms: { icon: '🔔', label: 'Alarms' },
   team: { icon: '👷', label: 'Team' },
   contracts: { icon: '📄', label: 'Clients' },
   shop: { icon: '🛒', label: 'Shop' },
+  network: { icon: '🌐', label: 'Network' },
   goals: { icon: '🎯', label: 'Goals' },
 };
 
 export function visiblePanels(s: GameState): PanelId[] {
   const out: PanelId[] = ['alarms', 'team', 'contracts'];
+  if (hasFeature(s, 'network')) out.push('network');
   if (hasFeature(s, 'shop')) out.push('shop');
   out.push('goals');
   return out;
@@ -73,8 +76,16 @@ function techOptions(s: GameState): string {
 }
 
 function jobFor(s: GameState, a: Alarm) {
+  if (a.coolerId) return s.jobs.find((j) => j.coolerId === a.coolerId);
+  if (a.uplinkId) return s.jobs.find((j) => j.uplinkId === a.uplinkId);
   return s.jobs.find((j) => (a.deviceId ? j.deviceId === a.deviceId : j.rackId === a.rackId && j.deviceId === null) && j.kind === suggestedJob(a.kind));
 }
+
+const ALARM_HINT: Partial<Record<Alarm['kind'], string>> = {
+  overheat: 'Cool it down, fix the airflow, cut load or turn servers off',
+  powerHigh: 'Move or power off servers',
+  bandwidth: 'Add a second uplink in the Network tab, or turn away traffic-heavy clients',
+};
 
 export function alarmsPanel(s: GameState): string {
   const list = [...s.alarms].sort((a, b) => b.severity - a.severity || a.raisedAt - b.raisedAt);
@@ -82,7 +93,7 @@ export function alarmsPanel(s: GameState): string {
   return `<ul class="list alarms">${list
     .map((a) => {
       const job = jobFor(s, a);
-      const fix = suggestedJob(a.kind);
+      const fix = suggestedJob(a.kind) ?? suggestedCoolerJob(a.kind);
       const tech = job ? s.techs.find((t) => t.id === job.techId) : undefined;
       const eta = a.escalateAt !== null ? `<span class="eta" title="Escalates in">⏱ ${countdown(a.escalateAt - s.minute)}</span>` : '';
       let action: string;
@@ -90,11 +101,12 @@ export function alarmsPanel(s: GameState): string {
       else if (fix) {
         action = `<select class="tech-pick" aria-label="Technician">${techOptions(s)}</select>
           <button class="primary" data-action="fix" data-alarm="${e(a.id)}">${e(JOB_LABEL[fix])}</button>`;
-      } else action = `<span class="hint">${a.kind === 'overheat' ? 'Cool it down, cut load or turn servers off' : 'Move or power off servers'}</span>`;
+      } else action = `<span class="hint">${e(ALARM_HINT[a.kind] ?? '')}</span>`;
       return `<li class="alarm sevrow-${a.severity}">
         <div class="row">${sevBadge(a.severity)}<b>${e(alarmLabel(s, a))}</b></div>
         <div class="row meta"><span>${formatClock(a.raisedAt)}</span>${eta}
-          <button class="ghost" data-action="openRack" data-rack="${e(a.rackId)}">📍 Rack</button></div>
+          ${a.rackId ? `<button class="ghost" data-action="openRack" data-rack="${e(a.rackId)}">📍 Rack</button>` : ''}
+          ${a.coolerId ? `<button class="ghost" data-action="openCooler" data-cooler="${e(a.coolerId)}">📍 Cooler</button>` : ''}</div>
         <div class="row actions">${action}</div></li>`;
     })
     .join('')}</ul>`;
@@ -102,6 +114,7 @@ export function alarmsPanel(s: GameState): string {
 
 export function techStatus(s: GameState, t: Tech): string {
   const job = s.jobs.find((j) => j.id === t.jobId);
+  if (!job && t.onBreak) return 'On a break 😴';
   if (!job) return t.path.length ? 'Walking back to the staff room' : 'Idle ☕';
   const where = job.rackId ? ` · ${rackName(s, rackById(s, job.rackId))}` : '';
   switch (job.stage) {
@@ -125,8 +138,10 @@ export function teamPanel(s: GameState): string {
       const queued = s.jobs.filter((j) => j.techId === t.id && j.stage === 'queued');
       return `<li class="tech">
         <div class="row"><span class="dot" data-tech-color="${e(t.id)}"></span><b>${e(t.name)}</b>
-          <span class="muted">${t.role === 'manager' ? 'Manager' : 'HW tech'} · ${'★'.repeat(t.skill)}</span></div>
+          <span class="muted">${ROLE_LABEL[t.role]} · ${'★'.repeat(t.skill)}</span></div>
         <div class="row meta">${e(techStatus(s, t))}${queued.length ? ` · +${queued.length} queued` : ''}</div>
+        ${hasFeature(s, 'fatigue') ? `<div class="row meta vitals"><span title="Fatigue">😓</span><div class="bar mini"><div style="width:${t.fatigue.toFixed(0)}%" class="${t.fatigue > 60 ? 'bad' : ''}"></div></div>
+          <span title="Morale">${t.morale > 75 ? '😄' : t.morale > 45 ? '🙂' : t.morale > 25 ? '😐' : '😠'}</span></div>` : ''}
         ${trait ? `<div class="row meta">🏷️ ${e(trait.name)}: ${e(trait.description)}</div>` : ''}
         ${t.role !== 'manager' ? `<div class="row actions"><span class="muted">${money(t.salaryPerDay)}/day</span>
           <button class="ghost danger" data-action="fire" data-tech="${e(t.id)}">Let go</button></div>` : ''}
@@ -138,7 +153,7 @@ export function teamPanel(s: GameState): string {
     hire = `<h3>Candidates</h3><ul class="list">${s.candidates
       .map((c) => {
         const trait = traitOf(c.trait);
-        return `<li><div class="row"><b>${e(c.name)}</b><span class="muted">${'★'.repeat(c.skill)}${'☆'.repeat(5 - c.skill)} · walks ${c.speed.toFixed(1)} tiles/min</span></div>
+        return `<li><div class="row"><b>${e(c.name)}</b><span class="chip">${ROLE_LABEL[c.role]}</span><span class="muted">${'★'.repeat(c.skill)}${'☆'.repeat(5 - c.skill)} · walks ${c.speed.toFixed(1)} tiles/min</span></div>
           ${trait ? `<div class="row meta">🏷️ ${e(trait.name)}: ${e(trait.description)}</div>` : ''}
           <div class="row actions"><span class="muted">${money(c.salaryPerDay)}/day</span>
           <button class="primary" data-action="hire" data-candidate="${e(c.id)}">Hire</button></div></li>`;
@@ -194,10 +209,39 @@ export function contractsPanel(s: GameState): string {
       : '<div class="empty">No offers right now.</div>'}`;
 }
 
-const SHOP_ORDER: PartId[] = ['disk', 'psu', 'server1u', 'server2u', 'portableAc', 'rack', 'wallAc'];
+export function networkPanel(s: GameState): string {
+  const cap = bandwidthCapacity(s);
+  const used = s.bandwidthUsed;
+  const pct = cap > 0 ? (used / cap) * 100 : 100;
+  const failed = s.racks.filter((r) => r.switchFailed);
+  return `
+    <h3>Uplink traffic</h3>
+    <div class="report"><span>Using</span><b class="${used > cap ? 'bad' : pct > 90 ? 'warn' : ''}">${used.toFixed(1)} / ${cap} Gbps</b></div>
+    <div class="bar big"><div style="width:${Math.min(100, pct)}%" class="${pct > 90 ? 'bad' : ''}"></div></div>
+    <p class="muted small">If customers need more bandwidth than your live uplinks carry, every bandwidth-using contract misses its SLA.</p>
+    <h3>Uplinks</h3>
+    <ul class="list">${s.uplinks.map((u) => {
+      const job = s.jobs.find((j) => j.uplinkId === u.id);
+      return `<li><div class="row"><b>${e(u.name)}</b><span class="chip ${u.up ? 'ok' : 'bad'}">${u.up ? 'Up' : 'CUT'}</span></div>
+        <div class="row meta">${u.capacityGbps} Gbps · ${money(u.costPerDay)}/day${!u.up && u.repairAt !== null ? ` · ISP repair ETA ${formatClock(u.repairAt)}` : ''}</div>
+        ${!u.up ? `<div class="row actions">${job ? `<span class="busy">🔧 Splicing…</span>` : `<button class="primary" data-action="dispatchUplink" data-uplink="${e(u.id)}">Send network engineer</button>`}</div>` : ''}</li>`;
+    }).join('')}</ul>
+    ${s.uplinks.length < 2 ? `<div class="banner info"><span>Add <b>${e(EXTRA_UPLINK.name)}</b>: +${EXTRA_UPLINK.capacityGbps} Gbps on a separate route.
+      ${money(EXTRA_UPLINK.setupCost)} setup + ${money(EXTRA_UPLINK.costPerDay)}/day.</span>
+      <button class="primary" data-action="buyUplink" ${s.cash < EXTRA_UPLINK.setupCost ? 'disabled' : ''}>Order</button></div>` : ''}
+    <h3>Switches</h3>
+    ${failed.length ? `<ul class="list">${failed.map((r) => `<li class="row"><span>🔀 ${e(rackName(s, r))} switch down</span><button data-action="openRack" data-rack="${e(r.id)}">📍 Rack</button></li>`).join('')}</ul>`
+      : `<div class="empty">All top-of-rack switches healthy. ${s.inventory.switch} spare${s.inventory.switch === 1 ? '' : 's'} in stock.</div>`}`;
+}
+
+const SHOP_ORDER: PartId[] = ['disk', 'psu', 'filter', 'switch', 'server1u', 'server2u', 'portableAc', 'rack', 'wallAc', 'crac', 'coffee'];
+const SHOP_GATE: Partial<Record<PartId, Parameters<typeof hasFeature>[1]>> = {
+  rack: 'buildRack', wallAc: 'coolers', crac: 'maintenance', filter: 'maintenance', switch: 'network', coffee: 'fatigue',
+};
+const PLACEABLE: ReadonlySet<PartId> = new Set(['rack', 'portableAc', 'wallAc', 'crac']);
 
 export function shopPanel(s: GameState): string {
-  const available = SHOP_ORDER.filter((p) => (p !== 'rack' || hasFeature(s, 'buildRack')) && (p !== 'wallAc' || hasFeature(s, 'coolers')));
+  const available = SHOP_ORDER.filter((p) => !SHOP_GATE[p] || hasFeature(s, SHOP_GATE[p]!));
   const rows = available
     .map((p) => {
       const info = PARTS[p];
@@ -205,13 +249,13 @@ export function shopPanel(s: GameState): string {
         ? `${SERVER_MODELS[p].units} unit${SERVER_MODELS[p].units > 1 ? 's' : ''}, ${SERVER_MODELS[p].u}U, ${SERVER_MODELS[p].idleW}-${SERVER_MODELS[p].maxW} W`
         : '';
       const dt = deliveryTime(s, p);
-      const placeable = p === 'rack' || p === 'portableAc' || p === 'wallAc';
+      const placeable = PLACEABLE.has(p);
       return `<li><div class="row"><span class="pi">${info.icon}</span><b>${e(info.name)}</b><span class="muted">${money(info.price)}</span></div>
-        <div class="row meta">In stock: <b>${s.inventory[p]}</b> · delivery ${dt === 0 ? 'instant' : countdown(dt)}${extra ? ` · ${extra}` : ''}</div>
+        <div class="row meta">${p === 'coffee' ? `Current machine: level <b>${s.coffeeLevel}</b>` : `In stock: <b>${s.inventory[p]}</b>`} · delivery ${dt === 0 ? 'instant' : countdown(dt)}${extra ? ` · ${extra}` : ''}</div>
         <div class="row actions">
           ${placeable && s.inventory[p] > 0 ? `<button class="primary" data-action="build" data-part="${p}">Place on floor</button>` : ''}
           <button data-action="order" data-part="${p}" data-qty="1" ${s.cash < info.price ? 'disabled' : ''}>Buy 1</button>
-          ${p === 'disk' || p === 'psu' ? `<button data-action="order" data-part="${p}" data-qty="3" ${s.cash < info.price * 3 ? 'disabled' : ''}>Buy 3</button>` : ''}
+          ${p === 'disk' || p === 'psu' || p === 'filter' ? `<button data-action="order" data-part="${p}" data-qty="3" ${s.cash < info.price * 3 ? 'disabled' : ''}>Buy 3</button>` : ''}
         </div></li>`;
     })
     .join('');
@@ -240,7 +284,7 @@ export function goalsPanel(s: GameState): string {
     ${last ? `<h3>Last day</h3><div class="report">
       <span>Revenue</span><b>${money(last.revenue)}</b><span>Penalties</span><b>${money(-last.penalties)}</b>
       <span>Salaries</span><b>${money(-last.salaries)}</b><span>Electricity</span><b>${money(-last.electricity)}</b>
-      <span>Rent</span><b>${money(-last.rent)}</b><span>Net</span><b class="${last.net < 0 ? 'neg' : 'pos'}">${money(last.net)}</b></div>` : ''}
+      <span>Rent</span><b>${money(-last.rent)}</b>${last.network ? `<span>Network</span><b>${money(-last.network)}</b>` : ''}<span>Net</span><b class="${last.net < 0 ? 'neg' : 'pos'}">${money(last.net)}</b></div>` : ''}
     <h3>Log</h3><ul class="list logs">${[...s.log].reverse().slice(0, 40).map(logLine).join('')}</ul>`;
 }
 
@@ -312,6 +356,14 @@ export function rackModal(s: GameState, rackId: string): string {
       <div><span class="k">Power</span><b class="${powerPct > 90 ? 'bad' : powerPct > 70 ? 'warn' : ''}">${Math.round(rack.loadW)} / ${rack.powerBudgetW} W</b>
         <div class="bar"><div style="width:${Math.min(100, powerPct)}%" class="${powerPct > 90 ? 'bad' : ''}"></div></div></div>
     </div>
+    ${hasFeature(s, 'aisles') ? `<div class="banner ${rack.recirculation > 0 ? 'warn' : 'info'}">
+      <span>${rack.facing === 'S' ? '⬇️' : '⬆️'} Front faces <b>${rack.facing === 'S' ? 'south' : 'north'}</b>.
+      ${rack.recirculation > 0 ? `Breathing hot exhaust from the rack in front: <b>+${rack.recirculation.toFixed(1)}°C</b>.` : 'Airflow OK.'}</span>
+      ${s.jobs.some((j) => j.kind === 'rotateRack' && j.rackId === rack.id)
+        ? `<span class="busy">🔧 ${rack.maintenance ? 'Rotating… servers offline' : 'Rotation queued'}</span>`
+        : `<button data-action="dispatchRack" data-job="rotateRack" data-rack="${e(rack.id)}">↻ Rotate (servers offline ~1h)</button>`}</div>` : ''}
+    ${rack.switchFailed ? `<div class="banner bad">🔀 Top-of-rack switch failed: every server here is offline.
+      ${s.jobs.some((j) => j.kind === 'replaceSwitch' && j.rackId === rack.id) ? '<span class="busy">🔧 On it</span>' : `<button class="primary" data-action="dispatchRack" data-job="replaceSwitch" data-rack="${e(rack.id)}">Replace switch</button>`}</div>` : ''}
     ${rack.tripped ? `<div class="banner bad">⚡ Breaker tripped. The whole rack is down. ${breakerJob ? '🔧 Someone is on the way.' : `<button class="primary" data-action="dispatchRack" data-job="resetBreaker" data-rack="${e(rack.id)}">Reset breaker</button>`}
       <div class="small">Tip: if the rack still draws more than its budget, it will trip again. Remove or power off servers first.</div></div>` : ''}
     <ul class="slots">${layout
@@ -336,10 +388,16 @@ export function rackModal(s: GameState, rackId: string): string {
 export function coolerModal(s: GameState, coolerId: string): string {
   const c = s.coolers.find((x) => x.id === coolerId);
   if (!c) return '';
-  const names = { officeAc: 'Office AC', portableAc: 'Portable AC', wallAc: 'Wall AC' };
+  const busy = s.jobs.find((j) => j.coolerId === c.id);
+  const maint = hasFeature(s, 'maintenance') && c.kind !== 'officeAc';
   return `<div class="modal-card small-card" role="dialog" aria-modal="true">
-    <header><h2>❄️ ${names[c.kind]}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
-    <p>Capacity <b>${c.capacityKw} kW</b> of heat · draws ${c.powerW} W · ${c.on ? 'running' : 'off'}</p>
+    <header><h2>❄️ ${COOLERS[c.kind].name}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
+    <p>Capacity <b>${c.capacityKw} kW</b> of heat · draws ${c.powerW} W · ${c.broken ? '<b class="bad">BROKEN</b>' : c.on ? 'running' : 'off'}</p>
+    ${maint ? `<p>Filter <div class="bar"><div style="width:${(c.health * 100).toFixed(0)}%" class="${c.health < 0.4 ? 'bad' : ''}"></div></div>
+      <span class="muted small">A dirty filter cuts capacity by up to half and can make the unit break down.</span></p>
+      <div class="stack">${busy ? `<span class="busy">🔧 ${e(JOB_LABEL[busy.kind])}…</span>` : c.broken
+        ? `<button class="primary" data-action="coolerJob" data-job="repairCooler" data-cooler="${e(c.id)}">Repair (HVAC tech)</button>`
+        : `<button class="primary" data-action="coolerJob" data-job="serviceCooler" data-cooler="${e(c.id)}" ${c.health > 0.9 ? 'disabled' : ''}>Change filter (HVAC tech, ${s.inventory.filter} in stock)</button>`}</div>` : ''}
     ${c.kind === 'officeAc' ? '<p class="muted small">Facilities control this unit.</p>' : `<button class="primary" data-action="cooler" data-cooler="${e(c.id)}" data-on="${c.on ? '0' : '1'}">${c.on ? 'Switch off' : 'Switch on'}</button>`}
   </div>`;
 }
@@ -352,10 +410,11 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
     ${hasSave ? '<button class="primary big" data-action="continue">▶ Continue</button>' : ''}
     <h3>Difficulty</h3>
     <div class="diffs">${diffs
-      .map((d) => `<button class="diff ${settings.difficulty === d.id ? 'on' : ''}" data-action="difficulty" data-difficulty="${d.id}" aria-pressed="${settings.difficulty === d.id}">
-        <span class="em">${d.emoji}</span><b>${e(d.name)}</b><span class="small">${e(d.blurb)}</span></button>`)
+      .map((d) => isDifficultyUnlocked(progress, d.id)
+        ? `<button class="diff ${settings.difficulty === d.id ? 'on' : ''}" data-action="difficulty" data-difficulty="${d.id}" aria-pressed="${settings.difficulty === d.id}">
+        <span class="em">${d.emoji}</span><b>${e(d.name)}</b><span class="small">${e(d.blurb)}</span></button>`
+        : `<div class="diff locked" aria-disabled="true"><span class="em">${d.emoji}</span><b>${e(d.name)}</b><span class="small">🔒 Beat Chapter 3 to unlock</span></div>`)
       .join('')}
-      <div class="diff locked" aria-disabled="true"><span class="em">🔥</span><b>On-Call Nightmare</b><span class="small">Coming soon</span></div>
     </div>
     <h3>Chapters</h3>
     <div class="chapters">${CHAPTER_ORDER.map((id) => {
@@ -366,7 +425,7 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
         <span class="num">${ch.number}</span><span class="ct"><b>${e(ch.title)}</b><span class="small">${e(ch.subtitle)}</span></span>
         <span class="best">${open ? `${'★'.repeat(best)}${'☆'.repeat(3 - best)}` : '🔒'}</span></button>`;
     }).join('')}
-      <div class="chapter locked"><span class="num">3</span><span class="ct"><b>Colocation Floor</b><span class="small">Hot/cold aisles, networking: coming soon</span></span><span class="best">🔒</span></div>
+      <div class="chapter locked"><span class="num">4</span><span class="ct"><b>Enterprise DC</b><span class="small">UPS, generators and shifts: coming soon</span></span><span class="best">🔒</span></div>
     </div>
     ${settingsForm(settings)}
     <p class="muted small">Free, no ads, works offline. Saves stay in this browser.</p>
@@ -416,7 +475,7 @@ export function endScreen(s: GameState): string {
     </div>
     <div class="stack">
       ${won && next ? `<button class="primary big" data-action="newGame" data-chapter="${next.id}">Next: ${e(next.title)} ▶</button>` : ''}
-      ${won && !next ? '<p>That is all for now. More chapters (cooling aisles, power rooms, cyber villains) are coming!</p>' : ''}
+      ${won && !next ? '<p>That is all for now, and <b>On-Call Nightmare</b> is unlocked! More chapters (power rooms, generators, cyber villains) are coming.</p>' : ''}
       <button data-action="newGame" data-chapter="${ch.id}">↻ Retry</button>
       <button class="ghost" data-action="quit">Menu</button>
     </div></div>`;

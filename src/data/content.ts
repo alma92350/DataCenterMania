@@ -1,4 +1,4 @@
-import type { DemandProfileId } from '../sim/types';
+import type { DemandProfileId, TechRole } from '../sim/types';
 
 /** First-time tips (PRD §11, delivered by Sam the mentor). */
 export const TIPS: Record<string, string> = {
@@ -16,6 +16,14 @@ export const TIPS: Record<string, string> = {
   buildRack: 'Need more space? Buy a rack in the Shop, then use Build to place it on a free floor tile.',
   dataloss: 'Data loss! The second disk failed. Swap the disks and restore from backup. It takes much longer.',
   botched: 'Even the best technicians botch a job sometimes. Tired, clumsy or rushed people botch more.',
+  aisles: 'Racks breathe in at the front and blow hot air out the back. If a rack\u2019s exhaust blows into another rack\u2019s front, that rack cooks. Face rows front-to-front (cold aisle) and back-to-back (hot aisle). Open a rack to rotate it.',
+  roles: 'Specialists now! HW techs fix servers, HVAC techs look after coolers, network engineers handle switches and fiber. You can still do anything yourself, just slowly.',
+  fatigue: 'People get tired. Tired techs work slower and botch more, and exhausted ones take a break in the staff room. A better coffee machine helps morale.',
+  maintenance: 'Cooler filters clog over time. A dirty CRAC loses capacity and can break down. Send an HVAC tech to change the filter.',
+  network: 'All traffic leaves through your ISP uplinks. If customers need more bandwidth than you have, everybody suffers. A second uplink on a separate route also protects you from fiber cuts.',
+  uplinkCut: 'A backhoe just cut your fiber! Until it is spliced, only your other uplinks carry traffic. A network engineer can fix it faster than the ISP.',
+  switchDown: 'A top-of-rack switch died: every server in that rack is offline. Network engineers carry spare switches. Make sure you have some in stock.',
+  quit: 'Unhappy, exhausted staff quit. Watch fatigue and morale in the Team tab.',
 };
 
 export const FIRST_NAMES = ['Alex', 'Sam', 'Priya', 'Jonas', 'Mia', 'Kenji', 'Lea', 'Omar', 'Zoe', 'Ivan', 'Nina', 'Theo', 'Ada', 'Linus', 'Grace', 'Hugo', 'Ines', 'Raj'];
@@ -37,6 +45,8 @@ export const TRAITS: TraitDef[] = [
   { id: 'oldTimer', name: 'Old Timer', description: 'Slow walker, never botches a job.', speedMult: 0.8, workMult: 1, mistakeMult: 0 },
 ];
 
+export const HIREABLE_ROLES: TechRole[] = ['hw', 'hvac', 'net'];
+
 export const traitOf = (id: string | null): TraitDef | undefined => TRAITS.find((t) => t.id === id);
 
 export interface CustomerArchetype {
@@ -47,15 +57,16 @@ export interface CustomerArchetype {
   pricePerUnit: number; // revenue per unit per day
   profile: DemandProfileId;
   duration: [number, number];
+  bandwidth: number; // Gbps per unit at full demand
 }
 
 /** Fictional customers (PRD §5). */
 export const CUSTOMERS: CustomerArchetype[] = [
-  { name: "Grandma's Bakery", description: 'Tiny, stable, forgiving.', units: [1, 2], slaPct: 95, pricePerUnit: 180, profile: 'office', duration: [5, 10] },
-  { name: 'Pizza Rocket', description: 'Food delivery: big peaks at lunch and dinner.', units: [4, 6], slaPct: 98, pricePerUnit: 260, profile: 'lunchDinner', duration: [4, 8] },
-  { name: 'ByteBank', description: 'Fintech. Strict SLA, pays a lot.', units: [3, 5], slaPct: 99.5, pricePerUnit: 380, profile: 'office', duration: [5, 10] },
-  { name: 'Nightly News', description: 'News site, busy in the evening.', units: [2, 4], slaPct: 98, pricePerUnit: 230, profile: 'evening', duration: [4, 8] },
-  { name: 'Pixel Forge Games', description: 'Game studio. Steady load, gamers complain loudly.', units: [3, 6], slaPct: 99, pricePerUnit: 280, profile: 'evening', duration: [3, 6] },
-  { name: 'Law & Order Mail', description: 'Law firm email. Office hours only.', units: [2, 3], slaPct: 99, pricePerUnit: 200, profile: 'office', duration: [5, 10] },
-  { name: 'Crypto Bro Capital', description: 'Pays double. Flat-out load, every minute.', units: [3, 5], slaPct: 97, pricePerUnit: 400, profile: 'flat', duration: [2, 4] },
+  { name: "Grandma's Bakery", description: 'Tiny, stable, forgiving.', units: [1, 2], slaPct: 95, pricePerUnit: 180, profile: 'office', duration: [5, 10] , bandwidth: 0.1 },
+  { name: 'Pizza Rocket', description: 'Food delivery: big peaks at lunch and dinner.', units: [4, 6], slaPct: 98, pricePerUnit: 260, profile: 'lunchDinner', duration: [4, 8] , bandwidth: 0.3 },
+  { name: 'ByteBank', description: 'Fintech. Strict SLA, pays a lot.', units: [3, 5], slaPct: 99.5, pricePerUnit: 380, profile: 'office', duration: [5, 10] , bandwidth: 0.3 },
+  { name: 'Nightly News', description: 'News site, busy in the evening.', units: [2, 4], slaPct: 98, pricePerUnit: 230, profile: 'evening', duration: [4, 8] , bandwidth: 0.6 },
+  { name: 'Pixel Forge Games', description: 'Game studio. Steady load, gamers complain loudly.', units: [3, 6], slaPct: 99, pricePerUnit: 280, profile: 'evening', duration: [3, 6] , bandwidth: 0.8 },
+  { name: 'Law & Order Mail', description: 'Law firm email. Office hours only.', units: [2, 3], slaPct: 99, pricePerUnit: 200, profile: 'office', duration: [5, 10] , bandwidth: 0.2 },
+  { name: 'Crypto Bro Capital', description: 'Pays double. Flat-out load, every minute.', units: [3, 5], slaPct: 97, pricePerUnit: 400, profile: 'flat', duration: [2, 4] , bandwidth: 0.1 },
 ];

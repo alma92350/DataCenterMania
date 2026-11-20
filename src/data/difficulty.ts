@@ -34,6 +34,11 @@ export const DIFFICULTIES: Record<DifficultyId, DifficultyDef> = {
     startingCash: 0.8, incidentRate: 1.3, escalation: 0.8, slaPenalty: 1.25, deliveryTime: 1.5,
     mistakeChance: 0.08, directorIntensity: 0.8, forceAutoPause: false, hints: true, scoreMultiplier: 1.5,
   },
+  nightmare: {
+    id: 'nightmare', name: 'On-Call Nightmare', emoji: '🔥', blurb: 'Everything breaks, fast. Unlocked by beating Chapter 3.',
+    startingCash: 0.6, incidentRate: 1.7, escalation: 0.6, slaPenalty: 1.5, deliveryTime: 2,
+    mistakeChance: 0.12, directorIntensity: 1, forceAutoPause: false, hints: false, scoreMultiplier: 2,
+  },
 };
 
 export const difficultyOf = (id: DifficultyId): DifficultyDef => DIFFICULTIES[id];

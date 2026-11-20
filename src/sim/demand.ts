@@ -1,4 +1,7 @@
 import { minuteOfDay, weekdayOf } from '../core/time';
+import { NETWORK } from '../data/catalog';
+import { clearAlarms, raiseAlarm } from './alarms';
+import { bandwidthCapacity } from './network';
 import { addLog } from './state';
 import { activeContracts, contractDevices, deviceUp, unitsOf } from './selectors';
 import type { DemandProfileId, GameState } from './types';
@@ -32,6 +35,7 @@ const IDLE_LOAD = 0.05;
 /** Spreads each contract's demand over its live servers and books SLA minutes. */
 export function updateDemand(s: GameState, dt: number): void {
   for (const d of s.devices) d.load = IDLE_LOAD;
+  const bandwidthOk = updateBandwidth(s);
   for (const c of activeContracts(s)) {
     const needed = c.units * demandFactor(c.profile, s.minute);
     const live = contractDevices(s, c.id).filter((d) => deviceUp(s, d));
@@ -48,10 +52,28 @@ export function updateDemand(s: GameState, dt: number): void {
         ? `${c.customer} is live! SLA measurement starts now.`
         : `${c.customer}: setup time is over. SLA measurement starts now, ready or not!`);
     }
-    const ok = capacity + 1e-9 >= needed;
+    const ok = capacity + 1e-9 >= needed && (bandwidthOk || c.bandwidthPerUnit === 0);
     const load = capacity > 0 ? Math.min(1, needed / capacity) : 0;
     for (const d of live) d.load = Math.max(IDLE_LOAD, load);
     c.minutesToday += dt;
     if (ok) c.okMinutesToday += dt;
   }
+}
+
+/** Total traffic of live contracts vs. uplink capacity. Returns false when traffic exceeds capacity. */
+export function updateBandwidth(s: GameState): boolean {
+  let used = 0;
+  for (const c of activeContracts(s)) {
+    if (c.liveFrom === null) continue;
+    used += c.units * demandFactor(c.profile, s.minute) * c.bandwidthPerUnit;
+  }
+  s.bandwidthUsed = used;
+  if (!s.features.includes('network')) return true;
+  const cap = bandwidthCapacity(s);
+  const ok = used <= cap + 1e-9;
+  const severity = !ok ? 3 : used > cap * NETWORK.warnRatio ? 1 : 0;
+  const open = s.alarms.find((a) => a.kind === 'bandwidth');
+  if (open && open.severity !== severity) clearAlarms(s, (a) => a.kind === 'bandwidth');
+  if (severity > 0) raiseAlarm(s, 'bandwidth', null, null, severity as 1 | 3, null);
+  return ok;
 }

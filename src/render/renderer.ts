@@ -74,7 +74,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, s: GameState, cam: Came
     ctx.strokeRect(p.x + 3, p.y + 3, cam.scale - 6, cam.scale - 6);
     ctx.setLineDash([]);
   }
-  for (const c of s.coolers) drawCooler(ctx, cam, c.pos, c.on, c.kind, view.time);
+  for (const c of s.coolers) drawCooler(ctx, cam, c.pos, c.on && !c.broken, c.kind, view.time, c.broken, c.health);
   for (const r of s.racks) drawRack(ctx, s, cam, r, view);
   for (const t of s.techs) drawTech(ctx, s, cam, t);
   drawAlarmPins(ctx, s, cam, view.time);
@@ -124,7 +124,10 @@ function icon(ctx: CanvasRenderingContext2D, glyph: string, x: number, y: number
   ctx.globalAlpha = 1;
 }
 
-function drawCooler(ctx: CanvasRenderingContext2D, cam: Camera, pos: { x: number; y: number }, on: boolean, kind: string, time: number): void {
+function drawCooler(
+  ctx: CanvasRenderingContext2D, cam: Camera, pos: { x: number; y: number }, on: boolean, kind: string, time: number,
+  broken = false, health = 1,
+): void {
   const z = cam.scale;
   const p = worldToScreen(cam, pos.x, pos.y);
   ctx.fillStyle = on ? '#16324a' : '#232a36';
@@ -137,8 +140,15 @@ function drawCooler(ctx: CanvasRenderingContext2D, cam: Camera, pos: { x: number
   ctx.save();
   ctx.translate(p.x + z / 2, p.y + z / 2);
   ctx.rotate(spin);
-  icon(ctx, kind === 'portableAc' ? '❄️' : kind === 'officeAc' ? '🌬️' : '🧊', 0, 0, z * 0.55, on ? 1 : 0.35);
+  icon(ctx, kind === 'portableAc' ? '❄️' : kind === 'officeAc' ? '🌬️' : kind === 'crac' ? '🏭' : '🧊', 0, 0, z * 0.55, on ? 1 : 0.35);
   ctx.restore();
+  if (broken) icon(ctx, '🛠️', p.x + z * 0.78, p.y + z * 0.2, z * 0.35, 1);
+  else if (health < 0.99 && z >= 18) {
+    ctx.fillStyle = '#0d131b';
+    ctx.fillRect(p.x + z * 0.15, p.y + z * 0.86, z * 0.7, Math.max(2, z * 0.06));
+    ctx.fillStyle = health < 0.4 ? COLORS.crit : health < 0.7 ? COLORS.warn : COLORS.ok;
+    ctx.fillRect(p.x + z * 0.15, p.y + z * 0.86, z * 0.7 * health, Math.max(2, z * 0.06));
+  }
 }
 
 function drawRack(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, r: Rack, view: RenderView): void {
@@ -181,7 +191,18 @@ function drawRack(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, r: R
     ctx.fillRect(x + w * 0.7, ry + rowH * 0.25, Math.max(2, w * 0.12), Math.max(1.5, rowH * 0.5));
     ctx.globalAlpha = 1;
   }
+  // front (cold intake) and back (hot exhaust) edges, so aisles can be read at a glance
+  if (s.features.includes('aisles')) {
+    const front = r.facing === 'S' ? y + h - Math.max(2, z * 0.07) : y;
+    const back = r.facing === 'S' ? y : y + h - Math.max(2, z * 0.07);
+    ctx.fillStyle = r.recirculation > 0 ? COLORS.crit : '#5ab4ff'; // intake: blue when breathing cool air
+    ctx.fillRect(x + w * 0.1, front, w * 0.8, Math.max(2, z * 0.07));
+    ctx.fillStyle = '#ff8a65'; // exhaust
+    ctx.fillRect(x + w * 0.1, back, w * 0.8, Math.max(2, z * 0.07));
+  }
   if (r.tripped && z >= 14) icon(ctx, '⚡', p.x + z / 2, p.y + z / 2, z * 0.6, 1);
+  else if (r.switchFailed && z >= 14) icon(ctx, '🔀', p.x + z / 2, p.y + z / 2, z * 0.5, 1);
+  else if (r.maintenance && z >= 14) icon(ctx, '↻', p.x + z / 2, p.y + z / 2, z * 0.6, 1);
   if (z >= 40) {
     ctx.fillStyle = r.temp >= THERMAL.warn ? COLORS.warn : '#9fb0c6';
     ctx.font = `${Math.round(z * 0.2)}px ui-monospace, monospace`;
@@ -261,14 +282,20 @@ export function drawSeverityShape(ctx: CanvasRenderingContext2D, sev: Severity, 
 function drawAlarmPins(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, time: number): void {
   const z = cam.scale;
   const worst = new Map<string, Alarm>();
+  const keyOf = (a: Alarm) => a.rackId ?? a.coolerId ?? (a.uplinkId ? 'uplink' : null);
   for (const a of s.alarms) {
-    const cur = worst.get(a.rackId);
-    if (!cur || a.severity > cur.severity) worst.set(a.rackId, a);
+    const key = keyOf(a);
+    if (!key) continue;
+    const cur = worst.get(key);
+    if (!cur || a.severity > cur.severity) worst.set(key, a);
   }
-  for (const [rackId, a] of worst) {
-    const rack = s.racks.find((r) => r.id === rackId);
-    if (!rack) continue;
-    const p = worldToScreen(cam, rack.pos.x + 0.5, rack.pos.y - 0.15);
+  const dock = s.grid.tiles.indexOf('dock');
+  for (const [key, a] of worst) {
+    const pos = key === 'uplink'
+      ? (dock >= 0 ? { x: dock % s.grid.w, y: Math.floor(dock / s.grid.w) } : null)
+      : (s.racks.find((r) => r.id === key) ?? s.coolers.find((c) => c.id === key))?.pos;
+    if (!pos) continue;
+    const p = worldToScreen(cam, pos.x + 0.5, pos.y - 0.15);
     const pulse = 1 + Math.sin(time / (a.severity === 3 ? 120 : 260)) * 0.12;
     const r = Math.max(7, z * 0.26) * pulse;
     drawSeverityShape(ctx, a.severity, p.x, p.y, r);

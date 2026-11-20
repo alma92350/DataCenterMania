@@ -1,12 +1,12 @@
 import { createRng, pick, randInt, rand } from '../core/rng';
 import { dayOf } from '../core/time';
-import { COOLERS, RACK_CAPACITY_U } from '../data/catalog';
+import { COOLERS, MORALE, RACK_CAPACITY_U } from '../data/catalog';
 import { CHAPTERS, type ContractSeed } from '../data/chapters';
-import { FIRST_NAMES, LAST_NAMES, TIPS, TRAITS } from '../data/content';
+import { FIRST_NAMES, HIREABLE_ROLES, LAST_NAMES, TIPS, TRAITS } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
 import { parseMap } from './grid';
 import type {
-  Candidate, ChapterId, Contract, Cooler, DifficultyId, GameState, LogKind, PartId, Rack, Tech, Vec,
+  Candidate, ChapterId, Contract, Cooler, DifficultyId, Facing, GameState, LogKind, PartId, Rack, Tech, Vec,
 } from './types';
 
 export const SAVE_VERSION = 1;
@@ -34,6 +34,7 @@ export function makeContract(s: GameState, seed: ContractSeed, status: Contract[
   return {
     id: newId(s, 'c'),
     ...seed,
+    bandwidthPerUnit: seed.bandwidthPerUnit ?? 0,
     status,
     startDay: status === 'active' ? day : null,
     liveFrom: status === 'active' ? s.minute : null,
@@ -57,26 +58,33 @@ export function makeCandidate(s: GameState): Candidate {
     speed: Math.round((1.1 + rand(s.rng) * 0.5) * 100) / 100,
     salaryPerDay: 90 + skill * 45 + randInt(s.rng, 0, 30),
     trait,
+    role: s.features.includes('roles') ? pick(s.rng, HIREABLE_ROLES) : 'hw',
   };
 }
 
 export function techFromCandidate(c: Candidate, pos: Vec): Tech {
   return {
-    id: c.id.replace('cand', 't'), name: c.name, role: 'hw', skill: c.skill, speed: c.speed,
+    id: c.id.replace('cand', 't'), name: c.name, role: c.role, skill: c.skill, speed: c.speed,
     salaryPerDay: c.salaryPerDay, pos: { ...pos }, path: [], jobId: null, carrying: null, trait: c.trait,
+    fatigue: 0, morale: MORALE.base, onBreak: false,
   };
 }
 
-export function makeRack(s: GameState, pos: Vec, powerBudgetW: number): Rack {
-  return { id: newId(s, 'r'), pos: { ...pos }, capacityU: RACK_CAPACITY_U, powerBudgetW, tripped: false, temp: s.ambient, loadW: 0 };
+export function makeRack(s: GameState, pos: Vec, powerBudgetW: number, facing: Facing = 'S'): Rack {
+  return {
+    id: newId(s, 'r'), pos: { ...pos }, capacityU: RACK_CAPACITY_U, powerBudgetW, tripped: false, temp: s.ambient, loadW: 0,
+    facing, switchFailed: false, maintenance: false, recirculation: 0,
+  };
 }
 
 export function makeCooler(s: GameState, kind: Cooler['kind'], pos: Vec): Cooler {
   const def = COOLERS[kind];
-  return { id: newId(s, 'ac'), kind, pos: { ...pos }, capacityKw: def.capacityKw, on: true, powerW: def.powerW };
+  return { id: newId(s, 'ac'), kind, pos: { ...pos }, capacityKw: def.capacityKw, on: true, powerW: def.powerW, health: 1, broken: false };
 }
 
-const EMPTY_INVENTORY: Record<PartId, number> = { disk: 0, psu: 0, server1u: 0, server2u: 0, rack: 0, portableAc: 0, wallAc: 0 };
+const EMPTY_INVENTORY: Record<PartId, number> = {
+  disk: 0, psu: 0, server1u: 0, server2u: 0, rack: 0, portableAc: 0, wallAc: 0, crac: 0, filter: 0, switch: 0, coffee: 0,
+};
 
 export function homeTile(s: GameState): Vec {
   const i = s.grid.tiles.indexOf('noc');
@@ -102,6 +110,9 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
     racks: [],
     devices: [],
     coolers: [],
+    uplinks: [],
+    bandwidthUsed: 0,
+    coffeeLevel: 0,
     techs: [],
     candidates: [],
     jobs: [],
@@ -124,8 +135,10 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
   s.progress.peakCash = s.cash;
   s.progress.startCash = s.cash;
 
-  for (const pos of map.racks) s.racks.push(makeRack(s, pos, ch.rackPowerBudgetW));
+  map.racks.forEach((pos, i) => s.racks.push(makeRack(s, pos, ch.rackPowerBudgetW, ch.rackFacing?.[i] ?? 'S')));
+  for (const pos of map.cracs) s.coolers.push(makeCooler(s, 'crac', pos));
   for (const pos of map.coolers) s.coolers.push(makeCooler(s, ch.mapCooler, pos));
+  for (const u of ch.uplinks ?? []) s.uplinks.push({ ...u, id: newId(s, 'u'), up: true, repairAt: null });
   for (const c of ch.contracts) s.contracts.push(makeContract(s, c.seed, c.active ? 'active' : 'offered'));
   // initial offers in chapters with a contract board stay open longer
   for (const c of s.contracts) if (c.status === 'offered') c.expiresDay = dayOf(s.minute) + 3;
@@ -142,14 +155,16 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
   const home = homeTile(s);
   s.techs.push({
     id: 'manager', name: 'You (Manager)', role: 'manager', skill: 2, speed: 1, salaryPerDay: 0,
-    pos: { ...home }, path: [], jobId: null, carrying: null, trait: null,
+    pos: { ...home }, path: [], jobId: null, carrying: null, trait: null, fatigue: 0, morale: MORALE.base, onBreak: false,
   });
   for (let i = 0; i < ch.hwTechs; i++) {
-    const t = techFromCandidate({ ...makeCandidate(s), skill: 3, trait: null }, home);
+    const t = techFromCandidate({ ...makeCandidate(s), skill: 3, trait: null, role: ch.startingRoles?.[i] ?? 'hw' }, home);
     s.techs.push(t);
   }
   s.progress.maxTechs = s.techs.length;
   if (s.features.includes('hire')) for (let i = 0; i < 3; i++) s.candidates.push(makeCandidate(s));
+  // with specialists, the first candidates always include one of each new role
+  if (s.features.includes('roles')) (['hvac', 'net'] as const).forEach((role, i) => (s.candidates[i]!.role = role));
 
   addLog(s, 'story', `Chapter ${ch.number}: ${ch.title}. ${ch.intro}`);
   return s;

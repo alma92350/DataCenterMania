@@ -1,11 +1,11 @@
 import { at } from '../core/time';
-import type { ChapterId, Contract, FaultKind, FeatureFlag, GameState, PartId, ServerModelId } from '../sim/types';
+import type { ChapterId, Contract, Facing, FaultKind, FeatureFlag, GameState, PartId, ServerModelId, TechRole, Uplink } from '../sim/types';
 import { overallUptimePct, servingDeviceCount, activeContracts } from '../sim/selectors';
 
 export type ContractSeed = Pick<
   Contract,
   'customer' | 'description' | 'units' | 'slaPct' | 'revenuePerDay' | 'penaltyPerBreach' | 'durationDays' | 'profile'
->;
+> & Partial<Pick<Contract, 'bandwidthPerUnit'>>;
 
 export type ScriptedAction =
   | { type: 'say'; text: string }
@@ -13,7 +13,9 @@ export type ScriptedAction =
   | { type: 'fault'; rack: number; device: number; fault: FaultKind }
   | { type: 'ambient'; value: number; officeAc?: boolean; text?: string }
   | { type: 'offer'; contract: ContractSeed }
-  | { type: 'failures'; enabled: boolean };
+  | { type: 'failures'; enabled: boolean }
+  | { type: 'filter'; cooler: number; health: number }
+  | { type: 'cutUplink'; uplink: number; text?: string };
 
 export interface ScriptedEvent {
   id: string;
@@ -41,6 +43,11 @@ export interface ChapterDef {
   rackPowerBudgetW: number;
   /** Cooler kind for 'A' tiles in the map. */
   mapCooler: 'officeAc' | 'wallAc';
+  /** Facing of the map's racks, in map order (default: all 'S'). */
+  rackFacing?: Facing[];
+  uplinks?: Omit<Uplink, 'id' | 'up' | 'repairAt'>[];
+  /** Roles of the starting technicians, besides the manager (default: hardware techs). */
+  startingRoles?: TechRole[];
   devices: { rack: number; model: ServerModelId; slot: number; contract: number | null }[];
   contracts: { seed: ContractSeed; active: boolean }[];
   inventory: Partial<Record<PartId, number>>;
@@ -213,8 +220,75 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       { label: 'SLA uptime ≥ 98%', check: (s) => overallUptimePct(s) >= 98 },
       { label: 'Reputation ≥ 4.5★', check: (s) => s.reputation >= 4.5 },
     ],
+    next: 'ch3',
+  },
+
+  ch3: {
+    id: 'ch3', number: 3, title: 'Colocation Floor', subtitle: 'Aisles, specialists and the backhoe',
+    intro: 'A real colocation floor with three rows of racks, a CRAC unit and a fiber uplink. Launch week is coming. Get the airflow right, hire specialists and keep the bits flowing.',
+    map: [
+      '#########################',
+      '#SSS....C...........~~~~#',
+      '#S..................~~~~#',
+      '#..R.R.R.R.R........~~~~#',
+      '#...................~~~~#',
+      '#..R.R.R.R.R........~~~~#',
+      '#...................~~~~#',
+      '#..R.R.R.R.R........~~~~#',
+      '#...................~~~~#',
+      '#...........A.......~~~~#',
+      '#NN.................~~~~#',
+      '#NN................D~~~~#',
+      '#########################',
+    ],
+    startMinute: at(0, 8),
+    endMinute: at(5, 8),
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'network', 'roles', 'fatigue', 'maintenance'],
+    startCash: 16000,
+    ambient: 24,
+    rackPowerBudgetW: 3000,
+    mapCooler: 'wallAc',
+    uplinks: [{ name: 'MetroFiber A', capacityGbps: 8, costPerDay: 150 }],
+    startingRoles: ['hw'],
+    devices: [
+      { rack: 0, model: 'server1u', slot: 0, contract: 0 }, { rack: 0, model: 'server1u', slot: 1, contract: 0 },
+      { rack: 1, model: 'server1u', slot: 0, contract: 0 }, { rack: 1, model: 'server1u', slot: 1, contract: 0 },
+      { rack: 2, model: 'server1u', slot: 0, contract: 0 }, { rack: 2, model: 'server1u', slot: 1, contract: 1 },
+      { rack: 3, model: 'server1u', slot: 0, contract: 1 }, { rack: 3, model: 'server1u', slot: 1, contract: 1 },
+      { rack: 5, model: 'server1u', slot: 0, contract: 2 }, { rack: 5, model: 'server1u', slot: 1, contract: 2 },
+      { rack: 6, model: 'server1u', slot: 0, contract: 2 }, { rack: 6, model: 'server1u', slot: 1, contract: 2 },
+      { rack: 7, model: 'server1u', slot: 0, contract: 2 }, { rack: 7, model: 'server1u', slot: 1, contract: 3 },
+      { rack: 8, model: 'server1u', slot: 0, contract: 3 }, { rack: 8, model: 'server1u', slot: 1, contract: 3 },
+    ],
+    contracts: [
+      { seed: { customer: 'ByteBank', description: 'Fintech. Strict SLA, pays a lot.', units: 4, slaPct: 99.5, revenuePerDay: 1800, penaltyPerBreach: 1100, durationDays: 10, profile: 'office', bandwidthPerUnit: 0.3 }, active: true },
+      { seed: { customer: 'Law & Order Mail', description: 'Email for a law firm.', units: 3, slaPct: 98, revenuePerDay: 750, penaltyPerBreach: 400, durationDays: 10, profile: 'office', bandwidthPerUnit: 0.2 }, active: true },
+      { seed: { customer: 'Nightly News', description: 'News site, busy in the evening.', units: 4, slaPct: 98, revenuePerDay: 1250, penaltyPerBreach: 700, durationDays: 10, profile: 'evening', bandwidthPerUnit: 0.6 }, active: true },
+      { seed: { ...BAKERY, units: 2, revenuePerDay: 350, durationDays: 10, bandwidthPerUnit: 0.1 }, active: true },
+    ],
+    inventory: { disk: 2, psu: 1, server1u: 2, filter: 1, switch: 1 },
+    hwTechs: 1,
+    failuresEnabled: true,
+    dailyOffers: true,
+    events: [
+      { id: 'aislesTip', at: at(0, 8, 2), actions: [{ type: 'tip', key: 'aisles' }] },
+      { id: 'rolesTip', at: at(0, 8, 20), actions: [{ type: 'tip', key: 'roles' }] },
+      { id: 'networkTip', at: at(0, 10), actions: [{ type: 'tip', key: 'network' }] },
+      { id: 'fatigueTip', at: at(0, 13), actions: [{ type: 'tip', key: 'fatigue' }] },
+      { id: 'launchOffer', at: at(1, 9), actions: [
+        { type: 'say', text: 'Pixel Forge Games is launching their big game on Wednesday evening and wants servers here. Bandwidth-hungry gamers incoming!' },
+        { type: 'offer', contract: { customer: 'Pixel Forge Launch', description: 'Game launch servers: huge evening traffic.', units: 6, slaPct: 98, revenuePerDay: 3000, penaltyPerBreach: 1500, durationDays: 6, profile: 'evening', bandwidthPerUnit: 0.9 } },
+      ] },
+      { id: 'filterWorn', at: at(1, 14), actions: [{ type: 'filter', cooler: 0, health: 0.35 }, { type: 'tip', key: 'maintenance' }] },
+      { id: 'backhoe', at: at(2, 19, 30), actions: [{ type: 'cutUplink', uplink: 0, text: 'Wednesday 19:30, launch night: a backhoe outside just dug through MetroFiber A!' }, { type: 'tip', key: 'uplinkCut' }] },
+    ],
+    objectives: [
+      { label: 'SLA uptime ≥ 98% and a profit', check: (s) => overallUptimePct(s) >= 98 && s.cash > s.progress.startCash },
+      { label: 'SLA uptime ≥ 99.8%', check: (s) => overallUptimePct(s) >= 99.8 },
+      { label: 'Perfect airflow: no rack breathing hot exhaust at the end', check: (s) => s.racks.every((r) => r.recirculation === 0) },
+    ],
     next: null,
   },
 };
 
-export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2'];
+export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3'];

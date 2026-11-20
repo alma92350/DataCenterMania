@@ -1,10 +1,12 @@
 import { pick, randInt } from '../core/rng';
 import { dayOf } from '../core/time';
-import { BASE_PUE, ELECTRICITY_PER_KWH, PARTS, RACK_RENT_PER_DAY } from '../data/catalog';
+import { BASE_PUE, ELECTRICITY_PER_KWH, MORALE, PARTS, RACK_RENT_PER_DAY } from '../data/catalog';
+import { chance } from '../core/rng';
 import { CHAPTERS } from '../data/chapters';
 import { CUSTOMERS } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
-import { addLog, makeCandidate, makeContract } from './state';
+import { addLog, makeCandidate, makeContract, showTip } from './state';
+import { cancelJob } from './jobs';
 import { contractUptimeTodayPct } from './selectors';
 import type { DayReport, GameState, PartId } from './types';
 
@@ -17,6 +19,11 @@ export function updateOrders(s: GameState): void {
   if (!arrived.length) return;
   s.orders = s.orders.filter((o) => o.arriveAt > s.minute);
   for (const o of arrived) {
+    if (o.part === 'coffee') {
+      s.coffeeLevel += o.qty;
+      addLog(s, 'success', `New coffee machine installed. The team is delighted! (level ${s.coffeeLevel})`);
+      continue;
+    }
     s.inventory[o.part] += o.qty;
     addLog(s, 'info', `Delivery arrived: ${o.qty} × ${PARTS[o.part].name}.`);
   }
@@ -26,7 +33,7 @@ export function updateOrders(s: GameState): void {
 export function settleDay(s: GameState): DayReport {
   const day = dayOf(s.minute) - 1;
   const diff = DIFFICULTIES[s.difficulty];
-  const report: DayReport = { day, revenue: 0, penalties: 0, salaries: 0, electricity: 0, rent: 0, net: 0, slaMet: 0, slaBreached: 0 };
+  const report: DayReport = { day, revenue: 0, penalties: 0, salaries: 0, electricity: 0, rent: 0, network: 0, net: 0, slaMet: 0, slaBreached: 0 };
   for (const c of s.contracts) {
     if (c.status !== 'active' || c.minutesToday === 0) continue;
     report.revenue += Math.round(c.revenuePerDay * (c.minutesToday / 1440));
@@ -49,7 +56,8 @@ export function settleDay(s: GameState): DayReport {
   report.salaries = s.techs.reduce((sum, t) => sum + t.salaryPerDay, 0);
   report.electricity = Math.round(s.energyTodayKwh * ELECTRICITY_PER_KWH * BASE_PUE);
   report.rent = s.racks.length * RACK_RENT_PER_DAY;
-  report.net = report.revenue - report.penalties - report.salaries - report.electricity - report.rent;
+  report.network = s.uplinks.reduce((sum, u) => sum + u.costPerDay, 0);
+  report.net = report.revenue - report.penalties - report.salaries - report.electricity - report.rent - report.network;
   s.cash += report.net;
   s.energyTodayKwh = 0;
   s.reports.push(report);
@@ -66,12 +74,24 @@ export function settleDay(s: GameState): DayReport {
   }
   s.contracts = s.contracts.filter((c) => !(c.status === 'offered' && today >= c.expiresDay));
 
+  if (s.features.includes('fatigue')) quitCheck(s);
   if (s.features.includes('hire')) {
     s.candidates = s.candidates.slice(-1);
     while (s.candidates.length < 3) s.candidates.push(makeCandidate(s));
   }
   if (CHAPTERS[s.chapter].dailyOffers) generateOffers(s, randInt(s.rng, 1, 2));
   return report;
+}
+
+/** Unhappy staff may hand in their notice at midnight. */
+function quitCheck(s: GameState): void {
+  for (const t of [...s.techs]) {
+    if (t.role === 'manager' || t.morale >= MORALE.quitBelow || !chance(s.rng, MORALE.quitChance)) continue;
+    for (const j of s.jobs.filter((x) => x.techId === t.id)) cancelJob(s, j.id);
+    s.techs = s.techs.filter((x) => x.id !== t.id);
+    addLog(s, 'fail', `${t.name} quit: "I need a job where I can sleep."`);
+    showTip(s, 'quit');
+  }
 }
 
 /** New contract offers; better reputation draws bigger and better-paying customers. */
@@ -84,6 +104,7 @@ export function generateOffers(s: GameState, count: number): void {
     s.contracts.push(makeContract(s, {
       customer: a.name, description: a.description, units, slaPct: a.slaPct, revenuePerDay: revenue,
       penaltyPerBreach: Math.round(revenue * 0.8), durationDays: randInt(s.rng, a.duration[0], a.duration[1]), profile: a.profile,
+      bandwidthPerUnit: s.features.includes('network') ? a.bandwidth : 0,
     }, 'offered'));
     addLog(s, 'info', `New contract offer: ${a.name} wants ${units} units for $${revenue}/day.`);
   }
