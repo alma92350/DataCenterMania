@@ -24,7 +24,7 @@ export interface JobSpec {
 export function createJob(s: GameState, spec: JobSpec): Job {
   const job: Job = {
     id: newId(s, 'j'), kind: spec.kind, rackId: spec.rackId ?? null, deviceId: spec.deviceId ?? null,
-    techId: null, stage: 'queued', workLeft: spec.workMin ?? JOB_WORK_MIN[spec.kind], part: spec.part,
+    techId: null, stage: 'queued', workLeft: spec.workMin ?? JOB_WORK_MIN[spec.kind], workTotal: spec.workMin ?? JOB_WORK_MIN[spec.kind], part: spec.part,
     site: { ...spec.site }, model: spec.model, slot: spec.slot, contractId: spec.contractId, coolerKind: spec.coolerKind,
   };
   if (spec.part) s.inventory[spec.part]--;
@@ -172,6 +172,7 @@ function finishWork(s: GameState, tech: Tech, job: Job): void {
   if (!job.botched && chance(s.rng, mistake)) {
     job.botched = true;
     job.workLeft = JOB_WORK_MIN[job.kind] * 0.5;
+    job.workTotal = job.workLeft;
     addLog(s, 'fail', `${tech.name} botched the job (${JOB_LABEL[job.kind]}) and has to redo part of it.`);
     showTip(s, 'botched');
     return;

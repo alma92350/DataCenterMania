@@ -105,6 +105,7 @@ export interface Job {
   techId: string | null;
   stage: JobStage;
   workLeft: number; // game minutes of hands-on work remaining
+  workTotal: number;
   part: PartId | null; // part reserved from inventory (null = no part needed)
   site: Vec; // tile where the work happens (rack, cooler or build tile)
   // install / build specifics

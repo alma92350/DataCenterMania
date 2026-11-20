@@ -1,0 +1,11 @@
+{
+  "name": "DataCenterMania",
+  "short_name": "DCMania",
+  "description": "Run a data center: dispatch technicians, beat the alarms.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0f15",
+  "theme_color": "#0b0f15",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
