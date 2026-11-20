@@ -23,6 +23,16 @@
 
 **Session shape:** 5–15 min on mobile (one "shift" or one level), 30–90 min on desktop. Can be paused at any time.
 
+**Business model: free.** No ads, no in-app purchases, no energy timers, no accounts. The game is static and runs entirely in the browser.
+
+### 1.1 Decisions log
+| Topic | Decision |
+|-------|----------|
+| Map view | **Top-down** 2D tile grid. Racks get a light faux-3D front face for readability. |
+| Game speed | **1 real second = 3 game minutes at 1×.** One game day ≈ 8 real minutes, which is one mobile session. See §3.1. |
+| Cyber layer | **Fun and arcade-like, not a security simulator.** Short, readable, humorous. See §9. |
+| Monetisation | **Free.** |
+
 ---
 
 ## 2. Platform & Technical Constraints
@@ -45,6 +55,31 @@ MICRO (seconds)   Alarm fires → inspect → dispatch tech → tech walks, fetc
 MID   (minutes)   Accept contract → install capacity → balance power/cooling → meet SLA → get paid
 MACRO (hours)     Unlock level → expand hall/site → research tech → hire & train team → automate → reputation tier
 ```
+
+### 3.1 Time model
+
+The goal is for one game day to fit one short mobile session, while every job stays long enough to watch.
+
+| Speed | Real time → game time | 1 game day lasts | Use |
+|-------|-----------------------|------------------|-----|
+| ⏸ Pause | — | — | Planning, building and dispatching are all allowed while paused |
+| 1× | 1 s → 3 min | **8 min** | Default |
+| 2× | 1 s → 6 min | 4 min | Calm periods |
+| 4× | 1 s → 12 min | 2 min | Nights, waiting for deliveries |
+| Night skip | Auto 4× from 22:00 to 06:00 when no alarm is ≥ Major | — | Drops back to 1× (plus optional auto-pause) on a Major alarm |
+
+**Calendar.** Contracts are measured in **game days**, not months: a small contract runs 3–10 days, a big one 15–30. Billing happens daily at midnight, with a short end-of-day report. A campaign level lasts 3–7 game days, so 25–55 real minutes at 1× and less with fast-forward. Week structure (Mon–Sun) matters for demand curves and "Friday" events.
+
+**Job durations** (game minutes, with real seconds at 1× in brackets):
+- Quick: reboot 5 (≈2 s), patch a cable 10 (≈3 s)
+- Standard: swap a disk or PSU 15 (5 s), install a server 30 (10 s)
+- Long: CRAC service 60 (20 s), generator test 60 (20 s)
+- Heavy: install a rack 180 (60 s), fiber repair 120 (40 s)
+- Walking speed: about 4 tiles per real second at 1×, so crossing a 40-tile hall takes about 10 s. That makes the layout and the position of the storage room matter.
+
+**Alarm escalation timers** (game time): Warning to Major in 2 h (40 s at 1×). Major to Critical/outage in 45 min (15 s).
+
+**Incident rate target** (tuned through MTBF scaling): L0–L1 about 2–4 incidents per game day, L3 about 8–12, L5+ 20+ but with most handled by automation. Players should never wait more than about 60 real seconds with nothing to do at 1×. If they would, they can fast-forward.
 
 **Failure state:** Bankruptcy (cash < 0 for N days), or reputation collapse (lost all contracts). Levels also have **objective-based wins** (e.g. "Reach 99.9% uptime for 7 days while hosting 20 servers").
 
@@ -149,7 +184,7 @@ Techs path-find on the floor map. A job is a chain of steps: **walk to storage �
 
 | Category | Task | Role | Typical duration* | Needs | Trigger |
 |----------|------|------|------|-------|---------|
-| **Provision** | Install server | HW | 10 min | Server in stock, free U, power budget | Contract / player |
+| **Provision** | Install server | HW | 30 min | Server in stock, free U, power budget | Contract / player |
 | | Decommission server (wipe + remove) | HW | 15 min | — (data wipe! skipping = data leak risk) | Contract end / EOL |
 | | Install rack | HW ×2 | 1 h | Rack in stock, floor tile, power drop | Expansion |
 | | Remove rack | HW ×2 | 45 min | Empty rack | Re-layout |
@@ -175,7 +210,7 @@ Techs path-find on the floor map. A job is a chain of steps: **walk to storage �
 | **Logistics** | Receive delivery | Any | 10 min | Dock free | Order arrives |
 | | E-waste disposal | HW | 15 min | — | Storage clutter |
 
-\*In-game minutes. At 1× speed, 1 in-game minute ≈ 1 real second.
+\*In-game time. At 1×, 3 game minutes = 1 real second (see §3.1). The durations in this table are rough. §3.1 holds the reference buckets (quick / standard / long / heavy), and the balancing pass will align every task to them.
 
 **Smart remote tasks:** Some tasks (reboot, firmware, patch) can be done remotely once you have **Out-of-Band management (research unlock)**, so nobody has to walk there.
 
@@ -215,7 +250,23 @@ Techs path-find on the floor map. A job is a chain of steps: **walk to storage �
 
 ## 9. Cybersecurity System
 
-Abstract and readable. Not a hacking simulator.
+**Tone: fun first.** Abstract, readable and humorous. Not a hacking simulator, and no real security jargon needed to play. Think "Saturday-morning cartoon villains" attacking your servers.
+
+**Fun rules for the cyber layer**
+- **Cartoon villains.** Recurring fictional hacker crews, each with a personality and taunting messages that pop up on the NOC screen:
+  - *The Script Kiddies*: frequent, weak, noisy attacks (tutorial for cyber).
+  - *Captain Phish*: goes after your technicians with ever sillier fake emails ("Your coffee machine license has expired, click here").
+  - *Lord DDoSius*: arrives with fanfare during big demand events.
+  - *The Ransom Raccoons*: rare and dangerous, and they leave a raccoon emoji on infected servers.
+- **Visible, physical, quick.** Every attack shows on the map: servers glow purple, a hooded icon walks the network cables, the bandwidth pipe bulges. It is always resolved by a tap or a technician, never by reading logs.
+- **10-second micro-games** (optional, with auto-resolve at lower efficiency):
+  - *Cut the Spread*: tap network segments to isolate a ransomware infection before it spreads.
+  - *Phish or Legit?*: swipe left or right on 3 emails a technician received.
+  - *Block the Flood*: tap the attacking traffic streams to block them during a DDoS.
+- **Rewards, not only punishment.** Beating a crew drops loot such as Engineering Points, a "Hacker trophy" in the NOC, or a temporary security boost. Catching a villain chain gives an achievement.
+- **Can be turned off** in Custom difficulty for players who want a calm building game.
+
+Systems underneath (kept simple):
 
 - **Threat Level** meter rises with company size, reputation, high-profile customers and world events.
 - **Attack surface** = unpatched servers + open services + staff phishing susceptibility.
@@ -231,7 +282,7 @@ Abstract and readable. Not a hacking simulator.
 | **Insider threat** | Badge used at 3 AM | Theft of hardware / data | Cameras, guards, access policy |
 | **Zero-day** | Big news event, all servers on version X vulnerable | Mass intrusion | Patch race: prioritise critical customers |
 
-**Optional micro-interaction (mobile-friendly, ≤10 s):** "Isolate the infection": tap network segments to cut them before the purple spreads. Skippable, with auto-resolve by SOC at lower efficiency.
+The micro-games listed above are all mobile-friendly and take 10 seconds or less. Each is skippable and auto-resolved by the SOC analyst at lower efficiency.
 
 ---
 
@@ -322,7 +373,7 @@ The rules UI must be **card-based and touch-friendly**, not a code editor.
 ## 14. UX / UI
 
 ### 14.1 Main screens
-- **Floor Map** (main): top-down/isometric-lite. Pinch to zoom, drag to pan. Racks show a status LED colour plus a heat overlay toggle.
+- **Floor Map** (main): **top-down** tile grid. Racks are drawn as rectangles with a small front face and LED strip, and techs as round top-down characters. Pinch to zoom, drag to pan. Racks show a status LED colour plus a heat overlay toggle.
 - **Rack View** (zoom into rack): front elevation with U-slots, devices, blinking LEDs, power/temperature bars. Drag a server from inventory into a slot (desktop), or tap a slot then tap the server (mobile).
 - **Alarm Feed:** right sidebar on desktop, bottom sheet on mobile.
 - **Team panel:** portraits, status (idle / walking / working / tired), current task, queue.
@@ -425,13 +476,13 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 
 ## 20. Open Questions & Risks
 
-1. **Map perspective:** Pure top-down (simpler, better on mobile) or isometric (prettier, harder to tap)? *Leaning top-down with faux-3D racks.*
-2. **Time scale:** Does 1 s = 1 min feel right? Contract months must pass fast enough for the economy to feel alive.
+1. ~~Map perspective~~ **Decided:** top-down.
+2. ~~Time scale~~ **Decided:** 1 s = 3 game min at 1× (§3.1). Validate in playtest that standard jobs (5 s) don't feel too fast to follow.
 3. **Multi-floor buildings:** Separate floor tabs with elevator travel time for techs, or one flat map per hall? *Tabs, with elevator travel time.*
-4. **Cyber layer depth:** Risk of feeling detached from the physical game. Keep cyber always tied to physical consequences (heat from crypto-jacking, techs phished, servers to re-image).
+4. ~~Cyber layer depth~~ **Decided:** fun and arcade-like with cartoon villains (§9), always tied to physical consequences on the map.
 5. **Mobile density:** At 200+ racks the map gets busy. Need aggressive LOD (rows collapse into blocks when zoomed out) and alarm grouping.
 6. **Micro-management fatigue:** Mitigated by the automation layer (§13). Needs playtesting at L4–L5.
-7. **Monetisation:** Free web game / pay-what-you-want / one-time premium on stores later? (No pay-to-win, no energy timers.)
+7. ~~Monetisation~~ **Decided:** free, with no ads and no purchases.
 8. **Branding:** All customers, vendors and products fictional. No real company names or logos.
 
 ---
