@@ -1,0 +1,57 @@
+import { minuteOfDay, weekdayOf } from '../core/time';
+import { addLog } from './state';
+import { activeContracts, contractDevices, deviceUp, unitsOf } from './selectors';
+import type { DemandProfileId, GameState } from './types';
+
+const bump = (h: number, center: number, width: number) => Math.exp(-((h - center) ** 2) / (2 * width * width));
+
+/** Fraction (0,1] of a contract's units that is needed at a given minute. */
+export function demandFactor(profile: DemandProfileId, minute: number): number {
+  const h = minuteOfDay(minute) / 60;
+  const weekend = weekdayOf(minute) >= 5;
+  let v: number;
+  switch (profile) {
+    case 'flat':
+      v = 0.85;
+      break;
+    case 'office':
+      v = weekend ? 0.25 : 0.3 + 0.62 * Math.min(1, bump(h, 13, 3.2) * 1.6);
+      break;
+    case 'lunchDinner':
+      v = 0.3 + 0.7 * Math.max(bump(h, 12.25, 0.9), bump(h, 19.25, 1.1)) * (weekend ? 1 : 0.95);
+      break;
+    case 'evening':
+      v = 0.3 + 0.7 * bump(h, 20.5, 2.2);
+      break;
+  }
+  return Math.min(1, Math.max(0.05, v));
+}
+
+const IDLE_LOAD = 0.05;
+
+/** Spreads each contract's demand over its live servers and books SLA minutes. */
+export function updateDemand(s: GameState, dt: number): void {
+  for (const d of s.devices) d.load = IDLE_LOAD;
+  for (const c of activeContracts(s)) {
+    const needed = c.units * demandFactor(c.profile, s.minute);
+    const live = contractDevices(s, c.id).filter((d) => deviceUp(s, d));
+    const capacity = live.reduce((sum, d) => sum + unitsOf(d), 0);
+    if (c.liveFrom === null) {
+      const provisioned = capacity >= c.units;
+      if (!provisioned && s.minute < (c.graceUntil ?? 0)) continue;
+      c.liveFrom = s.minute;
+      if (provisioned) {
+        s.cash += c.revenuePerDay;
+        addLog(s, 'money', `Setup fee from ${c.customer}: +$${c.revenuePerDay}.`);
+      }
+      addLog(s, provisioned ? 'success' : 'fail', provisioned
+        ? `${c.customer} is live! SLA measurement starts now.`
+        : `${c.customer}: setup time is over. SLA measurement starts now, ready or not!`);
+    }
+    const ok = capacity + 1e-9 >= needed;
+    const load = capacity > 0 ? Math.min(1, needed / capacity) : 0;
+    for (const d of live) d.load = Math.max(IDLE_LOAD, load);
+    c.minutesToday += dt;
+    if (ok) c.okMinutesToday += dt;
+  }
+}
