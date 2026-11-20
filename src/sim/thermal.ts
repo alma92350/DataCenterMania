@@ -78,6 +78,7 @@ export function updateThermal(s: GameState, dt: number): void {
     rack.recirculation = recirculation.get(rack.id) ?? 0;
     const target = rackTargetTemp(s, rack, cooling.get(rack.id)!);
     rack.temp += (target - rack.temp) * alpha;
+    s.stats.peakTemp = Math.max(s.stats.peakTemp, rack.temp);
     const devices = devicesInRack(s, rack.id);
     const rackNo = s.racks.indexOf(rack) + 1;
 

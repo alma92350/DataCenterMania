@@ -1,16 +1,16 @@
-import { CONTRACT_GRACE_MIN, EXTRA_UPLINK, PARTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
+import { CONTRACT_GRACE_MIN, EXTRA_UPLINK, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
 import { dayOf } from '../core/time';
 import { deliveryTime } from './economy';
 import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
 import { isWalkable, nearestTile, tileAt } from './grid';
 import { addLog, homeTile, newId, showTip, techFromCandidate } from './state';
 import { blockedTiles, contractById, deviceById, hasFeature, rackById, slotFree, techById } from './selectors';
-import type { AlarmKind, Cooler, Facing, GameState, JobKind, PartId, ServerModelId, Vec } from './types';
+import type { AlarmKind, Cooler, Facing, GameState, JobKind, PartId, ProjectId, ServerModelId, Vec } from './types';
 
 type TechChoice = string | 'best';
 
 export type Command =
-  | { type: 'dispatch'; job: DispatchJob; deviceId?: string; rackId?: string; uplinkId?: string; techId: TechChoice }
+  | { type: 'dispatch'; job: DispatchJob; deviceId?: string; rackId?: string; uplinkId?: string; walkinId?: string; techId: TechChoice }
   | { type: 'install'; rackId: string; slot: number; model: ServerModelId; contractId: string | null; techId: TechChoice }
   | { type: 'buildRack'; pos: Vec; facing?: Facing; techId: TechChoice }
   | { type: 'placeCooler'; coolerKind: Exclude<Cooler['kind'], 'officeAc'>; pos: Vec; techId: TechChoice }
@@ -26,9 +26,10 @@ export type Command =
   | { type: 'ackAlarm'; alarmId: string }
   | { type: 'serviceCooler'; coolerId: string; techId: TechChoice }
   | { type: 'repairCooler'; coolerId: string; techId: TechChoice }
-  | { type: 'buyUplink' };
+  | { type: 'buyUplink' }
+  | { type: 'startProject'; project: ProjectId; techId?: TechChoice };
 
-export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink'>;
+export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor'>;
 
 export type CommandResult = { ok: true } | { ok: false; error: string };
 
@@ -96,6 +97,14 @@ export function applyCommand(s: GameState, cmd: Command): CommandResult {
   if (s.progress.status !== 'playing') return fail('The chapter is over.');
   switch (cmd.type) {
     case 'dispatch': {
+      if (cmd.job === 'favor') {
+        const w = s.walkins.find((x) => x.id === cmd.walkinId);
+        if (!w || w.status !== 'open') return fail('That request is no longer open.');
+        if (s.jobs.some((j) => j.walkinId === w.id)) return fail('Someone is already on it.');
+        const rack = rackById(s, w.rackId);
+        if (!rack) return fail('Unknown rack.');
+        return dispatchJob(s, { kind: 'favor', rackId: rack.id, walkinId: w.id, part: null, site: rack.pos }, cmd.techId);
+      }
       if (cmd.job === 'rotateRack') {
         const rack = rackById(s, cmd.rackId ?? null);
         if (!rack) return fail('Unknown rack.');
@@ -251,6 +260,21 @@ export function applyCommand(s: GameState, cmd: Command): CommandResult {
       const part = cmd.type === 'serviceCooler' ? 'filter' : null;
       if (part && s.inventory.filter < 1) return fail('No spare filter in stock. Order one from the Shop.');
       return dispatchJob(s, { kind: cmd.type, coolerId: c.id, part, site: c.pos }, cmd.techId);
+    }
+    case 'startProject': {
+      if (!hasFeature(s, 'projects')) return fail('Ops projects unlock in Chapter 1.');
+      const def = PROJECTS[cmd.project];
+      if (s.projects.includes(cmd.project)) return fail('Already done.');
+      if (s.jobs.some((j) => j.projectId === cmd.project)) return fail('Already in progress.');
+      if (s.cash < def.cost) return fail('Not enough cash.');
+      const rack = s.racks[0];
+      if (!rack) return fail('No racks to work on.');
+      const res = dispatchJob(s, { kind: 'project', projectId: cmd.project, rackId: rack.id, part: null, site: rack.pos, workMin: def.workMin }, cmd.techId ?? 'best');
+      if (res.ok) {
+        s.cash -= def.cost;
+        addLog(s, 'money', `Started ${def.name} ($${def.cost}).`);
+      }
+      return res;
     }
     case 'buyUplink': {
       if (!hasFeature(s, 'network')) return fail('Networking unlocks in Chapter 3.');

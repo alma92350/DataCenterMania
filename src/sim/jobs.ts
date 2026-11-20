@@ -1,5 +1,6 @@
 import { chance } from '../core/rng';
-import { JOB_LABEL, JOB_ROLES, JOB_WORK_MIN, MANAGER_SPECIALIST_RATE, RACK_CAPACITY_U } from '../data/catalog';
+import { JOB_LABEL, JOB_ROLES, JOB_WORK_MIN, MANAGER_SPECIALIST_RATE, PROJECTS, PROJECT_EFFECT, RACK_CAPACITY_U } from '../data/catalog';
+import { completeWalkin } from './walkins';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
 import { clearAlarms } from './alarms';
@@ -23,6 +24,8 @@ export interface JobSpec {
   coolerId?: string;
   uplinkId?: string;
   facing?: Job['facing'];
+  projectId?: Job['projectId'];
+  walkinId?: string;
   workMin?: number;
 }
 
@@ -31,7 +34,7 @@ export function createJob(s: GameState, spec: JobSpec): Job {
     id: newId(s, 'j'), kind: spec.kind, rackId: spec.rackId ?? null, deviceId: spec.deviceId ?? null,
     techId: null, stage: 'queued', workLeft: spec.workMin ?? JOB_WORK_MIN[spec.kind], workTotal: spec.workMin ?? JOB_WORK_MIN[spec.kind], part: spec.part,
     site: { ...spec.site }, model: spec.model, slot: spec.slot, contractId: spec.contractId, coolerKind: spec.coolerKind,
-    coolerId: spec.coolerId, uplinkId: spec.uplinkId, facing: spec.facing,
+    coolerId: spec.coolerId, uplinkId: spec.uplinkId, facing: spec.facing, projectId: spec.projectId, walkinId: spec.walkinId,
   };
   if (spec.part) s.inventory[spec.part]--;
   s.jobs.push(job);
@@ -124,10 +127,12 @@ export function cancelJob(s: GameState, jobId: string): boolean {
   return true;
 }
 
+let labelsBonus = 1;
+
 function workRate(t: Tech, kind: JobKind): number {
   const trait = traitOf(t.trait);
   const offRole = t.role === 'manager' && kind in SPECIALIST ? MANAGER_SPECIALIST_RATE : 1;
-  return (0.6 + 0.2 * t.skill) * (trait?.workMult ?? 1) * staminaFactor(t) * offRole;
+  return (0.6 + 0.2 * t.skill) * (trait?.workMult ?? 1) * staminaFactor(t) * offRole * labelsBonus;
 }
 
 /** Puts a not-yet-started job back in the shared queue (e.g. its tech went on a break). */
@@ -164,6 +169,7 @@ function walk(t: Tech, dt: number): number {
 }
 
 export function updateTechs(s: GameState, dt: number): void {
+  labelsBonus = s.projects.includes('labels') ? PROJECT_EFFECT.labelsWorkMult : 1;
   for (const tech of s.techs) {
     let time = dt;
     const current = s.jobs.find((j) => j.id === tech.jobId);
@@ -215,7 +221,8 @@ export function updateTechs(s: GameState, dt: number): void {
 
 function finishWork(s: GameState, tech: Tech, job: Job): void {
   const diff = DIFFICULTIES[s.difficulty];
-  const mistake = diff.mistakeChance * (traitOf(tech.trait)?.mistakeMult ?? 1) * mistakeFactor(tech);
+  const tidy = s.projects.includes('cableTidy') ? PROJECT_EFFECT.cableTidyMistakeMult : 1;
+  const mistake = diff.mistakeChance * (traitOf(tech.trait)?.mistakeMult ?? 1) * mistakeFactor(tech) * tidy;
   if (!job.botched && chance(s.rng, mistake)) {
     job.botched = true;
     job.workLeft = JOB_WORK_MIN[job.kind] * 0.5;
@@ -317,6 +324,15 @@ export function completeJob(s: GameState, job: Job): void {
       if (u && !u.up) restoreUplink(s, u, false);
       break;
     }
+    case 'project':
+      if (job.projectId && !s.projects.includes(job.projectId)) {
+        s.projects.push(job.projectId);
+        addLog(s, 'success', `${PROJECTS[job.projectId].name} finished. ${PROJECTS[job.projectId].effect}`);
+      }
+      break;
+    case 'favor':
+      completeWalkin(s, job.walkinId);
+      break;
   }
 }
 

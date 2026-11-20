@@ -1,7 +1,7 @@
 import { applyCommand, suggestedCoolerJob, suggestedJob } from '../src/sim/commands';
 import { hourOf } from '../src/core/time';
 import { firstFreeSlot, activeContracts, contractAssignedUnits } from '../src/sim/selectors';
-import { PARTS } from '../src/data/catalog';
+import { PARTS, PROJECTS } from '../src/data/catalog';
 import type { GameState } from '../src/sim/types';
 
 /** A simple bot standing in for a competent player: fix every alarm, keep spares, fill contracts. */
@@ -42,6 +42,17 @@ export function autopilot(s: GameState): void {
       .reduce((sum, c) => sum + c.units * c.bandwidthPerUnit, 0);
     const cap = s.uplinks.reduce((sum, u) => sum + u.capacityGbps, 0);
     if (fullTraffic > cap * 0.8 || s.alarms.some((a) => a.kind === 'bandwidth' || a.kind === 'uplink')) applyCommand(s, { type: 'buyUplink' });
+  }
+  for (const w of s.walkins) {
+    if (w.status === 'open' && !s.jobs.some((j) => j.walkinId === w.id)) applyCommand(s, { type: 'dispatch', job: 'favor', walkinId: w.id, techId: 'best' });
+  }
+  if (s.features.includes('projects') && !s.alarms.some((x) => x.severity >= 2)) {
+    for (const p of ['labels', 'firmware', 'cableTidy'] as const) {
+      if (!s.projects.includes(p) && !s.jobs.some((j) => j.projectId === p) && s.cash > PROJECTS[p].cost + 6000) {
+        applyCommand(s, { type: 'startProject', project: p });
+        break;
+      }
+    }
   }
   // fix the airflow at night, when rotating a rack hurts least
   if (s.features.includes('aisles') && hourOf(s.minute) < 5) {

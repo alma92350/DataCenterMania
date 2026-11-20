@@ -1,4 +1,5 @@
-import { SERVER_MODELS } from '../data/catalog';
+import { BASE_PUE, ELECTRICITY_PER_KWH, RACK_RENT_PER_DAY, SERVER_MODELS } from '../data/catalog';
+import { devicePowerW } from './power';
 import type { Contract, Device, GameState, Rack, Tech } from './types';
 
 export const rackById = (s: GameState, id: string | null): Rack | undefined => s.racks.find((r) => r.id === id);
@@ -80,3 +81,13 @@ export const blockedTiles = (s: GameState): Set<number> =>
   new Set([...s.racks.map((r) => r.pos), ...s.coolers.map((c) => c.pos)].map((p) => p.y * s.grid.w + p.x));
 
 export const hasFeature = (s: GameState, f: GameState['features'][number]): boolean => s.features.includes(f);
+
+/** Revenue minus the power its servers draw and their share of rack rent, per day (PRD §21.3). */
+export function contractMarginPerDay(s: GameState, c: Contract): number {
+  let cost = 0;
+  for (const d of contractDevices(s, c.id)) {
+    cost += (devicePowerW(s, d) / 1000) * 24 * ELECTRICITY_PER_KWH * BASE_PUE;
+    cost += RACK_RENT_PER_DAY / Math.max(1, devicesInRack(s, d.rackId).length);
+  }
+  return Math.round(c.revenuePerDay - cost);
+}

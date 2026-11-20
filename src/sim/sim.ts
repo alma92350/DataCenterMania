@@ -1,7 +1,9 @@
 import { MINUTES_PER_DAY } from '../core/time';
 import { updateDemand } from './demand';
 import { escalateAlarms } from './alarms';
-import { settleDay, updateOrders } from './economy';
+import { accrueMinute, settleDay, settleHour, updateOrders } from './economy';
+import { updateShift } from './shifts';
+import { updateWalkins } from './walkins';
 import { runScriptedEvents } from './events';
 import { rollFailures } from './failures';
 import { updateTechs } from './jobs';
@@ -18,6 +20,8 @@ export function step(s: GameState): void {
   if (s.progress.status !== 'playing') return;
   const dt = 1;
   runScriptedEvents(s);
+  updateShift(s);
+  updateWalkins(s, dt);
   updateNetwork(s, dt);
   updateDemand(s, dt);
   updatePower(s);
@@ -28,10 +32,12 @@ export function step(s: GameState): void {
   updateTechs(s, dt);
   updateFatigue(s, dt);
   updateOrders(s);
+  accrueMinute(s);
   s.energyTodayKwh += (facilityPowerW(s) / 1000) * (dt / 60);
 
   s.minute += dt;
   s.progress.peakCash = Math.max(s.progress.peakCash, s.cash);
+  if (s.minute % 60 === 0) settleHour(s);
   if (s.minute % MINUTES_PER_DAY === 0) {
     settleDay(s);
     s.progress.negativeCashDays = s.cash < 0 ? s.progress.negativeCashDays + 1 : 0;

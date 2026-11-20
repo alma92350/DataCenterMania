@@ -6,11 +6,22 @@ import { FIRST_NAMES, HIREABLE_ROLES, LAST_NAMES, TIPS, TRAITS } from '../data/c
 import { DIFFICULTIES } from '../data/difficulty';
 import { parseMap } from './grid';
 import type {
-  Candidate, ChapterId, Contract, Cooler, DifficultyId, Facing, GameState, LogKind, PartId, Rack, Tech, Vec,
+  Candidate, ChapterId, Contract, Cooler, DayReport, DifficultyId, Facing, Fx, GameState, LogKind, PartId, Rack, Tech, Vec,
 } from './types';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 const LOG_CAP = 200;
+
+export function emptyReport(day: number): DayReport {
+  return { day, revenue: 0, penalties: 0, salaries: 0, electricity: 0, rent: 0, network: 0, net: 0, slaMet: 0, slaBreached: 0 };
+}
+
+const FX_CAP = 80;
+
+export function addFx(s: GameState, kind: Fx['kind'], rackId: string | null, amount: number): void {
+  s.fx.push({ id: s.fxSeq++, kind, rackId, amount, minute: s.minute });
+  if (s.fx.length > FX_CAP) s.fx.splice(0, s.fx.length - FX_CAP);
+}
 
 export function newId(s: GameState, prefix: string): string {
   return `${prefix}${s.nextId++}`;
@@ -127,8 +138,17 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
     seenTips: [],
     reports: [],
     progress: { status: 'playing', stars: 0, firedEvents: [], negativeCashDays: 0, maxTechs: 1, peakCash: 0, startCash: 0 },
-    stats: { incidents: 0, resolved: 0, criticals: 0, thermalShutdowns: 0 },
+    stats: { incidents: 0, resolved: 0, criticals: 0, thermalShutdowns: 0, peakTemp: 0 },
     energyTodayKwh: 0,
+    today: emptyReport(dayOf(ch.startMinute)),
+    pendingRevenue: {},
+    fx: [],
+    fxSeq: 1,
+    shift: null,
+    shiftReports: [],
+    pendingShiftReport: null,
+    walkins: [],
+    projects: [],
     failuresEnabled: ch.failuresEnabled,
     attention: null,
   };

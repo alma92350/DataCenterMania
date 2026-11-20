@@ -36,7 +36,24 @@ function migrateV1(d: AnyRecord): void {
   d.version = 2;
 }
 
-const MIGRATIONS: Record<number, (d: AnyRecord) => void> = { 1: migrateV1 };
+
+/** v2 -> v3: live money, shifts, walk-ins, projects, fx. */
+function migrateV2(d: AnyRecord): void {
+  const day = Math.floor((d.minute as number) / 1440);
+  d.today ??= { day, revenue: 0, penalties: 0, salaries: 0, electricity: 0, rent: 0, network: 0, net: 0, slaMet: 0, slaBreached: 0 };
+  d.pendingRevenue ??= {};
+  d.fx ??= [];
+  d.fxSeq ??= 1;
+  d.shift ??= null;
+  d.shiftReports ??= [];
+  d.pendingShiftReport ??= null;
+  d.walkins ??= [];
+  d.projects ??= [];
+  (d.stats as AnyRecord).peakTemp ??= 0;
+  d.version = 3;
+}
+
+const MIGRATIONS: Record<number, (d: AnyRecord) => void> = { 1: migrateV1, 2: migrateV2 };
 
 /** Parses, validates and migrates a save to the current version. */
 export function deserialize(json: string): GameState {

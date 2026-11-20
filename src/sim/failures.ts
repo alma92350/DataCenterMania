@@ -1,5 +1,5 @@
 import { chance } from '../core/rng';
-import { FAILURE_PER_DAY, THERMAL } from '../data/catalog';
+import { FAILURE_PER_DAY, PROJECT_EFFECT, THERMAL } from '../data/catalog';
 import { DIFFICULTIES } from '../data/difficulty';
 import { escalationDelay, raiseAlarm } from './alarms';
 import { directorMultiplier } from './director';
@@ -12,6 +12,10 @@ export function failureMultiplier(temp: number): number {
 }
 
 const FAULT_SEVERITY: Record<FaultKind, Severity> = { disk: 1, psu: 2, hung: 2, dataloss: 3 };
+
+export function hungRateMultiplier(s: GameState): number {
+  return s.projects.includes('firmware') ? PROJECT_EFFECT.firmwareHungMult : 1;
+}
 
 export function applyFault(s: GameState, d: Device, fault: FaultKind): void {
   if (d.faults.includes(fault) || (fault === 'disk' && d.faults.includes('dataloss'))) return;
@@ -29,7 +33,8 @@ export function rollFailures(s: GameState, dt: number): void {
     const mult = rate * failureMultiplier(rack?.temp ?? 20) * (0.6 + d.load * 0.8) * (dt / 1440);
     for (const fault of ['disk', 'psu', 'hung'] as const) {
       if (d.faults.includes(fault) || (fault === 'disk' && d.faults.includes('dataloss'))) continue;
-      if (chance(s.rng, FAILURE_PER_DAY[fault] * mult)) {
+      const extra = fault === 'hung' ? hungRateMultiplier(s) : 1;
+      if (chance(s.rng, FAILURE_PER_DAY[fault] * mult * extra)) {
         applyFault(s, d, fault);
         break;
       }

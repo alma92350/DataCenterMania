@@ -1,5 +1,8 @@
 import { CHAPTERS } from '../data/chapters';
 import { addLog } from './state';
+import { settleDay, settleHour } from './economy';
+import { endShift } from './shifts';
+import { MINUTES_PER_DAY } from '../core/time';
 import type { GameState } from './types';
 
 export function objectiveStatus(s: GameState): boolean[] {
@@ -30,6 +33,9 @@ export function checkLose(s: GameState): boolean {
 
 export function checkEnd(s: GameState): void {
   if (s.minute < CHAPTERS[s.chapter].endMinute) return;
+  if (s.minute % 60 !== 0) settleHour(s);
+  if (s.shift) endShift(s);
+  if (s.minute % MINUTES_PER_DAY !== 0) settleDay(s, true);
   const results = objectiveStatus(s);
   const stars = countStars(results);
   s.progress.stars = stars;

@@ -2,7 +2,7 @@ import { minuteOfDay, weekdayOf } from '../core/time';
 import { NETWORK } from '../data/catalog';
 import { clearAlarms, raiseAlarm } from './alarms';
 import { bandwidthCapacity } from './network';
-import { addLog } from './state';
+import { addFx, addLog } from './state';
 import { activeContracts, contractDevices, deviceUp, unitsOf } from './selectors';
 import type { DemandProfileId, GameState } from './types';
 
@@ -57,6 +57,10 @@ export function updateDemand(s: GameState, dt: number): void {
     for (const d of live) d.load = Math.max(IDLE_LOAD, load);
     c.minutesToday += dt;
     if (ok) c.okMinutesToday += dt;
+    else {
+      const rackId = contractDevices(s, c.id)[0]?.rackId ?? null;
+      if (!s.fx.some((f) => f.kind === 'miss' && f.rackId === rackId && s.minute - f.minute < 30)) addFx(s, 'miss', rackId, 0);
+    }
   }
 }
 

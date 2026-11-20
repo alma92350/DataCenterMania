@@ -1,13 +1,13 @@
 import { pick, randInt } from '../core/rng';
-import { dayOf } from '../core/time';
+import { MINUTES_PER_DAY, dayOf, minuteOfDay } from '../core/time';
 import { BASE_PUE, ELECTRICITY_PER_KWH, MORALE, PARTS, RACK_RENT_PER_DAY } from '../data/catalog';
 import { chance } from '../core/rng';
 import { CHAPTERS } from '../data/chapters';
 import { CUSTOMERS } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
-import { addLog, makeCandidate, makeContract, showTip } from './state';
+import { addFx, addLog, emptyReport, makeCandidate, makeContract, showTip } from './state';
 import { cancelJob } from './jobs';
-import { contractUptimeTodayPct } from './selectors';
+import { contractUptimeTodayPct, unitsOf } from './selectors';
 import type { DayReport, GameState, PartId } from './types';
 
 export function deliveryTime(s: GameState, part: PartId): number {
@@ -29,14 +29,65 @@ export function updateOrders(s: GameState): void {
   }
 }
 
-/** Midnight settlement: revenue, SLA penalties, salaries, power and rent (PRD §10). */
-export function settleDay(s: GameState): DayReport {
-  const day = dayOf(s.minute) - 1;
+/** Revenue earned this minute by live contracts, attributed to the racks that serve them. */
+export function accrueMinute(s: GameState): void {
+  for (const c of s.contracts) {
+    if (c.status !== 'active' || c.liveFrom === null) continue;
+    const perMin = c.revenuePerDay / 1440;
+    const devices = s.devices.filter((d) => d.contractId === c.id);
+    const units = devices.reduce((n, d) => n + unitsOf(d), 0);
+    if (!units) {
+      s.pendingRevenue[''] = (s.pendingRevenue[''] ?? 0) + perMin;
+      continue;
+    }
+    for (const d of devices) s.pendingRevenue[d.rackId] = (s.pendingRevenue[d.rackId] ?? 0) + (perMin * unitsOf(d)) / units;
+  }
+}
+
+function dailyCosts(s: GameState) {
+  return {
+    salaries: s.techs.reduce((sum, t) => sum + t.salaryPerDay, 0),
+    rent: s.racks.length * RACK_RENT_PER_DAY,
+    network: s.uplinks.reduce((sum, u) => sum + u.costPerDay, 0),
+  };
+}
+
+/** Credits earned revenue and charges running costs, prorated to the share of the day elapsed (PRD §21.3). */
+export function settleHour(s: GameState): void {
+  const t = s.today;
+  let credited = 0;
+  for (const [rackId, amount] of Object.entries(s.pendingRevenue)) {
+    const whole = Math.floor(amount);
+    if (whole <= 0) continue;
+    credited += whole;
+    s.pendingRevenue[rackId] = amount - whole;
+    if (rackId) addFx(s, 'money', rackId, whole);
+  }
+  t.revenue += credited;
+  const elapsed = (minuteOfDay(s.minute) || MINUTES_PER_DAY) / MINUTES_PER_DAY;
+  const daily = dailyCosts(s);
+  const due = {
+    salaries: Math.round(daily.salaries * elapsed) - t.salaries,
+    rent: Math.round(daily.rent * elapsed) - t.rent,
+    network: Math.round(daily.network * elapsed) - t.network,
+    electricity: Math.round(s.energyTodayKwh * ELECTRICITY_PER_KWH * BASE_PUE) - t.electricity,
+  };
+  for (const k of ['salaries', 'rent', 'network', 'electricity'] as const) t[k] += Math.max(0, due[k]);
+  s.cash += credited - Math.max(0, due.salaries) - Math.max(0, due.rent) - Math.max(0, due.network) - Math.max(0, due.electricity);
+  s.fx = s.fx.filter((f) => s.minute - f.minute < 180);
+}
+
+/**
+ * Daily close (midnight, or the chapter's end when final): SLA verdicts and penalties, then the report.
+ * Revenue and running costs were already credited hourly.
+ */
+export function settleDay(s: GameState, final = false): DayReport {
+  const day = final ? dayOf(s.minute) : dayOf(s.minute) - 1;
   const diff = DIFFICULTIES[s.difficulty];
-  const report: DayReport = { day, revenue: 0, penalties: 0, salaries: 0, electricity: 0, rent: 0, network: 0, net: 0, slaMet: 0, slaBreached: 0 };
+  const report = s.today;
+  report.day = day;
   for (const c of s.contracts) {
     if (c.status !== 'active' || c.minutesToday === 0) continue;
-    report.revenue += Math.round(c.revenuePerDay * (c.minutesToday / 1440));
     const uptime = contractUptimeTodayPct(c);
     if (uptime + 1e-9 >= c.slaPct) {
       report.slaMet++;
@@ -53,15 +104,13 @@ export function settleDay(s: GameState): DayReport {
     c.minutesToday = 0;
     c.okMinutesToday = 0;
   }
-  report.salaries = s.techs.reduce((sum, t) => sum + t.salaryPerDay, 0);
-  report.electricity = Math.round(s.energyTodayKwh * ELECTRICITY_PER_KWH * BASE_PUE);
-  report.rent = s.racks.length * RACK_RENT_PER_DAY;
-  report.network = s.uplinks.reduce((sum, u) => sum + u.costPerDay, 0);
+  s.cash -= report.penalties;
   report.net = report.revenue - report.penalties - report.salaries - report.electricity - report.rent - report.network;
-  s.cash += report.net;
   s.energyTodayKwh = 0;
   s.reports.push(report);
+  s.today = emptyReport(day + 1);
   addLog(s, 'money', `Day ${day + 1} closed: ${report.net >= 0 ? '+' : ''}$${report.net.toLocaleString('en-US')} (revenue $${report.revenue}, costs $${report.revenue - report.net}).`);
+  if (final) return report;
 
   const today = dayOf(s.minute);
   for (const c of s.contracts) {

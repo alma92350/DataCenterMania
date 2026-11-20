@@ -1,6 +1,12 @@
 import { at } from '../core/time';
+import { DIFFICULTIES } from './difficulty';
 import type { ChapterId, Contract, Facing, FaultKind, FeatureFlag, GameState, PartId, ServerModelId, TechRole, Uplink } from '../sim/types';
 import { overallUptimePct, servingDeviceCount, activeContracts } from '../sim/selectors';
+
+/** Money goals shrink with the difficulty's starting cash, so harder levels stay fair. */
+const profitGoal = (s: GameState, base: number) => Math.round(base * DIFFICULTIES[s.difficulty].startingCash);
+
+const money = (n: number) => `${n < 0 ? '-' : ''}$${Math.round(Math.abs(n)).toLocaleString('en-US')}`;
 
 export type ContractSeed = Pick<
   Contract,
@@ -26,6 +32,8 @@ export interface ScriptedEvent {
 export interface Objective {
   label: string;
   check: (s: GameState) => boolean;
+  /** Live progress shown in the HUD goal chip. */
+  progress?: (s: GameState) => string;
 }
 
 export interface ChapterDef {
@@ -46,6 +54,8 @@ export interface ChapterDef {
   /** Facing of the map's racks, in map order (default: all 'S'). */
   rackFacing?: Facing[];
   uplinks?: Omit<Uplink, 'id' | 'up' | 'repairAt'>[];
+  /** Fixed shift goal for every shift of this chapter (default: random). */
+  shiftGoal?: 'sla' | 'noCritical' | 'fastFix';
   /** Roles of the starting technicians, besides the manager (default: hardware techs). */
   startingRoles?: TechRole[];
   devices: { rack: number; model: ServerModelId; slot: number; contract: number | null }[];
@@ -67,7 +77,7 @@ const BAKERY: ContractSeed = {
 export const CHAPTERS: Record<ChapterId, ChapterDef> = {
   ch0: {
     id: 'ch0', number: 0, title: 'The Closet', subtitle: 'Tutorial',
-    intro: 'Your company’s entire IT lives in one rack in a broom closet. Keep it alive until Monday morning.',
+    intro: 'Your company’s entire IT lives in one rack in a broom closet. It is Friday. Keep it alive until 22:00.',
     map: [
       '##########',
       '#SS..A...#',
@@ -77,8 +87,9 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       '#N.......#',
       '##########',
     ],
-    startMinute: at(4, 9), // Friday 09:00
-    endMinute: at(7, 8), // Monday 08:00
+    startMinute: at(4, 8), // Friday 08:00
+    endMinute: at(4, 22), // Friday 22:00: one shift
+    shiftGoal: 'fastFix',
     features: ['shop'],
     startCash: 3000,
     ambient: 23,
@@ -95,23 +106,25 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     failuresEnabled: false,
     dailyOffers: false,
     events: [
-      { id: 'welcome', at: at(4, 9, 1), actions: [{ type: 'tip', key: 'welcome' }] },
-      { id: 'tutorialDisk', at: at(4, 9, 40), actions: [{ type: 'fault', rack: 0, device: 0, fault: 'disk' }, { type: 'tip', key: 'firstAlarm' }] },
+      { id: 'welcome', at: at(4, 8, 1), actions: [{ type: 'tip', key: 'welcome' }] },
+      { id: 'tutorialDisk', at: at(4, 8, 30), actions: [{ type: 'fault', rack: 0, device: 0, fault: 'disk' }, { type: 'tip', key: 'raid' }] },
       {
-        id: 'bakeryOnline', at: at(4, 11, 30), actions: [
-          { type: 'say', text: 'Grandma wants an online shop! Install a server and accept the new contract.' },
+        id: 'bakeryOnline', at: at(4, 9, 40), actions: [
+          { type: 'say', text: 'Grandma wants an online shop! Sign the new contract (Clients tab), then install the server from your stock for it.' },
           { type: 'offer', contract: { customer: "Grandma's Bakery", description: 'Online cake orders.', units: 1, slaPct: 95, revenuePerDay: 140, penaltyPerBreach: 80, durationDays: 30, profile: 'office' } },
           { type: 'tip', key: 'install' },
         ],
       },
-      { id: 'failuresOn', at: at(4, 14), actions: [{ type: 'failures', enabled: true }, { type: 'tip', key: 'shop' }] },
-      { id: 'acOff', at: at(4, 18), actions: [{ type: 'ambient', value: 34, officeAc: false, text: 'Friday 18:00: the office AC turns off for the weekend…' }, { type: 'tip', key: 'acOff' }] },
-      { id: 'acOn', at: at(7, 6), actions: [{ type: 'ambient', value: 23, officeAc: true, text: 'Monday 06:00: the office AC is back on. Phew.' }] },
+      { id: 'websiteFrozen', at: at(4, 11), actions: [{ type: 'say', text: 'Grandma calls: "The website is frozen!" A server hung. A quick reboot will do.' }, { type: 'fault', rack: 0, device: 1, fault: 'hung' }] },
+      { id: 'acBreaks', at: at(4, 12, 30), actions: [{ type: 'ambient', value: 29, officeAc: false, text: '12:30: the office AC just broke down. Facilities promise a fix by 17:00…' }, { type: 'tip', key: 'acOff' }] },
+      { id: 'psuDies', at: at(4, 15, 30), actions: [{ type: 'say', text: 'Pop! A power supply died, and there is no spare on the shelf.' }, { type: 'fault', rack: 0, device: 0, fault: 'psu' }, { type: 'tip', key: 'shop' }, { type: 'tip', key: 'spare' }] },
+      { id: 'acFixed', at: at(4, 17), actions: [{ type: 'ambient', value: 23, officeAc: true, text: '17:00: facilities fixed the AC. Phew.' }] },
+      { id: 'evening', at: at(4, 19), actions: [{ type: 'say', text: 'The office is empty. Only you and the hum of the servers. Almost done!' }] },
     ],
     objectives: [
-      { label: 'Keep SLA uptime ≥ 90% and cash ≥ $0 until Monday 08:00', check: (s) => overallUptimePct(s) >= 90 && s.cash >= 0 },
-      { label: 'No SLA breach all weekend', check: (s) => s.contracts.every((c) => c.breaches === 0) },
-      { label: 'Zero critical alarms', check: (s) => s.stats.criticals === 0 },
+      { label: 'SLA uptime ≥ 95% and cash ≥ $0 at 22:00', check: (s) => overallUptimePct(s) >= 95 && s.cash >= 0, progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 95%` },
+      { label: 'SLA uptime ≥ 99%', check: (s) => overallUptimePct(s) >= 99 },
+      { label: 'Keep every rack below 35°C all day', check: (s) => s.stats.peakTemp < 35 },
     ],
     next: 'ch1',
   },
@@ -130,8 +143,8 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       '##############',
     ],
     startMinute: at(0, 8),
-    endMinute: at(3, 8),
-    features: ['shop', 'hire', 'contracts'],
+    endMinute: at(2, 22),
+    features: ['shop', 'hire', 'contracts', 'projects', 'walkins'],
     startCash: 9000,
     ambient: 23,
     rackPowerBudgetW: 4000,
@@ -163,7 +176,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       ] },
     ],
     objectives: [
-      { label: '≥ 10 servers serving customers and SLA uptime ≥ 97%', check: (s) => servingDeviceCount(s) >= 10 && overallUptimePct(s) >= 97 },
+      { label: '≥ 10 servers serving customers and SLA uptime ≥ 97%', check: (s) => servingDeviceCount(s) >= 10 && overallUptimePct(s) >= 97, progress: (s) => `${servingDeviceCount(s)}/10 servers · uptime ${overallUptimePct(s).toFixed(1)}%` },
       { label: 'SLA uptime ≥ 99%', check: (s) => overallUptimePct(s) >= 99 },
       { label: 'Hire at most one technician', check: (s) => s.progress.maxTechs <= 2 },
     ],
@@ -186,8 +199,8 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       '######################',
     ],
     startMinute: at(0, 8),
-    endMinute: at(5, 8),
-    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers'],
+    endMinute: at(4, 22),
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'projects', 'walkins'],
     startCash: 14000,
     ambient: 24,
     rackPowerBudgetW: 3000,
@@ -216,7 +229,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       { id: 'heatwaveEnd', at: at(3, 22), actions: [{ type: 'ambient', value: 24, text: 'The heatwave breaks. Cooler air at last.' }] },
     ],
     objectives: [
-      { label: 'Make $5,000 profit with ≥ 3 active contracts', check: (s) => s.cash - s.progress.startCash >= 5000 && activeContracts(s).length >= 3 },
+      { label: 'Make $12,000 profit (scaled by difficulty) with ≥ 3 active contracts', check: (s) => s.cash - s.progress.startCash >= profitGoal(s, 12000) && activeContracts(s).length >= 3, progress: (s) => `Profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 12000))} · ${activeContracts(s).length}/3 clients` },
       { label: 'SLA uptime ≥ 98%', check: (s) => overallUptimePct(s) >= 98 },
       { label: 'Reputation ≥ 4.5★', check: (s) => s.reputation >= 4.5 },
     ],
@@ -242,8 +255,8 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       '#########################',
     ],
     startMinute: at(0, 8),
-    endMinute: at(5, 8),
-    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'network', 'roles', 'fatigue', 'maintenance'],
+    endMinute: at(4, 22),
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'network', 'roles', 'fatigue', 'maintenance', 'projects', 'walkins'],
     startCash: 16000,
     ambient: 24,
     rackPowerBudgetW: 3000,
@@ -283,7 +296,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       { id: 'backhoe', at: at(2, 19, 30), actions: [{ type: 'cutUplink', uplink: 0, text: 'Wednesday 19:30, launch night: a backhoe outside just dug through MetroFiber A!' }, { type: 'tip', key: 'uplinkCut' }] },
     ],
     objectives: [
-      { label: 'SLA uptime ≥ 98% and a profit', check: (s) => overallUptimePct(s) >= 98 && s.cash > s.progress.startCash },
+      { label: 'SLA uptime ≥ 98% and $10,000 profit (scaled by difficulty)', check: (s) => overallUptimePct(s) >= 98 && s.cash - s.progress.startCash >= profitGoal(s, 10000), progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 98% · profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 10000))}` },
       { label: 'SLA uptime ≥ 99.8%', check: (s) => overallUptimePct(s) >= 99.8 },
       { label: 'Perfect airflow: no rack breathing hot exhaust at the end', check: (s) => s.racks.every((r) => r.recirculation === 0) },
     ],

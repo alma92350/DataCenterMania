@@ -1,4 +1,4 @@
-import type { Cooler, JobKind, PartId, ServerModelId, TechRole } from '../sim/types';
+import type { Cooler, JobKind, PartId, ProjectId, ServerModelId, TechRole } from '../sim/types';
 
 export interface ServerModel {
   id: ServerModelId;
@@ -58,6 +58,8 @@ export const JOB_WORK_MIN: Record<JobKind, number> = {
   repairCooler: 90,
   replaceSwitch: 20,
   repairUplink: 90,
+  project: 120,
+  favor: 15,
 };
 
 export const JOB_LABEL: Record<JobKind, string> = {
@@ -74,6 +76,8 @@ export const JOB_LABEL: Record<JobKind, string> = {
   repairCooler: 'Repair cooler',
   replaceSwitch: 'Replace switch',
   repairUplink: 'Splice fiber',
+  project: 'Ops project',
+  favor: 'Customer favour',
 };
 
 /**
@@ -84,6 +88,7 @@ export const JOB_ROLES: Record<JobKind, TechRole[]> = {
   reboot: ['hw'], resetBreaker: ['hw'], swapDisk: ['hw'], replacePsu: ['hw'], install: ['hw'], remove: ['hw'],
   buildRack: ['hw'], rotateRack: ['hw'], placeCooler: ['hw', 'hvac'],
   serviceCooler: ['hvac'], repairCooler: ['hvac'], replaceSwitch: ['net'], repairUplink: ['net'],
+  project: ['hw', 'net'], favor: ['hw', 'hvac', 'net'],
 };
 
 export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer' };
@@ -135,3 +140,18 @@ export const CONTRACT_GRACE_MIN = 720;
 
 /** Alarm escalation delays in game minutes. */
 export const ESCALATION_MIN = { warningToMajor: 120, majorToCritical: 45 } as const;
+
+/** Ops projects (PRD §21.4): optional calm-time work with a lasting bonus for the chapter. */
+export const PROJECTS: Record<ProjectId, { name: string; icon: string; cost: number; workMin: number; effect: string }> = {
+  cableTidy: { name: 'Cable tidy-up', icon: '🧶', cost: 400, workMin: 120, effect: 'Halves botched jobs: no more pulling the wrong cable.' },
+  labels: { name: 'Label everything', icon: '🏷️', cost: 300, workMin: 90, effect: 'Every job goes 15% faster.' },
+  firmware: { name: 'Firmware campaign', icon: '💾', cost: 600, workMin: 120, effect: 'Servers hang 60% less often.' },
+};
+
+export const PROJECT_EFFECT = { cableTidyMistakeMult: 0.5, labelsWorkMult: 1.15, firmwareHungMult: 0.4 } as const;
+
+/** Walk-in requests (PRD §21.4). */
+export const WALKINS = { fromHour: 8, toHour: 20, meanGapMin: 40, deadlineMin: 60, maxOpen: 2, baseReward: 40, rewardPerChapter: 15 } as const;
+
+/** Shifts (PRD §21.1). */
+export const SHIFT = { startHour: 6, endHour: 22, fastFixMin: 30, baseBonus: 300, bonusPerChapter: 200, goodUptime: 99.5 } as const;

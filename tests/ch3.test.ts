@@ -8,7 +8,7 @@ import { updateDemand } from '../src/sim/demand';
 import { updateCoolers } from '../src/sim/maintenance';
 import { cutUplink, bandwidthCapacity, failSwitch, updateNetwork } from '../src/sim/network';
 import { updateFatigue } from '../src/sim/fatigue';
-import { settleDay } from '../src/sim/economy';
+import { settleDay, settleHour } from '../src/sim/economy';
 import { deviceUp } from '../src/sim/selectors';
 import { advance } from '../src/sim/sim';
 import { CHAPTERS } from '../src/data/chapters';
@@ -221,7 +221,8 @@ describe('network', () => {
     expect(s.cash).toBe(cash - EXTRA_UPLINK.setupCost);
     expect(bandwidthCapacity(s)).toBe(8 + EXTRA_UPLINK.capacityGbps);
     expect(applyCommand(s, { type: 'buyUplink' }).ok).toBe(false); // only one extra route
-    s.minute += 1440;
+    s.minute = at(1, 0);
+    settleHour(s);
     const report = settleDay(s);
     expect(report.network).toBe(150 + EXTRA_UPLINK.costPerDay);
   });

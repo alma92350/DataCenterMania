@@ -1,5 +1,5 @@
 import { at, MINUTES_PER_DAY } from '../src/core/time';
-import { createGame } from '../src/sim/state';
+import { createGame, SAVE_VERSION } from '../src/sim/state';
 import { advance, step } from '../src/sim/sim';
 import { applyCommand } from '../src/sim/commands';
 import { serialize, deserialize } from '../src/sim/save';
@@ -28,18 +28,18 @@ describe('simulation loop', () => {
 
   it('fires scripted chapter events once, at their time', () => {
     const s = createGame('ch0', 'sysadmin', 1);
-    advance(s, at(4, 9, 41) - s.minute);
+    advance(s, at(4, 8, 31) - s.minute);
     expect(s.progress.firedEvents).toContain('tutorialDisk');
     expect(s.devices[0]!.faults).toContain('disk');
     expect(s.log.some((l) => l.kind === 'tip')).toBe(true);
-    advance(s, at(4, 18, 1) - s.minute);
-    expect(s.ambient).toBe(34);
+    advance(s, at(4, 12, 31) - s.minute);
+    expect(s.ambient).toBe(29);
     expect(s.coolers[0]!.on).toBe(false);
   });
 
   it('chapter 0 offers a contract during the tutorial', () => {
     const s = createGame('ch0', 'sysadmin', 1);
-    advance(s, at(4, 12) - s.minute);
+    advance(s, at(4, 9, 41) - s.minute);
     expect(s.contracts.some((c) => c.status === 'offered')).toBe(true);
   });
 
@@ -131,7 +131,7 @@ describe('save / load', () => {
     delete old.uplinks; delete old.bandwidthUsed; delete old.coffeeLevel;
     for (const p of ['crac', 'filter', 'switch', 'coffee']) delete old.inventory[p];
     const loaded = deserialize(JSON.stringify(old));
-    expect(loaded.version).toBe(2);
+    expect(loaded.version).toBe(SAVE_VERSION);
     advance(loaded, 1440);
     expect(loaded.racks.every((r) => Number.isFinite(r.temp))).toBe(true);
     expect(Number.isFinite(loaded.cash)).toBe(true);

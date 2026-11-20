@@ -24,7 +24,8 @@ export type DifficultyId = 'intern' | 'sysadmin' | 'senior' | 'nightmare';
 export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3';
 export type FeatureFlag =
   | 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote'
-  | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance';
+  | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance'
+  | 'projects' | 'walkins';
 
 export type PartId =
   | 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc'
@@ -121,7 +122,9 @@ export type JobKind =
   | 'serviceCooler'
   | 'repairCooler'
   | 'replaceSwitch'
-  | 'repairUplink';
+  | 'repairUplink'
+  | 'project'
+  | 'favor';
 
 export type JobStage = 'queued' | 'toStorage' | 'toSite' | 'working' | 'done';
 
@@ -144,6 +147,8 @@ export interface Job {
   coolerId?: string;
   uplinkId?: string;
   facing?: Facing;
+  projectId?: ProjectId;
+  walkinId?: string;
   botched?: boolean;
 }
 
@@ -200,6 +205,60 @@ export interface Uplink {
   up: boolean;
   /** When the ISP fixes a cut on its own (null = not cut). */
   repairAt: number | null;
+}
+
+/** Ops projects: optional calm-time jobs with lasting bonuses (PRD §21.4). */
+export type ProjectId = 'cableTidy' | 'labels' | 'firmware';
+
+/** A walk-in request: a timed customer favour (PRD §21.4). */
+export interface Walkin {
+  id: string;
+  customer: string;
+  rackId: string;
+  text: string;
+  reward: number;
+  deadline: number;
+  status: 'open' | 'done' | 'expired';
+}
+
+export type ShiftGoalKind = 'sla' | 'noCritical' | 'fastFix';
+
+export interface Shift {
+  day: number;
+  startMinute: number;
+  endMinute: number;
+  goal: ShiftGoalKind;
+  goalLabel: string;
+  bonus: number;
+  /** For goals that can fail during the shift. */
+  goalFailed: boolean;
+  criticalsAtStart: number;
+  incidentsAtStart: number;
+  resolvedAtStart: number;
+  cashAtStart: number;
+}
+
+export interface ShiftReport {
+  day: number;
+  goalLabel: string;
+  goalMet: boolean;
+  bonus: number;
+  stars: number;
+  net: number;
+  uptimePct: number;
+  incidents: number;
+  resolved: number;
+  criticals: number;
+  highlights: string[];
+}
+
+/** Short-lived visual effects emitted by the simulation (money pops). */
+export interface Fx {
+  id: number;
+  kind: 'money' | 'miss' | 'bonus';
+  rackId: string | null;
+  amount: number;
+  minute: number;
 }
 
 export interface Order {
@@ -272,8 +331,20 @@ export interface GameState {
   seenTips: string[];
   reports: DayReport[];
   progress: ChapterProgress;
-  stats: { incidents: number; resolved: number; criticals: number; thermalShutdowns: number };
+  stats: { incidents: number; resolved: number; criticals: number; thermalShutdowns: number; peakTemp: number };
   energyTodayKwh: number;
+  /** Today's money so far: revenue and costs are credited every game hour (PRD §21.3). */
+  today: DayReport;
+  /** Revenue earned but not yet credited, by rack (for the hourly money pops). */
+  pendingRevenue: Record<string, number>;
+  fx: Fx[];
+  fxSeq: number;
+  shift: Shift | null;
+  shiftReports: ShiftReport[];
+  /** Set at the end of a shift; the UI shows the report card and clears it. */
+  pendingShiftReport: ShiftReport | null;
+  walkins: Walkin[];
+  projects: ProjectId[];
   failuresEnabled: boolean;
   /** Set when something needs the player's attention (used by the UI for auto-pause). */
   attention: { severity: Severity; text: string } | null;
