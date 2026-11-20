@@ -2,6 +2,8 @@
 
 A top-down data center management game for desktop and mobile browsers. You start with one rack in a broom closet and keep machines alive, keep customers happy, and send the right technician to the right rack at the right moment.
 
+**Play it:** https://alma92350.github.io/DataCenterMania/ (deployed by GitHub Pages on every push to `main`)
+
 Free, no ads, works offline (PWA). See the full design in [`docs/PRD.md`](docs/PRD.md).
 
 ## Play / develop
