@@ -1,4 +1,4 @@
-import { CONTRACT_GRACE_MIN, COOLERS, EXTRA_UPLINK, JOB_LABEL, PARTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
+import { CONTRACT_GRACE_MIN, COOLERS, EXTRA_UPLINK, JOB_LABEL, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
 import { CHAPTERS, CHAPTER_ORDER } from '../data/chapters';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
@@ -10,10 +10,10 @@ import { demandFactor } from '../sim/demand';
 import { deliveryTime } from '../sim/economy';
 import { objectiveStatus } from '../sim/objectives';
 import {
-  activeContracts, contractAssignedUnits, contractById, contractCapacity, contractUptimeTodayPct, deviceUp,
+  activeContracts, contractAssignedUnits, contractById, contractCapacity, contractMarginPerDay, contractUptimeTodayPct, deviceUp,
   devicesInRack, hasFeature, offeredContracts, overallUptimePct, rackById,
 } from '../sim/selectors';
-import type { Alarm, Contract, Device, DifficultyId, GameState, LogEntry, PartId, Rack, Tech } from '../sim/types';
+import type { Alarm, Contract, Device, DifficultyId, GameState, LogEntry, PartId, ProjectId, Rack, ShiftReport, Tech } from '../sim/types';
 import { SEVERITY_LABEL } from '../sim/types';
 import { countdown, escapeHtml as e, money, stars } from './format';
 import { bestStars, isDifficultyUnlocked, isUnlocked, type Progress, type Settings } from './storage';
@@ -64,7 +64,7 @@ export function topBar(s: GameState, speed: Speed, effective: Speed): string {
 export function tabs(s: GameState, active: PanelId): string {
   return visiblePanels(s)
     .map((p) => {
-      const badge = p === 'alarms' ? s.alarms.filter((a) => a.kind !== 'powerHigh').length : p === 'contracts' ? offeredContracts(s).length : 0;
+      const badge = p === 'alarms' ? s.alarms.filter((a) => a.kind !== 'powerHigh').length + s.walkins.filter((w) => w.status === 'open').length : p === 'contracts' ? offeredContracts(s).length : 0;
       return `<button data-action="panel" data-panel="${p}" class="${p === active ? 'on' : ''}" aria-pressed="${p === active}">
         <span class="ti">${PANEL_META[p].icon}</span><span class="tl">${PANEL_META[p].label}</span>${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
     })
@@ -89,8 +89,9 @@ const ALARM_HINT: Partial<Record<Alarm['kind'], string>> = {
 
 export function alarmsPanel(s: GameState): string {
   const list = [...s.alarms].sort((a, b) => b.severity - a.severity || a.raisedAt - b.raisedAt);
-  if (!list.length) return `<div class="empty">✅ All quiet. Enjoy your coffee.</div>`;
-  return `<ul class="list alarms">${list
+  const requests = requestsSection(s);
+  if (!list.length) return `${requests}<div class="empty">✅ All quiet. ${requests ? 'Time for those requests!' : hasFeature(s, 'projects') ? 'Maybe start an ops project (Team tab)?' : 'Enjoy your coffee.'}</div>`;
+  return `${requests}${requests ? '<h3>Alarms</h3>' : ''}<ul class="list alarms">${list
     .map((a) => {
       const job = jobFor(s, a);
       const fix = suggestedJob(a.kind) ?? suggestedCoolerJob(a.kind);
@@ -162,7 +163,7 @@ export function teamPanel(s: GameState): string {
   } else {
     hire = `<p class="muted small">🔒 Hiring unlocks in Chapter 1. For now, it is just you.</p>`;
   }
-  return `<ul class="list">${staff}</ul>${hire}`;
+  return `<ul class="list">${staff}</ul>${projectsSection(s)}${hire}`;
 }
 
 function contractRow(s: GameState, c: Contract): string {
@@ -181,7 +182,7 @@ function contractRow(s: GameState, c: Contract): string {
     <div class="row"><b>${e(c.customer)}</b><span class="muted">${money(c.revenuePerDay)}/day · ${daysLeft}d left</span></div>
     <div class="row meta">${e(c.description)}</div>
     <div class="cap" title="Live capacity vs demand"><div class="cap-live" style="width:${bar}%"></div><div class="cap-need" style="left:${needPct}%"></div></div>
-    <div class="row meta"><span>Servers: ${live}/${assigned} live units, needs ${c.units} (demand now ${need.toFixed(1)})</span></div>
+    <div class="row meta"><span>Servers: ${live}/${assigned} live units, needs ${c.units} (demand now ${need.toFixed(1)})</span><span class="${contractMarginPerDay(s, c) < 0 ? 'bad' : 'ok'}" title="Revenue minus server power and rack rent">Margin ${money(contractMarginPerDay(s, c))}/day</span></div>
     <div class="row actions">${status}${c.breaches ? `<span class="chip bad">${c.breaches} breach${c.breaches > 1 ? 'es' : ''}</span>` : ''}
       ${assigned < c.units ? `<button class="primary" data-action="autoAssign" data-contract="${e(c.id)}">Assign free servers</button>` : ''}</div>
   </li>`;
@@ -439,6 +440,10 @@ export function settingsForm(settings: Settings): string {
     </select></label>
     <label><input type="checkbox" data-action="setting" data-key="nightSkip" ${settings.nightSkip ? 'checked' : ''}> Night skip (fast nights when quiet)</label>
     <label><input type="checkbox" data-action="setting" data-key="sound" ${settings.sound ? 'checked' : ''}> Sound</label>
+    <label>Display <select data-action="setting" data-key="display">
+      ${([['auto', 'Auto-detect'], ['color', 'Colour screen'], ['eink', 'E-ink (Kindle Scribe)']] as const)
+        .map(([v, l]) => `<option value="${v}" ${settings.display === v ? 'selected' : ''}>${l}</option>`).join('')}
+    </select></label>
   </details>`;
 }
 
@@ -492,4 +497,82 @@ export function difficultyName(id: DifficultyId): string {
 
 export function dayProgress(s: GameState): number {
   return (s.minute % MINUTES_PER_DAY) / MINUTES_PER_DAY;
+}
+
+/** HUD chips: the chapter goal with live progress, and the current shift goal (PRD §21.3). */
+export function goalBar(s: GameState): string {
+  const ch = CHAPTERS[s.chapter];
+  const shown = 0; // the ★ goal, with live progress; the Goals tab lists ★★ and ★★★
+  const o = ch.objectives[shown]!;
+  const ok = o.check(s);
+  const goal = `<button class="chip-btn ${ok ? 'ok' : ''}" data-action="panel" data-panel="goals" title="${e(o.label)}">
+    <span class="star">${'★'.repeat(shown + 1)}</span> ${e(o.progress ? o.progress(s) : o.label)} ${ok ? '✓' : ''}</button>`;
+  const sh = s.shift;
+  const shift = sh
+    ? `<span class="chip-btn ${sh.goalFailed ? 'bad' : ''}" title="Shift goal: ${e(sh.goalLabel)}">🕘 ${e(sh.goalLabel)} · ${sh.goalFailed ? '✗ missed' : `+${money(sh.bonus)}`}</span>`
+    : '';
+  const today = s.today.revenue - s.today.salaries - s.today.rent - s.today.network - s.today.electricity;
+  const money$ = `<span class="chip-btn ${today < 0 ? 'bad' : 'ok'}" title="Today so far (credited every hour)">💰 Today ${today >= 0 ? '+' : ''}${money(today)}</span>`;
+  return `${goal}${shift}${money$}`;
+}
+
+export function shiftReportModal(s: GameState, r: ShiftReport): string {
+  const over = s.progress.status !== 'playing';
+  return `<div class="modal-card small-card shift-card" role="dialog" aria-modal="true" aria-label="Shift report">
+    <h2>🕙 Shift ${s.shiftReports.indexOf(r) + 1} report</h2>
+    <div class="big-stars">${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)}</div>
+    <ul class="list goals">
+      <li class="row"><span>${r.goalMet ? '✅' : '❌'}</span><span>${e(r.goalLabel)}</span><b>${r.goalMet ? `+${money(r.bonus)}` : ''}</b></li>
+      <li class="row"><span>${r.uptimePct >= 99.5 ? '✅' : '❌'}</span><span>Uptime ≥ 99.5% (${r.uptimePct.toFixed(2)}%)</span></li>
+      <li class="row"><span>${r.criticals === 0 ? '✅' : '❌'}</span><span>No critical alarm${r.criticals ? ` (${r.criticals})` : ''}</span></li>
+    </ul>
+    <div class="report"><span>Cash this shift</span><b class="${r.net < 0 ? 'neg' : 'pos'}">${r.net >= 0 ? '+' : ''}${money(r.net)}</b>
+      <span>Incidents fixed</span><b>${r.resolved} / ${r.incidents}</b></div>
+    ${r.highlights.length ? `<p class="muted small">${r.highlights.map(e).join(' · ')}</p>` : ''}
+    <div class="stack">${over ? '<button class="primary" data-action="closeModal">See results</button>' : `
+      <button class="primary big" data-action="sleep">😴 Sleep until 06:00</button>
+      <button data-action="closeModal">Keep working through the night</button>`}</div>
+    <p class="muted small">Progress saved. A good place to take a break.</p>
+  </div>`;
+}
+
+export function recapModal(lines: string[], wokeUp: string | null): string {
+  return `<div class="modal-card small-card" role="dialog" aria-modal="true" aria-label="Night recap">
+    <h2>${wokeUp ? '⏰ Woken up!' : '🌅 Good morning'}</h2>
+    ${wokeUp ? `<div class="banner bad">${e(wokeUp)}</div>` : ''}
+    <h3>While you slept</h3>
+    ${lines.length ? `<ul class="list logs">${lines.map((l) => `<li>${e(l)}</li>`).join('')}</ul>` : '<div class="empty">A quiet night. The servers hummed, nobody called.</div>'}
+    <div class="stack"><button class="primary big" data-action="closeModal">${wokeUp ? 'Handle it' : 'Start the shift'}</button></div>
+  </div>`;
+}
+
+export function requestsSection(s: GameState): string {
+  const open = s.walkins.filter((w) => w.status === 'open');
+  if (!open.length) return '';
+  return `<h3>Customer requests</h3><ul class="list">${open
+    .map((w) => {
+      const job = s.jobs.find((j) => j.walkinId === w.id);
+      return `<li class="walkin"><div class="row"><span>🙋</span><b>${e(w.text)}</b><span class="chip ok">+${money(w.reward)}</span></div>
+        <div class="row meta"><span class="eta">⏱ ${countdown(w.deadline - s.minute)} left</span></div>
+        <div class="row actions">${job ? `<span class="busy">🔧 ${e(s.techs.find((t) => t.id === job.techId)?.name ?? 'Queued')}</span>`
+          : `<select class="tech-pick" aria-label="Technician">${techOptions(s)}</select><button class="primary" data-action="favor" data-walkin="${e(w.id)}">Send</button>`}</div></li>`;
+    })
+    .join('')}</ul>`;
+}
+
+export function projectsSection(s: GameState): string {
+  if (!hasFeature(s, 'projects')) return '';
+  return `<h3>Ops projects</h3><p class="muted small">Quiet moment? Invest a technician's time now and every shift after gets easier.</p>
+  <ul class="list">${(Object.keys(PROJECTS) as ProjectId[])
+    .map((id) => {
+      const p = PROJECTS[id];
+      const done = s.projects.includes(id);
+      const job = s.jobs.find((j) => j.projectId === id);
+      return `<li><div class="row"><span class="pi">${p.icon}</span><b>${e(p.name)}</b><span class="muted">${money(p.cost)} · ${countdown(p.workMin)}</span></div>
+        <div class="row meta">${e(p.effect)}</div>
+        <div class="row actions">${done ? '<span class="chip ok">✓ Done</span>' : job
+          ? `<span class="busy">🔧 ${job.stage === 'working' ? `${Math.round(100 * (1 - job.workLeft / Math.max(1, job.workTotal)))}%` : 'on the way'}</span>`
+          : `<button class="primary" data-action="project" data-project="${id}" ${s.cash < p.cost ? 'disabled' : ''}>Start</button>`}</div></li>`;
+    })
+    .join('')}</ul>`;
 }

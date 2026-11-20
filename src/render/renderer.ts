@@ -11,6 +11,8 @@ export interface RenderView {
   buildPreview: { x: number; y: number; valid: boolean } | null;
   overlay: Overlay;
   time: number; // ms, for animations
+  /** E-ink screen: monochrome palette, no animation. */
+  eink?: boolean;
 }
 
 export const COLORS = {
@@ -32,44 +34,78 @@ export const COLORS = {
   off: '#3a4352',
   select: '#5ab4ff',
   text: '#dfe7f2',
-} as const;
-
-export const SEVERITY_COLOR: Record<Severity, string> = { 0: '#5ab4ff', 1: COLORS.warn, 2: COLORS.major, 3: COLORS.crit };
-
-const TILE_COLOR: Record<TileKind, string> = {
-  void: COLORS.bg, wall: COLORS.wall, floor: COLORS.floorA, locked: COLORS.locked,
-  storage: COLORS.storage, dock: COLORS.dock, noc: COLORS.noc,
+  ink: '#0b0f15',
+  lockedLine: '#232a36',
+  coolerOn: '#16324a',
+  coolerOff: '#232a36',
+  coolerEdgeOn: '#5ab4ff',
+  coolerEdgeOff: '#4a5566',
+  barBg: '#0d131b',
+  rackDead: '#07090d',
+  slot: '#1e2a3a',
+  intake: '#5ab4ff',
+  exhaust: '#ff8a65',
+  tempText: '#9fb0c6',
+  gold: '#ffd166',
+  info: '#5ab4ff',
 };
 
+export type Palette = typeof COLORS;
+
+/** E-ink (Kindle Scribe): pure greys only; meaning is carried by shape, pattern and text. */
+export const MONO: Palette = {
+  bg: '#ffffff', floorA: '#ffffff', floorB: '#ffffff', wall: '#000000', wallEdge: '#000000',
+  storage: '#dddddd', noc: '#eeeeee', dock: '#cccccc', locked: '#ffffff', rack: '#ffffff', rackEdge: '#000000',
+  ok: '#000000', warn: '#777777', major: '#444444', crit: '#000000', off: '#cccccc', select: '#000000', text: '#000000',
+  ink: '#000000', lockedLine: '#999999', coolerOn: '#ffffff', coolerOff: '#eeeeee', coolerEdgeOn: '#000000', coolerEdgeOff: '#999999',
+  barBg: '#ffffff', rackDead: '#000000', slot: '#dddddd', intake: '#ffffff', exhaust: '#000000', tempText: '#000000', gold: '#000000', info: '#000000',
+};
+
+export const paletteFor = (eink: boolean): Palette => (eink ? MONO : COLORS);
+
+/** Palette for the frame being drawn. */
+let P: Palette = COLORS;
+let EINK = false;
+
+export const severityColor = (sev: Severity): string => [P.info, P.warn, P.major, P.crit][sev]!;
+
+const tileColor = (k: TileKind): string =>
+  ({ void: P.bg, wall: P.wall, floor: P.floorA, locked: P.locked, storage: P.storage, dock: P.dock, noc: P.noc })[k];
+
 export function deviceColor(s: GameState, d: Device): string {
-  if (!d.poweredOn) return COLORS.off;
-  if (!deviceUp(s, d)) return COLORS.crit;
-  if (d.faults.length) return COLORS.warn;
-  return COLORS.ok;
+  if (EINK && d.poweredOn && deviceUp(s, d) && !d.faults.length) return '#ffffff';
+  if (!d.poweredOn) return P.off;
+  if (!deviceUp(s, d)) return P.crit;
+  if (d.faults.length) return P.warn;
+  return P.ok;
 }
 
 /** Blue (cool) -> green -> amber -> red as the rack heats up. */
-export function heatColor(temp: number): string {
+export function heatColor(temp: number, eink = EINK): string {
   const t = Math.max(0, Math.min(1, (temp - 18) / (THERMAL.shutdown - 18)));
   const hue = 220 - t * 220;
+  if (eink) return `rgba(0, 0, 0, ${(0.08 + t * 0.6).toFixed(2)})`;
   return `hsla(${hue}, 85%, 55%, 0.55)`;
 }
 
 const TECH_COLORS = ['#5ab4ff', '#f2c94c', '#bb6bd9', '#6fcf97', '#f2994a', '#56ccf2', '#eb5757'];
-export const techColor = (s: GameState, t: Tech): string => TECH_COLORS[s.techs.indexOf(t) % TECH_COLORS.length]!;
+export const techColor = (s: GameState, t: Tech): string => (EINK ? '#000000' : TECH_COLORS[s.techs.indexOf(t) % TECH_COLORS.length]!);
 
 export function drawFrame(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, view: RenderView): void {
+  EINK = !!view.eink;
+  P = paletteFor(EINK);
+  if (EINK) view = { ...view, time: 0 };
   const { width, height } = ctx.canvas;
   const dpr = ctx.canvas.width / Math.max(1, ctx.canvas.clientWidth);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = COLORS.bg;
+  ctx.fillStyle = P.bg;
   ctx.fillRect(0, 0, width, height);
   drawTiles(ctx, s, cam);
   for (const job of s.jobs) {
     if (job.kind !== 'buildRack' && job.kind !== 'placeCooler') continue;
     const p = worldToScreen(cam, job.site.x, job.site.y);
     ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = COLORS.select;
+    ctx.strokeStyle = P.select;
     ctx.lineWidth = 2;
     ctx.strokeRect(p.x + 3, p.y + 3, cam.scale - 6, cam.scale - 6);
     ctx.setLineDash([]);
@@ -78,9 +114,10 @@ export function drawFrame(ctx: CanvasRenderingContext2D, s: GameState, cam: Came
   for (const r of s.racks) drawRack(ctx, s, cam, r, view);
   for (const t of s.techs) drawTech(ctx, s, cam, t);
   drawAlarmPins(ctx, s, cam, view.time);
+  drawFx(ctx, s, cam);
   if (view.buildPreview) {
     const p = worldToScreen(cam, view.buildPreview.x, view.buildPreview.y);
-    ctx.fillStyle = view.buildPreview.valid ? 'rgba(61,220,132,0.35)' : 'rgba(255,59,92,0.35)';
+    ctx.fillStyle = EINK ? (view.buildPreview.valid ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.6)') : view.buildPreview.valid ? 'rgba(61,220,132,0.35)' : 'rgba(255,59,92,0.35)';
     ctx.fillRect(p.x, p.y, cam.scale, cam.scale);
   }
 }
@@ -92,13 +129,13 @@ function drawTiles(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera): vo
       const kind = tileAt(s.grid, x, y);
       if (kind === 'void') continue;
       const p = worldToScreen(cam, x, y);
-      ctx.fillStyle = kind === 'floor' && (x + y) % 2 ? COLORS.floorB : TILE_COLOR[kind];
+      ctx.fillStyle = kind === 'floor' && (x + y) % 2 ? P.floorB : tileColor(kind);
       ctx.fillRect(p.x, p.y, z + 0.5, z + 0.5);
       if (kind === 'wall' && tileAt(s.grid, x, y + 1) !== 'wall' && tileAt(s.grid, x, y + 1) !== 'void') {
-        ctx.fillStyle = COLORS.wallEdge;
+        ctx.fillStyle = P.wallEdge;
         ctx.fillRect(p.x, p.y + z * 0.8, z + 0.5, z * 0.2);
       } else if (kind === 'locked') {
-        ctx.strokeStyle = '#232a36';
+        ctx.strokeStyle = P.lockedLine;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(p.x, p.y + z);
@@ -130,10 +167,10 @@ function drawCooler(
 ): void {
   const z = cam.scale;
   const p = worldToScreen(cam, pos.x, pos.y);
-  ctx.fillStyle = on ? '#16324a' : '#232a36';
+  ctx.fillStyle = on ? P.coolerOn : P.coolerOff;
   roundRect(ctx, p.x + z * 0.08, p.y + z * 0.08, z * 0.84, z * 0.84, z * 0.15);
   ctx.fill();
-  ctx.strokeStyle = on ? '#5ab4ff' : '#4a5566';
+  ctx.strokeStyle = on ? P.coolerEdgeOn : P.coolerEdgeOff;
   ctx.lineWidth = Math.max(1, z * 0.05);
   ctx.stroke();
   const spin = on ? (time / 400) % (Math.PI * 2) : 0;
@@ -144,9 +181,9 @@ function drawCooler(
   ctx.restore();
   if (broken) icon(ctx, '🛠️', p.x + z * 0.78, p.y + z * 0.2, z * 0.35, 1);
   else if (health < 0.99 && z >= 18) {
-    ctx.fillStyle = '#0d131b';
+    ctx.fillStyle = P.barBg;
     ctx.fillRect(p.x + z * 0.15, p.y + z * 0.86, z * 0.7, Math.max(2, z * 0.06));
-    ctx.fillStyle = health < 0.4 ? COLORS.crit : health < 0.7 ? COLORS.warn : COLORS.ok;
+    ctx.fillStyle = health < 0.4 ? P.crit : health < 0.7 ? P.warn : P.ok;
     ctx.fillRect(p.x + z * 0.15, p.y + z * 0.86, z * 0.7 * health, Math.max(2, z * 0.06));
   }
 }
@@ -159,7 +196,7 @@ function drawRack(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, r: R
   const y = p.y + z * 0.04;
   const w = z * 0.8;
   const h = z * 0.92;
-  ctx.fillStyle = r.tripped ? '#07090d' : COLORS.rack;
+  ctx.fillStyle = r.tripped ? P.rackDead : P.rack;
   roundRect(ctx, x, y, w, h, z * 0.08);
   ctx.fill();
   if (view.overlay === 'heat') {
@@ -167,11 +204,11 @@ function drawRack(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, r: R
     ctx.fill();
   } else if (view.overlay === 'power') {
     const ratio = r.loadW / r.powerBudgetW;
-    ctx.fillStyle = ratio > 0.9 ? 'rgba(255,59,92,0.5)' : ratio > 0.7 ? 'rgba(255,176,32,0.45)' : 'rgba(61,220,132,0.3)';
+    ctx.fillStyle = EINK ? `rgba(0,0,0,${Math.min(0.7, ratio * 0.7).toFixed(2)})` : ratio > 0.9 ? 'rgba(255,59,92,0.5)' : ratio > 0.7 ? 'rgba(255,176,32,0.45)' : 'rgba(61,220,132,0.3)';
     ctx.fill();
   }
   const selected = view.selectedRackId === r.id;
-  ctx.strokeStyle = selected ? COLORS.select : COLORS.rackEdge;
+  ctx.strokeStyle = selected ? P.select : P.rackEdge;
   ctx.lineWidth = selected ? Math.max(2, z * 0.08) : Math.max(1, z * 0.04);
   ctx.stroke();
 
@@ -182,10 +219,10 @@ function drawRack(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, r: R
     const u = SERVER_MODELS[d.model].u;
     const row = Math.min(rows - 1, d.slot);
     const ry = y + h - z * 0.08 - (row + 1) * rowH;
-    ctx.fillStyle = '#1e2a3a';
+    ctx.fillStyle = P.slot;
     ctx.fillRect(x + w * 0.12, ry + rowH * 0.12, w * 0.76, rowH * (u > 1 ? 1.6 : 0.76));
     const color = deviceColor(s, d);
-    const blink = d.poweredOn && deviceUp(s, d) ? (Math.sin(view.time / 90 + d.slot * 1.7) > -0.2 ? 1 : 0.35) : 1;
+    const blink = EINK || !(d.poweredOn && deviceUp(s, d)) ? 1 : Math.sin(view.time / 90 + d.slot * 1.7) > -0.2 ? 1 : 0.35;
     ctx.globalAlpha = blink;
     ctx.fillStyle = color;
     ctx.fillRect(x + w * 0.7, ry + rowH * 0.25, Math.max(2, w * 0.12), Math.max(1.5, rowH * 0.5));
@@ -195,16 +232,16 @@ function drawRack(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, r: R
   if (s.features.includes('aisles')) {
     const front = r.facing === 'S' ? y + h - Math.max(2, z * 0.07) : y;
     const back = r.facing === 'S' ? y : y + h - Math.max(2, z * 0.07);
-    ctx.fillStyle = r.recirculation > 0 ? COLORS.crit : '#5ab4ff'; // intake: blue when breathing cool air
+    ctx.fillStyle = r.recirculation > 0 ? P.crit : P.intake; // intake: blue when breathing cool air
     ctx.fillRect(x + w * 0.1, front, w * 0.8, Math.max(2, z * 0.07));
-    ctx.fillStyle = '#ff8a65'; // exhaust
+    ctx.fillStyle = P.exhaust; // exhaust
     ctx.fillRect(x + w * 0.1, back, w * 0.8, Math.max(2, z * 0.07));
   }
   if (r.tripped && z >= 14) icon(ctx, '⚡', p.x + z / 2, p.y + z / 2, z * 0.6, 1);
   else if (r.switchFailed && z >= 14) icon(ctx, '🔀', p.x + z / 2, p.y + z / 2, z * 0.5, 1);
   else if (r.maintenance && z >= 14) icon(ctx, '↻', p.x + z / 2, p.y + z / 2, z * 0.6, 1);
   if (z >= 40) {
-    ctx.fillStyle = r.temp >= THERMAL.warn ? COLORS.warn : '#9fb0c6';
+    ctx.fillStyle = r.temp >= THERMAL.warn ? P.warn : P.tempText;
     ctx.font = `${Math.round(z * 0.2)}px ui-monospace, monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -233,7 +270,7 @@ function drawTech(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, t: T
   }
   const c = worldToScreen(cam, t.pos.x + 0.5, t.pos.y + 0.5);
   const radius = z * 0.3;
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillStyle = EINK ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.35)';
   ctx.beginPath();
   ctx.ellipse(c.x, c.y + radius * 0.8, radius * 0.9, radius * 0.35, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -241,10 +278,10 @@ function drawTech(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, t: T
   ctx.beginPath();
   ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = '#0b0f15';
+  ctx.strokeStyle = EINK ? '#ffffff' : P.ink;
   ctx.lineWidth = Math.max(1, z * 0.05);
   ctx.stroke();
-  ctx.fillStyle = '#0b0f15';
+  ctx.fillStyle = EINK ? '#ffffff' : P.ink;
   ctx.font = `bold ${Math.round(radius * 1.1)}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -253,7 +290,7 @@ function drawTech(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, t: T
   const job = s.jobs.find((j) => j.id === t.jobId);
   if (job?.stage === 'working') {
     const done = Math.max(0, Math.min(1, 1 - job.workLeft / Math.max(1, job.workTotal)));
-    ctx.strokeStyle = COLORS.ok;
+    ctx.strokeStyle = P.ok;
     ctx.lineWidth = Math.max(2, z * 0.08);
     ctx.beginPath();
     ctx.arc(c.x, c.y, radius + z * 0.1, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2);
@@ -299,12 +336,12 @@ function drawAlarmPins(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera,
     const pulse = 1 + Math.sin(time / (a.severity === 3 ? 120 : 260)) * 0.12;
     const r = Math.max(7, z * 0.26) * pulse;
     drawSeverityShape(ctx, a.severity, p.x, p.y, r);
-    ctx.fillStyle = SEVERITY_COLOR[a.severity];
+    ctx.fillStyle = severityColor(a.severity);
     ctx.fill();
-    ctx.strokeStyle = '#0b0f15';
+    ctx.strokeStyle = EINK ? '#ffffff' : P.ink;
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.fillStyle = '#0b0f15';
+    ctx.fillStyle = EINK ? '#ffffff' : P.ink;
     ctx.font = `bold ${Math.round(r * 1.1)}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -320,4 +357,32 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+
+const FX_LIFE = 45; // game minutes
+
+/** Floating "+$" / "SLA!" pops rising from racks (PRD §21.3). */
+function drawFx(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera): void {
+  const z = cam.scale;
+  for (const f of s.fx) {
+    const age = s.minute - f.minute;
+    if (age < 0 || age > FX_LIFE) continue;
+    const rack = f.rackId ? s.racks.find((r) => r.id === f.rackId) : null;
+    if (f.rackId && !rack) continue;
+    if (EINK && age > 15) continue;
+    const t = EINK ? 0 : age / FX_LIFE;
+    const base = rack ? worldToScreen(cam, rack.pos.x + 0.5, rack.pos.y) : { x: ctx.canvas.clientWidth / 2, y: ctx.canvas.clientHeight * 0.3 };
+    const y = base.y - z * 0.3 - t * z * 1.2;
+    ctx.globalAlpha = 1 - t * t;
+    const text = f.kind === 'miss' ? 'SLA!' : `+$${f.amount}`;
+    ctx.font = `bold ${Math.round(Math.max(11, z * (f.kind === 'bonus' ? 0.6 : 0.32)))}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = EINK ? '#ffffff' : P.ink;
+    ctx.strokeText(text, base.x, y);
+    ctx.fillStyle = f.kind === 'miss' ? P.crit : f.kind === 'bonus' ? P.gold : P.ok;
+    ctx.fillText(text, base.x, y);
+    ctx.globalAlpha = 1;
+  }
 }

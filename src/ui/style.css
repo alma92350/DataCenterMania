@@ -265,3 +265,61 @@ body.at-start #topbar, body.at-start #stage, body.at-start #sidebar { visibility
 .bar.big { height: 10px; margin: 8px 0; }
 .vitals { gap: 6px; }
 .diff.locked { cursor: not-allowed; }
+
+/* ---------- v0.4: goal bar, shift card ---------- */
+.goalbar { position: absolute; left: 12px; top: 10px; right: 70px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; z-index: 1; }
+.chip-btn {
+  pointer-events: auto; min-height: 32px; padding: 4px 10px; border-radius: 99px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 4px;
+  background: color-mix(in srgb, var(--panel) 90%, transparent); border: 1px solid var(--line); color: var(--text); white-space: nowrap;
+}
+.chip-btn.ok { border-color: color-mix(in srgb, var(--ok) 60%, transparent); }
+.chip-btn.bad { border-color: color-mix(in srgb, var(--crit) 60%, transparent); }
+.chip-btn .star { color: #ffd166; }
+#tip { top: 56px; }
+.shift-card { text-align: center; }
+.shift-card .list { text-align: left; }
+.shift-card .report { text-align: left; margin-top: 10px; }
+.walkin { border-color: color-mix(in srgb, var(--ok) 40%, var(--line)) !important; }
+@media (max-width: 820px) {
+  .goalbar { left: 8px; top: 8px; right: 60px; }
+  .chip-btn { font-size: 0.75rem; min-height: 30px; }
+  #tip { top: 84px; }
+}
+
+/* ---------- e-ink (Kindle Scribe): pure black & white, no motion, big targets ---------- */
+body.eink {
+  --bg: #fff; --panel: #fff; --panel-2: #fff; --line: #000; --text: #000; --muted: #333;
+  --accent: #000; --accent-ink: #fff; --ok: #000; --warn: #000; --major: #000; --crit: #000;
+  --tap: 52px;
+  color-scheme: light;
+  font-size: 17px;
+}
+body.eink *, body.eink *::before, body.eink *::after { animation: none !important; transition: none !important; box-shadow: none !important; text-shadow: none !important; }
+body.eink #screen { background: #fff; }
+body.eink button, body.eink select { min-height: 48px; border-width: 2px; border-color: #000; }
+body.eink button.primary { background: #000; color: #fff; }
+body.eink button:disabled { opacity: 1; border-style: dashed; color: #666; }
+body.eink .list > li, body.eink .slot, body.eink .report, body.eink .rack-stats > div, body.eink .banner, body.eink .modal-card, body.eink .toast, body.eink .tip-card, body.eink .chip-btn, body.eink .settings {
+  border: 2px solid #000; background: #fff; color: #000;
+}
+body.eink .muted, body.eink .row.meta { color: #333; }
+body.eink .chip.bad, body.eink .chip-btn.bad, body.eink .banner.bad, body.eink .banner.warn { border-style: dashed; font-weight: 700; }
+body.eink .sev-bg-1, body.eink .sev-bg-2 { background: #fff; border: 3px solid #000; }
+body.eink .sev-bg-3 { background: #000; color: #fff; }
+body.eink .alarm.sevrow-3 { border-width: 4px; }
+body.eink .alarm.sevrow-2 { border-width: 3px; border-style: dashed; }
+body.eink .slot.dev { border-left-width: 6px; }
+body.eink .slot.dev.bad { border-left-style: solid; background: repeating-linear-gradient(45deg, #fff 0 6px, #ddd 6px 8px); }
+body.eink .slot.dev.warn { border-left-style: dashed; }
+body.eink .bar, body.eink .cap { background: #fff; border: 1px solid #000; }
+body.eink .bar div, body.eink .cap-live { background: #000; }
+body.eink .cap-need { background: #fff; border: 1px solid #000; }
+body.eink .stars, body.eink .big-stars, body.eink .goals .star, body.eink .chapter .best, body.eink .chip-btn .star { color: #000; }
+body.eink #tabs button { color: #333; }
+body.eink #tabs button.on { color: #000; font-weight: 700; box-shadow: inset 0 -4px 0 #000 !important; }
+body.eink .badge { background: #000; }
+body.eink .speed button.on, body.eink .diff.on { background: #000; color: #fff; }
+body.eink .zoom button { background: #fff; }
+body.eink #modal { background: rgba(255,255,255,0.6); }
+body.eink .log-fail, body.eink .log-success, body.eink .log-tip { border-left-width: 6px !important; border-left-color: #000 !important; }
+body.eink .toast-fail, body.eink .toast-alarm { border-left: 8px solid #000; font-weight: 700; }

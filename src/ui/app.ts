@@ -5,18 +5,22 @@ import { step } from '../sim/sim';
 import { createGame } from '../sim/state';
 import { contractAssignedUnits, contractById, firstFreeSlot, rackById } from '../sim/selectors';
 import { tileAt } from '../sim/grid';
-import type { Facing, GameState, LogEntry, PartId, ServerModelId } from '../sim/types';
+import type { Facing, GameState, LogEntry, PartId, ProjectId, ServerModelId, ShiftReport } from '../sim/types';
+import { formatClock } from '../core/time';
 import { clampCamera, createCamera, fitCamera, panBy, screenToWorld, zoomAt } from '../render/camera';
 import { drawFrame, techColor, type Overlay } from '../render/renderer';
 import { Sound } from './audio';
 import { effectiveSpeed, minutesToAdvance, shouldAutoPause } from './clock';
 import { Persistence, type Settings } from './storage';
+import { browserEnv, resolveEink, shouldRedraw } from './display';
 import {
-  alarmsPanel, contractsPanel, coolerModal, endScreen, goalsPanel, networkPanel, pauseMenu, rackModal, shopPanel, startScreen, tabs,
+  alarmsPanel, contractsPanel, coolerModal, endScreen, goalBar, goalsPanel, networkPanel, pauseMenu, rackModal, recapModal, shiftReportModal, shopPanel, startScreen, tabs,
   teamPanel, tipCard, topBar, visiblePanels, type PanelId,
 } from './views';
 
-type Modal = { kind: 'rack'; id: string } | { kind: 'cooler'; id: string } | { kind: 'menu' } | { kind: 'end' } | null;
+type Modal =
+  | { kind: 'rack'; id: string } | { kind: 'cooler'; id: string } | { kind: 'menu' } | { kind: 'end' }
+  | { kind: 'shift'; report: ShiftReport } | { kind: 'recap'; lines: string[]; woke: string | null } | null;
 type BuildMode = { part: Extract<PartId, 'rack' | 'portableAc' | 'wallAc' | 'crac'>; facing: Facing } | null;
 
 const $ = <T extends HTMLElement>(sel: string): T => {
@@ -51,11 +55,26 @@ export class App {
 
   start(): void {
     this.sound.enabled = this.settings.sound;
+    this.applyDisplay();
     this.bindInput();
     new ResizeObserver(() => this.resize()).observe($('#stage'));
     this.resize();
     this.showStart();
     requestAnimationFrame((t) => this.frame(t));
+  }
+
+  private eink = false;
+  private lastDrawKey = '';
+  private lastDrawAt = 0;
+
+  /** Switches between the colour UI and the e-ink (Kindle Scribe) UI. */
+  private applyDisplay(): void {
+    this.eink = resolveEink(this.settings.display, browserEnv());
+    document.body.classList.toggle('eink', this.eink);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', this.eink ? '#ffffff' : '#0b0f15');
+    this.lastDrawKey = '';
+    if (this.eink && this.settings.autoPause === 'critical') this.settings.autoPause = 'major';
+    this.renderUi(true);
   }
 
   // ---------- screens ----------
@@ -116,15 +135,30 @@ export class App {
         }
       }
       this.consumeLog(s);
-      if (s.progress.status !== 'playing' && this.modal?.kind !== 'end') this.finish(s);
-      drawFrame(this.ctx, s, this.cam, {
+      if (s.pendingShiftReport) {
+        this.modal = { kind: 'shift', report: s.pendingShiftReport };
+        s.pendingShiftReport = null;
+        this.store.saveGame(s);
+        this.sound.success();
+        this.renderUi(true);
+      }
+      if (s.progress.status !== 'playing' && this.modal?.kind !== 'end' && this.modal?.kind !== 'shift') this.finish(s);
+      const view = {
         selectedRackId: this.modal?.kind === 'rack' ? this.modal.id : null,
         buildPreview: this.build && this.hover ? { ...this.hover, valid: this.canBuildAt(this.hover.x, this.hover.y) } : null,
         overlay: this.overlay,
         time: t,
-      });
+        eink: this.eink,
+      };
+      const key = [s.minute, this.cam.x, this.cam.y, this.cam.scale, this.overlay, view.selectedRackId, JSON.stringify(view.buildPreview),
+        this.canvas.width, this.canvas.height, s.jobs.length, s.alarms.length].join('|');
+      if (shouldRedraw({ key, lastKey: this.lastDrawKey, now: t, lastDraw: this.lastDrawAt, eink: this.eink })) {
+        drawFrame(this.ctx, s, this.cam, view);
+        this.lastDrawKey = key;
+        this.lastDrawAt = t;
+      }
       this.uiTimer += dt;
-      if (this.uiTimer > 0.25) {
+      if (this.uiTimer > (this.eink ? 1 : 0.25)) {
         this.uiTimer = 0;
         this.renderUi();
       }
@@ -182,12 +216,15 @@ export class App {
     else if (this.modal?.kind === 'cooler') modal = coolerModal(s, this.modal.id);
     else if (this.modal?.kind === 'menu') modal = pauseMenu(s, this.settings);
     else if (this.modal?.kind === 'end') modal = endScreen(s);
+    else if (this.modal?.kind === 'shift') modal = shiftReportModal(s, this.modal.report);
+    else if (this.modal?.kind === 'recap') modal = recapModal(this.modal.lines, this.modal.woke);
     const modalEl = $('#modal');
     const keepInstall = modalEl.querySelector('.install-form') !== null && this.modal?.kind === 'rack';
     if (!keepInstall) this.html('#modal', modal, force);
     modalEl.hidden = modal === '';
     modalEl.classList.toggle('sheetish', this.modal?.kind === 'rack' || this.modal?.kind === 'cooler');
 
+    this.html('#goalbar', goalBar(s), force);
     this.html('#tip', this.tips.length ? tipCard(this.tips[0]!) : '', force);
     this.html('#buildbar', this.build
       ? `<div class="buildbar">Tap a free floor tile: <b>${PARTS[this.build.part].name}</b>
@@ -210,6 +247,7 @@ export class App {
     el.textContent = text;
     host.appendChild(el);
     while (host.children.length > 4) host.firstElementChild?.remove();
+    if (this.eink) ms *= 1.5;
     setTimeout(() => {
       el.classList.add('out');
       setTimeout(() => el.remove(), 400);
@@ -258,7 +296,11 @@ export class App {
         return;
       case 'closeModal':
         this.modal = null;
+        if (this.state && this.state.progress.status !== 'playing') this.finish(this.state);
         this.renderUi(true);
+        return;
+      case 'sleep':
+        this.sleep();
         return;
       case 'dismissTip':
         this.tips.shift();
@@ -291,6 +333,10 @@ export class App {
         if (key === 'autoPause') this.settings.autoPause = input.value as Settings['autoPause'];
         if (key === 'nightSkip') this.settings.nightSkip = input.checked;
         if (key === 'sound') this.settings.sound = this.sound.enabled = input.checked;
+        if (key === 'display') {
+          this.settings.display = input.value as Settings['display'];
+          this.applyDisplay();
+        }
         this.store.saveSettings(this.settings);
         return;
       }
@@ -387,6 +433,14 @@ export class App {
       case 'hire':
         this.run({ type: 'hire', candidateId: d.candidate! });
         return;
+      case 'favor': {
+        const techId = el.parentElement?.querySelector<HTMLSelectElement>('.tech-pick')?.value ?? 'best';
+        this.run({ type: 'dispatch', job: 'favor', walkinId: d.walkin, techId });
+        return;
+      }
+      case 'project':
+        this.run({ type: 'startProject', project: d.project as ProjectId });
+        return;
       case 'fire':
         this.run({ type: 'fire', techId: d.tech! });
         return;
@@ -426,6 +480,34 @@ export class App {
         this.renderUi(true);
         return;
     }
+  }
+
+  /** Fast-forwards the night; a critical alarm wakes the player early (PRD §21.1). */
+  private sleep(): void {
+    const s = this.state;
+    if (!s) return;
+    const from = s.logSeq;
+    let woke: string | null = null;
+    s.attention = null;
+    for (let i = 0; i < 1440 && s.progress.status === 'playing' && !s.shift; i++) {
+      step(s);
+      const att = s.attention as GameState['attention']; // step() may raise one
+      if (att && att.severity >= 3) {
+        woke = `${formatClock(s.minute)}: ${att.text}`;
+        s.attention = null;
+        break;
+      }
+      s.attention = null;
+    }
+    const lines = s.log
+      .filter((l) => l.id >= from && (l.kind === 'success' || l.kind === 'fail' || l.kind === 'alarm' || l.kind === 'story'))
+      .map((l) => `${formatClock(l.minute)} ${l.text}`)
+      .slice(-12);
+    this.seenLog = s.logSeq - 1;
+    this.store.saveGame(s);
+    this.modal = s.progress.status === 'playing' ? { kind: 'recap', lines, woke } : null;
+    this.speed = 1;
+    this.renderUi(true);
   }
 
   private openRack(id: string): void {

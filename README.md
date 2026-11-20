@@ -28,13 +28,19 @@ npm run build      # typecheck + production build into dist/
 npm run e2e        # builds, then drives the real game in Chromium (desktop + phone)
 ```
 
+**Kindle Scribe / e-ink:** the game switches to a black-and-white, motion-free display on e-ink screens (auto-detected). Force it with `?eink=1` or under Settings → Display.
+
 Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: `Space` pause, `1`/`2`/`3` speed, `H` heat map, `P` power map, `Esc` close.
 
 ## What's in this version (PRD MVP)
 
 | Area | Implemented |
 |------|-------------|
-| Chapters | 0 *The Closet* (tutorial), 1 *Server Room*, 2 *Startup Colo*, 3 *Colocation Floor*, each with ★/★★/★★★ goals |
+| Chapters | 0 *The Closet* (a 6-minute, one-shift tutorial), 1 *Server Room*, 2 *Startup Colo*, 3 *Colocation Floor*, each with ★/★★/★★★ goals |
+| Shifts (v0.4) | Each game day is a shift with a goal and bonus, a 22:00 report card, and "Sleep until 06:00" with a night recap; progress autosaves at every shift |
+| Live money (v0.4) | Revenue and costs credited every game hour with +$ pops, per-contract margin, HUD goal chip and today's earnings |
+| Calm-time play (v0.4) | Walk-in customer requests (timed favours) and ops projects (cable tidy, labels, firmware) with lasting bonuses |
+| Display | Colour (desktop/phone) and e-ink (Kindle Scribe): monochrome palette, shapes and patterns for meaning, no animation, throttled redraws |
 | Difficulty | Intern, Sysadmin, Senior Engineer, On-Call Nightmare (unlocked by beating Ch3); multipliers in `src/data/difficulty.ts` |
 | Simulation | Demand curves, SLA with onboarding grace + setup fee, rack power budgets and breakers, thermal model with hot-weather cooler derating, temperature-driven failures (×2 per +10 °C), escalating alarms (disk → data loss), incident director |
 | Chapter 3 systems | Hot/cold aisles (rack facing, exhaust recirculation, rotate racks), CRAC units with clogging filters and breakdowns, top-of-rack switch failures, ISP uplinks with bandwidth limits and fiber cuts, second-route uplink |
@@ -64,5 +70,6 @@ Design rules:
 
 - **The simulation is headless and deterministic.** Same seed and same commands give the same world. That is tested, so bugs reproduce and balance is measurable.
 - **One write path.** UI → `applyCommand` → state. Renderer and views only read.
+- **Pacing is a test too.** `tests/engagement.test.ts` fails the build if the tutorial gets long, shifts stop fitting a session, or quiet time grows (PRD §19).
 - **Balance is a test.** `tests/sim.test.ts` plays every chapter with an autopilot "competent player" bot across seeds and difficulties, and asserts it can win (and that doing nothing loses). Tuning numbers live in `src/data`.
 - **Progressive disclosure is data.** Chapters declare feature flags (`hire`, `contracts`, `power`, `buildRack`, …). Commands and panels respect them.

@@ -36,7 +36,8 @@
 | Game speed | **1 real second = 3 game minutes at 1×.** One game day ≈ 8 real minutes, which is one mobile session. See §3.1. |
 | Cyber layer | **Fun and arcade-like, not a security simulator.** Short, readable, humorous. See §9. |
 | Monetisation | **Free.** |
-| Session unit | *Proposed:* the **Shift** (one game day, ~8 real minutes) with an end-of-shift report card. Chapters are 3–5 shifts. See §21.1. |
+| Session unit | **Approved and shipped in v0.4:** the **Shift** (one game day) with an end-of-shift report card. Chapters are 1–5 shifts. See §21.1. |
+| E-ink display | **Shipped in v0.4:** a Kindle Scribe / e-ink mode, auto-detected via `update: slow`, `monochrome` and the Kindle UA, or set manually. See §2. |
 | Chapter order | *Proposed:* respect "1–2 new systems per chapter". Network moves to a new Ch4 "Launch Week", and fatigue moves to the Enterprise chapter. See §21.5. |
 | Telemetry | *Proposed:* opt-in only, anonymous, export-as-JSON first. No accounts, no tracking by default. See §21.10. |
 
@@ -51,6 +52,7 @@
 - **Saves:** localStorage/IndexedDB autosave every in-game hour and on `visibilitychange`. Export/import save as JSON (enables cross-device play without a backend).
 - **PWA:** Installable and works offline.
 - **Orientation:** Portrait-first on mobile (one-handed), with landscape supported. Desktop uses a multi-panel layout.
+- **E-ink screens (Kindle Scribe):** a dedicated display mode. Pure black/white/grey palette; severity and status carried by shape, border style and pattern; no animation or transitions; the canvas redraws only on change (≤ 2 per second); larger text and 48 px+ targets; longer toasts. Auto-detected (`update: slow`, `monochrome`, Kindle/Silk UA), forced with `?eink=1`, or chosen in Settings.
 - **Localization-ready:** All strings in JSON. EN first, FR second.
 
 ---
@@ -485,7 +487,7 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 
 | Release | Theme | Contents | Exit criteria |
 |---|---|---|---|
-| **v0.4 "First Hour"** | Onboarding and pacing | Shifts and report cards, 8-minute Ch0, live money and projection chip, goal chip, ops projects, walk-in requests | Ch0 ≤ 9 min; quiet daytime ≤ 50%; 5/5 testers finish Ch0 and 4/5 start Ch1 |
+| **v0.4 "First Hour"** ✅ shipped | Onboarding and pacing | Shifts and report cards, one-shift Ch0, live money, goal chip, ops projects, walk-in requests, **e-ink mode** | Bot-measured: Ch0 4.7 sim-min (≈6–7 with tips); quiet daytime 58–65% (was 80–89%); longest quiet 53–112 s (was 4–5 min). Human playtest still to do. |
 | **v0.5 "Mastery"** | Replay reasons | Hard ★★★ constraints, achievements, career title, seeded daily challenge with share card, incident post-mortems | Default bot gets ★★★ in ≤ 20% of runs |
 | **v0.6 "Launch Week"** | Re-sequence and automation | Ch3/Ch4 split, auto-dispatch from Ch2, proactive specialists, juice pass | ≤ 2 new systems per chapter; actions/min flat from Ch2 to Ch4 |
 | **v0.7 "Hackers"** | Differentiator | Hacker Weekend event (2 villains, 3 micro-games), sandbox/endless mode | Event playable in ≤ 10 min |
@@ -615,6 +617,14 @@ The main issues are dead air, chapters too long for a session, a thin tutorial, 
 
 ### 21.11 Early differentiator
 - Ship the cyber villains (*Script Kiddies*, *Captain Phish*) first as a self-contained **Hacker Weekend** event with the 3 micro-games from §9, before the full Ch6 cyber layer.
+
+---
+
+### 21.12 v0.4 results and follow-ups
+- **Quiet daytime is down to 58–65%**, not yet the 50% target. The CI guardrail is set at ≤ 70% for now. Next lever: contract negotiation cards (§21.4), plus proactive specialists (§21.6).
+- **Economy:** walk-in rewards and shift bonuses scale with difficulty, and so do profit goals (Ch2 $12k, Ch3 $10k × the difficulty's starting-cash factor).
+- **Bot results by difficulty:** Sysadmin wins every seed, Senior about 2 of 3, Nightmare about 2 of 3 with thin margins. Human playtests are needed, because the bot reacts within 5 game minutes and completes every walk-in.
+- **Ch0 ★★★** ("keep every rack below 35°C") needs a deliberate action (power off idle servers or bring in a portable AC). The passive bot does not get it.
 
 ---
 

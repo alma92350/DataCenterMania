@@ -147,6 +147,51 @@ try {
     check((await page.textContent('.modal-card')).includes('Front faces'), 'rack view shows facing and airflow');
     await page.screenshot({ path: `${outDir}/ch3-rack.png` });
   });
+  await session('shift loop', { viewport: { width: 1366, height: 820 }, deviceScaleFactor: 1 }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 2 } }));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern' }));
+    });
+    await page.reload();
+    await page.click('[data-chapter="ch1"]');
+    await page.waitForSelector('#goalbar .chip-btn');
+    check((await page.textContent('#goalbar')).includes('servers'), 'goal chip shows live chapter progress');
+    const deadline = Date.now() + 150000;
+    let sawPop = false;
+    while (Date.now() < deadline && !(await page.isVisible('.shift-card'))) {
+      if (await page.isVisible('.tip-card')) await page.click('[data-action="dismissTip"]');
+      const fast = page.locator('[data-action="speed"][data-speed="4"]');
+      if ((await fast.getAttribute('aria-pressed')) !== 'true' && !(await page.isVisible('#modal:not([hidden])'))) await fast.click();
+      if (!sawPop) sawPop = (await page.textContent('#goalbar')).includes('Today +');
+      await page.waitForTimeout(700);
+    }
+    check(await page.isVisible('.shift-card'), 'the 22:00 shift report card appears');
+    check(sawPop, 'money is credited during the shift (today counter rises)');
+    await page.screenshot({ path: `${outDir}/shift-report.png` });
+    await page.click('[data-action="sleep"]');
+    await page.waitForSelector('text=While you slept', { timeout: 10000 });
+    check(true, 'sleeping fast-forwards the night and shows a recap');
+    await page.screenshot({ path: `${outDir}/night-recap.png` });
+    await page.click('[data-action="closeModal"]');
+    check((await page.textContent('#topbar')).includes('Tue'), 'the next shift starts on Tuesday morning');
+  });
+  await session('e-ink (Kindle Scribe)', { viewport: { width: 930, height: 1240 }, deviceScaleFactor: 1, hasTouch: true }, async (page) => {
+    await page.goto(`${base}?eink=1`);
+    await page.waitForSelector('.start');
+    check(await page.evaluate(() => document.body.classList.contains('eink')), 'e-ink mode turns on via ?eink=1');
+    const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    check(bg === 'rgb(255, 255, 255)', `e-ink background is white (${bg})`);
+    await page.screenshot({ path: `${outDir}/eink-start.png` });
+    await page.click('[data-chapter="ch0"]');
+    await page.waitForSelector('.tip-card', { timeout: 8000 });
+    await page.click('[data-action="dismissTip"]');
+    await page.click('[data-action="speed"][data-speed="4"]');
+    await page.waitForSelector('.alarm', { timeout: 30000 });
+    while (await page.isVisible('.tip-card')) await page.click('[data-action="dismissTip"]');
+    const animated = await page.evaluate(() => [...document.querySelectorAll('*')].filter((el) => getComputedStyle(el).animationName !== 'none').length);
+    check(animated === 0, 'no CSS animations on e-ink');
+    await page.screenshot({ path: `${outDir}/eink-game.png` });
+  });
 } finally {
   server?.kill();
 }

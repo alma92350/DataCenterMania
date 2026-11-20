@@ -2,6 +2,7 @@ import { CHAPTER_ORDER } from '../data/chapters';
 import { deserialize, serialize } from '../sim/save';
 import type { ChapterId, DifficultyId, GameState } from '../sim/types';
 import type { AutoPauseSetting } from './clock';
+import type { DisplaySetting } from './display';
 
 const SAVE_KEY = 'dcm.save.v1';
 const PROGRESS_KEY = 'dcm.progress.v1';
@@ -44,9 +45,11 @@ export interface Settings {
   nightSkip: boolean;
   sound: boolean;
   difficulty: DifficultyId;
+  /** Colour screen or e-ink (Kindle Scribe); auto-detected by default. */
+  display: DisplaySetting;
 }
 
-export const DEFAULT_SETTINGS: Settings = { autoPause: 'critical', nightSkip: true, sound: true, difficulty: 'sysadmin' };
+export const DEFAULT_SETTINGS: Settings = { autoPause: 'critical', nightSkip: true, sound: true, difficulty: 'sysadmin', display: 'auto' };
 
 /** Best stars per chapter and difficulty. */
 export type Progress = Partial<Record<ChapterId, Partial<Record<DifficultyId, number>>>>;
