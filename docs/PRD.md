@@ -1,6 +1,6 @@
 # DataCenterMania — Product Requirements Document (brainstorm draft v0.1)
 
-> A management/sim game for the browser (desktop and mobile) where you run a data center: you start in a server closet and end up running a hyperscale AI campus. You keep machines alive, keep customers happy, and keep the attackers out, mostly by sending the right technician to the right rack at the right moment.
+> A management/sim game for the browser (desktop and mobile) where you run a data center: you start in a server closet and end up running a whole floor of servers, AI wing included. You keep machines alive, keep customers happy, and keep the attackers out, mostly by sending the right technician to the right rack at the right moment.
 
 ---
 
@@ -15,19 +15,21 @@
 | 1 | **Readable chaos** | Many things happen at once, but you can always see *what's wrong, where, and how urgent* in under 2 seconds. |
 | 2 | **Dispatch is the core verb** | Most interactions are *select problem → pick technician → confirm*. It must be fast on a touchscreen. |
 | 3 | **Systems that interact** | Power, heat, network, load and security are all connected. Overloading a rack heats it, heat raises the failure rate, a failure trips the SLA, and the SLA hits revenue. |
-| 4 | **Learn by layering** | Each level adds 1–2 new systems. No system is shown before the player needs it. |
+| 4 | **Learn by layering** | Each chapter adds 1–2 new systems. No system is shown before the player needs it. |
 | 5 | **Micro → Macro** | Early game: you click on every disk swap. Late game: you design runbooks and automation, and only step in on the hard incidents. |
 | 6 | **Funny, never cynical** | IT humour (the intern, "it's always DNS", Friday deploys), with mechanics that are actually grounded in how data centers work. |
 
 **Target audience:** Casual-to-midcore management sim players (Two Point / Game Dev Tycoon / Mini Metro crowd), IT workers who'll enjoy the in-jokes, and students who'll learn real DC concepts (PUE, hot/cold aisle, N+1, RAID).
 
-**Session shape:** 5–15 min on mobile (one "shift" or one level), 30–90 min on desktop. Can be paused at any time.
+**Session shape:** 5–15 min on mobile (one "shift" or one chapter), 30–90 min on desktop. Can be paused at any time.
 
 **Business model: free.** No ads, no in-app purchases, no energy timers, no accounts. The game is static and runs entirely in the browser.
 
 ### 1.1 Decisions log
 | Topic | Decision |
 |-------|----------|
+| Floors | **Single floor** for this game. Multiple floors and buildings are parked for later. |
+| Difficulty | **Multiple difficulty levels** (Intern → Five Nines) plus ★/★★/★★★ chapter goals. See §12. |
 | Map view | **Top-down** 2D tile grid. Racks get a light faux-3D front face for readability. |
 | Game speed | **1 real second = 3 game minutes at 1×.** One game day ≈ 8 real minutes, which is one mobile session. See §3.1. |
 | Cyber layer | **Fun and arcade-like, not a security simulator.** Short, readable, humorous. See §9. |
@@ -53,7 +55,7 @@
 ```
 MICRO (seconds)   Alarm fires → inspect → dispatch tech → tech walks, fetches part, works → resolved / escalated
 MID   (minutes)   Accept contract → install capacity → balance power/cooling → meet SLA → get paid
-MACRO (hours)     Unlock level → expand hall/site → research tech → hire & train team → automate → reputation tier
+MACRO (hours)     Unlock chapter → expand floor area → research tech → hire & train team → automate → reputation tier
 ```
 
 ### 3.1 Time model
@@ -68,20 +70,20 @@ The goal is for one game day to fit one short mobile session, while every job st
 | 4× | 1 s → 12 min | 2 min | Nights, waiting for deliveries |
 | Night skip | Auto 4× from 22:00 to 06:00 when no alarm is ≥ Major | — | Drops back to 1× (plus optional auto-pause) on a Major alarm |
 
-**Calendar.** Contracts are measured in **game days**, not months: a small contract runs 3–10 days, a big one 15–30. Billing happens daily at midnight, with a short end-of-day report. A campaign level lasts 3–7 game days, so 25–55 real minutes at 1× and less with fast-forward. Week structure (Mon–Sun) matters for demand curves and "Friday" events.
+**Calendar.** Contracts are measured in **game days**, not months: a small contract runs 3–10 days, a big one 15–30. Billing happens daily at midnight, with a short end-of-day report. A campaign chapter lasts 3–7 game days, so 25–55 real minutes at 1× and less with fast-forward. Week structure (Mon–Sun) matters for demand curves and "Friday" events.
 
 **Job durations** (game minutes, with real seconds at 1× in brackets):
 - Quick: reboot 5 (≈2 s), patch a cable 10 (≈3 s)
 - Standard: swap a disk or PSU 15 (5 s), install a server 30 (10 s)
 - Long: CRAC service 60 (20 s), generator test 60 (20 s)
 - Heavy: install a rack 180 (60 s), fiber repair 120 (40 s)
-- Walking speed: about 4 tiles per real second at 1×, so crossing a 40-tile hall takes about 10 s. That makes the layout and the position of the storage room matter.
+- Walking speed: about 4 tiles per real second at 1×, so crossing a 40-tile floor takes about 10 s. That makes the layout and the position of the storage room matter.
 
 **Alarm escalation timers** (game time): Warning to Major in 2 h (40 s at 1×). Major to Critical/outage in 45 min (15 s).
 
-**Incident rate target** (tuned through MTBF scaling): L0–L1 about 2–4 incidents per game day, L3 about 8–12, L5+ 20+ but with most handled by automation. Players should never wait more than about 60 real seconds with nothing to do at 1×. If they would, they can fast-forward.
+**Incident rate target** (tuned through MTBF scaling): Ch0–Ch1 about 2–4 incidents per game day, Ch3 about 8–12, Ch5+ 20+ but with most handled by automation. Players should never wait more than about 60 real seconds with nothing to do at 1×. If they would, they can fast-forward.
 
-**Failure state:** Bankruptcy (cash < 0 for N days), or reputation collapse (lost all contracts). Levels also have **objective-based wins** (e.g. "Reach 99.9% uptime for 7 days while hosting 20 servers").
+**Failure state:** Bankruptcy (cash < 0 for N days), or reputation collapse (lost all contracts). Chapters also have **objective-based wins** (e.g. "Reach 99.9% uptime for 7 days while hosting 20 servers").
 
 ---
 
@@ -89,9 +91,9 @@ The goal is for one game day to fit one short mobile session, while every job st
 
 ### 4.1 Spatial hierarchy
 ```
-Campus
- └─ Site (city/climate: affects free cooling, power price, disasters)
-     └─ Building / Hall (a "level" in the floor sense: Hall A, Hall B, rooftop, basement)
+Site (city/climate, chosen in sandbox: affects free cooling, power price, disasters)
+ └─ Floor (single floor; grows by unlocking areas)
+     └─ Zone / Room (server room, power room, storage, NOC, generator yard)
          └─ Row / Aisle (hot aisle / cold aisle orientation matters)
              └─ Rack (42U, power budget kW, weight, PDUs A+B)
                  └─ Device (server 1U/2U/4U, switch, storage array, GPU node, patch panel)
@@ -103,13 +105,13 @@ The **floor map** is a top-down tile grid. Tiles: floor, rack slot, CRAC unit, P
 
 | Subsystem | Elements | Key stat | Introduced |
 |-----------|----------|----------|-----------|
-| **Compute** | Servers, storage, GPU nodes | Load %, health, age, firmware version | L1 |
-| **Power** | Utility feed, PDUs, UPS, generator, ATS, (later) solar/battery | kW used vs capacity, redundancy (N, N+1, 2N) | L1 (basic), L4 (full) |
-| **Cooling** | Wall AC → CRAC/CRAH → in-row → liquid/immersion | Zone temperature, airflow, PUE | L2 (basic), L3 (aisles), L6 (liquid) |
-| **Network** | ToR switches, core/spine, uplinks/ISPs, cabling | Bandwidth, latency, link redundancy | L3 |
-| **Security (physical)** | Badge doors, cameras, guards, visitor escort | Intrusion risk | L4 |
-| **Security (cyber)** | Firewall, IDS, patch level, MFA, SOC analyst | Threat level, vuln count | L5 |
-| **Logistics** | Loading dock, storage room, parts inventory, vendors | Stock, delivery ETA | L2 |
+| **Compute** | Servers, storage, GPU nodes | Load %, health, age, firmware version | Ch1 |
+| **Power** | Utility feed, PDUs, UPS, generator, ATS, (later) solar/battery | kW used vs capacity, redundancy (N, N+1, 2N) | Ch1 (basic), Ch4 (full) |
+| **Cooling** | Wall AC → CRAC/CRAH → in-row → liquid/immersion | Zone temperature, airflow, PUE | Ch2 (basic), Ch3 (aisles), Ch6 (liquid) |
+| **Network** | ToR switches, core/spine, uplinks/ISPs, cabling | Bandwidth, latency, link redundancy | Ch3 |
+| **Security (physical)** | Badge doors, cameras, guards, visitor escort | Intrusion risk | Ch4 |
+| **Security (cyber)** | Firewall, IDS, patch level, MFA, SOC analyst | Threat level, vuln count | Ch5 |
+| **Logistics** | Loading dock, storage room, parts inventory, vendors | Stock, delivery ETA | Ch2 |
 
 ### 4.3 Simplified simulation rules (to tune)
 
@@ -149,15 +151,15 @@ The **floor map** is a top-down tile grid. Tiles: floor, rack slot, CRAC unit, P
 
 | Role | Does | Unlock |
 |------|------|--------|
-| **You (Manager avatar)** | Can do any basic task slowly. Tutorial only, then becomes a "boost" ability. | L1 |
-| **Hardware Technician** | Install/remove servers, swap disks/PSUs/RAM, racking, cabling | L1–L2 |
-| **HVAC Technician** | CRAC maintenance, filters, coolant, leaks | L3 |
-| **Electrician** | PDU, UPS batteries, generator tests, breaker resets | L4 |
-| **Network Engineer** | Switches, fiber, uplinks, cabling audits, DDoS mitigation | L3–L4 |
-| **Security Guard** | Patrols, visitor escort, intrusion response | L4 |
-| **SOC / SecOps Analyst** | Patching, incident response, threat hunting (works from NOC, no walking) | L5 |
-| **Site Reliability Engineer** | Writes automation/runbooks. Reduces manual task frequency. | L5 |
-| **Shift Lead** | Auto-dispatches a team per your rules | L4 |
+| **You (Manager avatar)** | Can do any basic task slowly. Tutorial only, then becomes a "boost" ability. | Ch1 |
+| **Hardware Technician** | Install/remove servers, swap disks/PSUs/RAM, racking, cabling | Ch1–Ch2 |
+| **HVAC Technician** | CRAC maintenance, filters, coolant, leaks | Ch3 |
+| **Electrician** | PDU, UPS batteries, generator tests, breaker resets | Ch4 |
+| **Network Engineer** | Switches, fiber, uplinks, cabling audits, DDoS mitigation | Ch3–Ch4 |
+| **Security Guard** | Patrols, visitor escort, intrusion response | Ch4 |
+| **SOC / SecOps Analyst** | Patching, incident response, threat hunting (works from NOC, no walking) | Ch5 |
+| **Site Reliability Engineer** | Writes automation/runbooks. Reduces manual task frequency. | Ch5 |
+| **Shift Lead** | Auto-dispatches a team per your rules | Ch4 |
 | **The Intern** | Cheap, slow, random comic mishaps, can become a star | Event |
 
 ### 6.2 Technician stats
@@ -176,7 +178,7 @@ The **floor map** is a top-down tile grid. Tiles: floor, rack slot, CRAC unit, P
 - **Progression:** XP from tasks → level-up → perk choice. Training courses (cost money and time off the floor) unlock certifications such as "Electrical safety" and "Liquid cooling".
 
 ### 6.3 Tech behaviour
-Techs path-find on the floor map. A job is a chain of steps: **walk to storage → pick up part → walk to rack → work (progress bar) → test → return the old part / e-waste.** Steps are visible, so the player understands *why* a job takes time. That makes layout matter: put the storage room near the halls.
+Techs path-find on the floor map. A job is a chain of steps: **walk to storage → pick up part → walk to rack → work (progress bar) → test → return the old part / e-waste.** Steps are visible, so the player understands *why* a job takes time. That makes layout matter: put the storage room near the server zones.
 
 ---
 
@@ -303,37 +305,39 @@ The micro-games listed above are all mobile-friendly and take 10 seconds or less
 
 ---
 
-## 11. Progressive Disclosure: Level / Campaign Structure
+## 11. Progressive Disclosure: Chapters on One Floor
 
-Each level teaches with **Introduce → Practise → Twist**: a safe tutorial moment, then a normal task, then a complication that combines the new mechanic with older ones.
+**Single floor.** The whole game takes place on **one floor**. Growth means unlocking more floor area: knock down walls, take over the neighbouring office, reclaim the parking area for the generator yard. The map grows from a 6×6 closet to about a 60×40 floor. *Multiple floors and buildings are parked for a later game or sequel (see §20).*
 
-| Lvl | Name | Setting | New mechanics introduced | Twist / Final challenge | Win condition (example) |
-|-----|------|---------|--------------------------|-------------------------|-------------------------|
-| 0 | **Tutorial: "The Closet"** | 1 rack in an office broom closet | Tap device, inspect, *you* swap a disk, install a server | The office AC is switched off on Friday evening | Survive a weekend |
-| 1 | **Server Room** | 4 racks, small company | Hire 1st HW tech, dispatch, parts inventory, orders and delivery, money | Two disks fail at once. One tech → prioritise | 99% uptime, 10 servers |
-| 2 | **Startup Colo** | 10 racks, first customers | Contracts and SLAs, demand curves, power budget per rack, breaker trips, basic cooling (zone temp) | Pizza Rocket lunch spike + hot day | Earn $X, keep 3 clients |
-| 3 | **Colocation Floor** | 1 hall, 40 racks | Hot/cold aisle layout, CRAC units, HVAC tech, network (ToR, uplinks), Net engineer, technician fatigue and morale | Fiber cut during the GameStudio launch | Hit 99.9% SLA for 7 days |
-| 4 | **Enterprise DC** | 2 halls + power room | UPS / generator / redundancy (N+1), electrician, shifts (day/night), Shift Lead + simple auto-dispatch rules, physical security and guards | Storm: utility outage + generator not tested | Survive outage with zero SLA breach |
-| 5 | **Cloud Region** | 3 halls, multi-floor building | Cyberattacks full system, SOC, patching, SRE + runbooks, research tree fully open, DCIM alarm grouping | Zero-day + DDoS on Black Friday | Reputation 4★ |
-| 6 | **AI Campus** | Multi-building campus, choose site/climate | GPU racks (40–100 kW), liquid cooling, leaks, grid demand response, green score, robots | Heatwave + ViralAI ×3 demand + power cap from grid | PUE < 1.3 with 99.99% |
-| ∞ | **Sandbox / Endless** | Any site | Everything, custom difficulty sliders | Escalating director | High score |
+The campaign is a sequence of **chapters**. Each chapter teaches with **Introduce → Practise → Twist**: a safe tutorial moment, then a normal task, then a complication that combines the new mechanic with older ones. Every chapter can be played on any **difficulty level** (§12).
 
-**Within-level disclosure rules**
-- The UI shows **only unlocked panels** (e.g., no "Power" tab until L2). New tabs pulse once with a 1-line tooltip.
+| Ch | Name | Floor area unlocked | New mechanics introduced | Twist / Final challenge | Win condition (example) |
+|----|------|---------------------|--------------------------|-------------------------|-------------------------|
+| 0 | **Tutorial: "The Closet"** | Broom closet, 1 rack | Tap device, inspect, *you* swap a disk, install a server | The office AC is switched off on Friday evening | Survive a weekend |
+| 1 | **Server Room** | Old meeting room, 4 racks | Hire 1st HW tech, dispatch, parts inventory, orders and delivery, money | Two disks fail at once. One tech → prioritise | 99% uptime, 10 servers |
+| 2 | **Startup Colo** | Half the office, 10 racks | Contracts and SLAs, demand curves, power budget per rack, breaker trips, basic cooling (zone temp) | Pizza Rocket lunch spike + hot day | Earn $X, keep 3 clients |
+| 3 | **Colocation Floor** | Whole office cleared, 40 racks | Hot/cold aisle layout, CRAC units, HVAC tech, network (ToR, uplinks), Net engineer, technician fatigue and morale | Fiber cut during the GameStudio launch | Hit 99.9% SLA for 7 days |
+| 4 | **Enterprise DC** | + power room & generator yard (ex-parking) | UPS / generator / redundancy (N+1), electrician, shifts (day/night), Shift Lead + simple auto-dispatch rules, physical security and guards | Storm: utility outage + generator not tested | Survive outage with zero SLA breach |
+| 5 | **Cloud Region** | + neighbouring company's space, ~120 racks | Cyberattacks full system, SOC, patching, SRE + runbooks, research tree fully open, DCIM alarm grouping | Zero-day + DDoS on Black Friday | Reputation 4★ |
+| 6 | **AI Wing** | Full floor, GPU zone | GPU racks (40–100 kW), liquid cooling, leaks, grid demand response, green score, robots | Heatwave + ViralAI ×3 demand + power cap from grid | PUE < 1.3 with 99.99% |
+| ∞ | **Sandbox / Endless** | Full floor, pick a city/climate | Everything | Escalating director | High score |
+
+**Chapter disclosure rules**
+- The UI shows **only unlocked panels** (e.g., no "Power" tab until Ch2). New tabs pulse once with a 1-line tooltip.
 - **Contextual "first time" tips** trigger on first occurrence (first overheating: "Racks hate heat. Every +10 °C doubles failure risk.") and can be replayed in the **Handbook**.
 - **Mentor character** ("Sam, the retiring old-school sysadmin") delivers tips in short, funny lines, not walls of text. Skippable.
-- After L1, players can **skip the campaign** to sandbox, with all tutorials available in the Handbook.
+- After Ch1, players can **skip the campaign** to sandbox, with all tutorials available in the Handbook.
 
 **Learning curve target**
 ```
 Complexity
-  ▲                                          ┌──── L6 (automation absorbs complexity)
+  ▲                                          ┌──── Ch6 (automation absorbs complexity)
   │                                ┌─────────┘
-  │                      ┌─────────┘ L5
-  │             ┌────────┘ L4
-  │      ┌──────┘ L3
-  │  ┌───┘ L2
-  │──┘ L0-L1
+  │                      ┌─────────┘ Ch5
+  │             ┌────────┘ Ch4
+  │      ┌──────┘ Ch3
+  │  ┌───┘ Ch2
+  │──┘ Ch0-Ch1
   └──────────────────────────────────────────────► Time
 Player *workload* (taps/minute) should stay roughly flat: new complexity
 is balanced by new automation (auto-dispatch, runbooks, DCIM, robots).
@@ -341,17 +345,44 @@ is balanced by new automation (auto-dispatch, runbooks, DCIM, robots).
 
 ---
 
-## 12. Difficulty & Pacing
+## 12. Difficulty Levels & Pacing
 
-**Difficulty presets** (tunable sliders underneath):
-- 🎓 **Intern:** slow time, generous cash, few incidents, alarms auto-pause the game.
-- 🧑‍💻 **Sysadmin:** default.
-- 🔥 **On-Call Nightmare:** more incidents, stricter SLAs, attackers adapt.
-- ⚙️ **Custom:** incident frequency, economy, cyber threat on/off (for players who just want the cozy building game).
+Difficulty works on two axes that can be combined:
+1. **Difficulty level**: chosen when starting a chapter or a sandbox game. It sets how hard the world is.
+2. **Chapter stars** (★ / ★★ / ★★★): optional extra objectives inside each chapter, for players who want mastery without changing the difficulty level.
 
-**Incident Director** (dynamic pacing, inspired by "AI director" systems): tracks player stress (open alarms, cash trend, recent outages) and alternates **calm → build-up → peak → relief** phases. It never stacks 3 criticals on a player who is already drowning, unless they're on Nightmare.
+### 12.1 Difficulty levels
 
-**Time controls:** Pause / 1× / 2× / 4×. Optional **auto-pause on Critical** (default ON for mobile). Keyboard: `Space` pause, `1-3` speed.
+| | 🎓 **Intern** | 🧑‍💻 **Sysadmin** (default) | 🛠️ **Senior Engineer** | 🔥 **On-Call Nightmare** | 💀 **Five Nines** |
+|---|---|---|---|---|---|
+| Unlocked | Always | Always | Always | After finishing Ch3 on any difficulty | After finishing the campaign on Nightmare |
+| Starting cash | ×2 | ×1 | ×0.8 | ×0.6 | ×0.5 |
+| Incident frequency | ×0.5 | ×1 | ×1.3 | ×1.7 | ×2 |
+| Alarm escalation timers | ×2 (slower) | ×1 | ×0.8 | ×0.6 | ×0.5 |
+| SLA penalties | ×0.5 | ×1 | ×1.25 | ×1.5 | ×2, and any Critical outage costs a contract |
+| Parts delivery time | Instant | Normal | ×1.5 | ×2, with occasional wrong parts | ×2, with occasional wrong parts |
+| Technician mistakes (botched jobs) | Off | Low | Normal | High | High |
+| Cyber villains | Script Kiddies only | All, slow escalation | All | All, and they adapt to your defences | All, combined attacks |
+| Incident director | Gentle; never stacks Criticals | Balanced | Balanced | Aggressive peaks | Aggressive peaks, no relief guarantee |
+| Auto-pause on Critical | Forced ON | ON by default (mobile) | Optional | Optional | Disabled |
+| Hints / "suggested tech" | Always shown | Shown | Shown | Off by default | Off |
+| Score multiplier | ×0.5 | ×1 | ×1.5 | ×2 | ×3 |
+
+- **⚙️ Custom:** every row above is a slider, plus a "cyber on/off" toggle for a calm building game. Custom games don't count towards achievements that require a set difficulty level.
+- The difficulty level can be **lowered** mid-game (never raised). This is shown on the end-of-chapter report, with no shaming.
+- All multipliers live in one `difficulty.json` data file so they're easy to tune.
+
+### 12.2 Chapter stars (in-chapter difficulty)
+- ★ **Pass:** the chapter's main win condition.
+- ★★ **Pro:** a tighter goal, e.g. "no SLA breach" or "finish with ≥ $X".
+- ★★★ **Legend:** a constraint challenge, e.g. "max 2 technicians", "never pause", or "PUE < 1.5".
+- Stars unlock cosmetics (technician outfits, rack LED colours, NOC trophies), never power.
+
+### 12.3 Pacing tools
+
+**Incident Director** (dynamic pacing, inspired by "AI director" systems): tracks player stress (open alarms, cash trend, recent outages) and alternates **calm → build-up → peak → relief** phases. Its intensity is set by the difficulty level (table above).
+
+**Time controls:** Pause / 1× / 2× / 4×. Optional **auto-pause on Critical**. Keyboard: `Space` pause, `1-3` speed.
 
 **Assist features:** "Suggested tech" highlight on dispatch (nearest and qualified), "Why did this happen?" explainer on every incident post-mortem (reinforces learning).
 
@@ -359,12 +390,12 @@ is balanced by new automation (auto-dispatch, runbooks, DCIM, robots).
 
 ## 13. Automation Layer (key to late-game fun)
 
-1. **Manual dispatch** (L1): tap alarm → tap tech.
-2. **Suggested dispatch** (L2): one-tap "Send best".
-3. **Auto-dispatch rules** (L4, Shift Lead): simple IF/THEN cards, e.g. `IF Disk alarm AND severity ≥ Warning → nearest HW tech`.
-4. **Runbooks** (L5, SRE): sequences, e.g. `On CVE: patch Tier-3 customers first, then rolling patch others at night`.
-5. **Predictive maintenance** (L5): DCIM schedules jobs before failures.
-6. **Robots** (L6): disk-swap robots, but they need maintenance too.
+1. **Manual dispatch** (Ch1): tap alarm → tap tech.
+2. **Suggested dispatch** (Ch2): one-tap "Send best".
+3. **Auto-dispatch rules** (Ch4, Shift Lead): simple IF/THEN cards, e.g. `IF Disk alarm AND severity ≥ Warning → nearest HW tech`.
+4. **Runbooks** (Ch5, SRE): sequences, e.g. `On CVE: patch Tier-3 customers first, then rolling patch others at night`.
+5. **Predictive maintenance** (Ch5): DCIM schedules jobs before failures.
+6. **Robots** (Ch6): disk-swap robots, but they need maintenance too.
 
 The rules UI must be **card-based and touch-friendly**, not a code editor.
 
@@ -430,7 +461,7 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
   core/        game loop (fixed timestep sim @ 10 ticks/s game-time), seeded RNG, event bus
   sim/         entities (ECS-lite): devices, racks, zones, techs, contracts; systems: power, thermal,
                failure, demand, network, security, economy, director, pathfinding (A* on tile grid), jobs
-  data/        JSON content: devices, parts, incidents, customers, levels, traits, research tree, strings
+  data/        JSON content: devices, parts, incidents, customers, chapters, difficulty, traits, research tree, strings
   render/      canvas map renderer, sprites, overlays, camera (pan/zoom)
   ui/          DOM panels (vanilla components or Preact), responsive CSS, input abstraction (mouse/touch)
   save/        serialize/deserialize, versioned save migrations
@@ -439,25 +470,26 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 - **Sim/render separation** keeps the simulation headless-testable (unit tests with Vitest), and makes fast-forward and auto-balance scripts possible.
 - **Data-driven content** so designers can add incidents and customers without code.
 - **Build:** Vite. Deploy: GitHub Pages. No external runtime dependencies beyond an optional small renderer.
-- **Telemetry (opt-in, later):** level completion, failure causes, to tune difficulty.
+- **Telemetry (opt-in, later):** chapter completion per difficulty level, failure causes, to tune difficulty.
 
 ---
 
 ## 18. Scope & Milestones
 
-### MVP (vertical slice): Levels 0–2
+### MVP (vertical slice): Chapters 0–2
 - Floor map, rack view, 1–3 HW techs, dispatch, pathfinding, inventory and deliveries
 - Devices: 1U/2U servers. Failures: disk, PSU, overheating. Basic zone temp and power budget
 - Contracts with SLA and demand curves, economy, reputation
 - Alarm feed with severity, countdown and auto-pause
+- Difficulty levels Intern / Sysadmin / Senior Engineer, plus chapter stars
 - Tutorial (mentor tips), save/load, mobile + desktop layouts, PWA
 
-### v1.0: Levels 3–5
+### v1.0: Chapters 3–5
 - Aisles and CRACs, network, HVAC/Electrician/Net/Guard/SOC roles, fatigue and morale, traits, shifts
 - UPS/generator/redundancy, cyberattacks, research tree, auto-dispatch rules, DCIM, achievements, daily challenge
 
-### v1.x: Level 6 and beyond
-- GPU/liquid cooling, multi-building campus, sites and climates, robots, runbooks, sandbox sliders, scenario editor, leaderboards
+### v1.x: Chapter 6 and beyond
+- GPU/liquid cooling, sites and climates, robots, runbooks, sandbox sliders, scenario editor, leaderboards
 
 ---
 
@@ -466,7 +498,7 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 | Metric | Target |
 |--------|--------|
 | Tutorial completion | > 80% |
-| L2 completion | > 50% of starters |
+| Ch2 completion | > 50% of starters |
 | Median session length (mobile) | ≥ 8 min |
 | D1 / D7 return (PWA installs) | 35% / 15% |
 | "Unfair" deaths: failures with no prior warning | ~0 (every outage traceable to an ignored signal) |
@@ -478,10 +510,10 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 
 1. ~~Map perspective~~ **Decided:** top-down.
 2. ~~Time scale~~ **Decided:** 1 s = 3 game min at 1× (§3.1). Validate in playtest that standard jobs (5 s) don't feel too fast to follow.
-3. **Multi-floor buildings:** Separate floor tabs with elevator travel time for techs, or one flat map per hall? *Tabs, with elevator travel time.*
+3. ~~Multi-floor buildings~~ **Decided:** single floor for this game. *Parked for later / a sequel:* multiple floors as tabs, with elevator travel time for techs, then multiple buildings and sites.
 4. ~~Cyber layer depth~~ **Decided:** fun and arcade-like with cartoon villains (§9), always tied to physical consequences on the map.
 5. **Mobile density:** At 200+ racks the map gets busy. Need aggressive LOD (rows collapse into blocks when zoomed out) and alarm grouping.
-6. **Micro-management fatigue:** Mitigated by the automation layer (§13). Needs playtesting at L4–L5.
+6. **Micro-management fatigue:** Mitigated by the automation layer (§13). Needs playtesting at Ch4–Ch5.
 7. ~~Monetisation~~ **Decided:** free, with no ads and no purchases.
 8. **Branding:** All customers, vendors and products fictional. No real company names or logos.
 
@@ -495,7 +527,7 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 4. Bakery Webshop asks for 1 more server. Tap the contract, **order a server** (delivery in 30 s), then **drag/tap it into U12**.
 5. Power bar turns yellow: *"Each rack has a power budget. Go over and the breaker trips."*
 6. Friday 18:00 event: *"Facilities turned off the office AC for the weekend."* The temp gauge rises. You learn to **cut load**, **open the door** (free cooling, but a security risk later!), or **buy a portable AC**.
-7. Survive until Monday, win Level 0. The reward unlocks **Hire Technician**.
+7. Survive until Monday, win Chapter 0. The reward unlocks **Hire Technician**.
 
 ## Appendix B: Brainstorm parking lot (ideas to evaluate)
 - Coffee machine as a meaningful morale upgrade tree (drip → espresso → barista robot)
