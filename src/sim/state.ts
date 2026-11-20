@@ -9,7 +9,7 @@ import type {
   Candidate, ChapterId, Contract, Cooler, DayReport, DifficultyId, Facing, Fx, GameState, LogKind, PartId, Rack, Tech, Vec,
 } from './types';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 const LOG_CAP = 200;
 
 export function emptyReport(day: number): DayReport {
@@ -149,6 +149,10 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
     pendingShiftReport: null,
     walkins: [],
     projects: [],
+    outages: {},
+    postMortems: [],
+    pendingPostMortem: null,
+    alarmHistory: [],
     failuresEnabled: ch.failuresEnabled,
     attention: null,
   };

@@ -7,6 +7,8 @@ import type { DisplaySetting } from './display';
 const SAVE_KEY = 'dcm.save.v1';
 const PROGRESS_KEY = 'dcm.progress.v1';
 const SETTINGS_KEY = 'dcm.settings.v1';
+const ACHIEVEMENTS_KEY = 'dcm.achievements.v1';
+const DAILY_KEY = 'dcm.daily.v1';
 
 /** Storage can be missing or throw (private mode, blocked site data): every access is guarded. */
 export interface KeyValueStore {
@@ -93,6 +95,41 @@ export class Persistence {
     } catch {
       return {};
     }
+  }
+
+  loadAchievements(): Record<string, number> {
+    try {
+      return JSON.parse(read(this.store, ACHIEVEMENTS_KEY) ?? '{}') as Record<string, number>;
+    } catch {
+      return {};
+    }
+  }
+
+  /** Stores newly earned achievements; returns only the ones unlocked just now. */
+  unlockAchievements(ids: string[], when = Date.now()): string[] {
+    const have = this.loadAchievements();
+    const fresh = ids.filter((id) => !(id in have));
+    for (const id of fresh) have[id] = when;
+    if (fresh.length) write(this.store, ACHIEVEMENTS_KEY, JSON.stringify(have));
+    return fresh;
+  }
+
+  /** Best Daily Challenge result per date. */
+  loadDaily(): Record<string, { stars: number; score: number; share: string }> {
+    try {
+      return JSON.parse(read(this.store, DAILY_KEY) ?? '{}') as Record<string, { stars: number; score: number; share: string }>;
+    } catch {
+      return {};
+    }
+  }
+
+  recordDaily(id: string, result: { stars: number; score: number; share: string }): boolean {
+    const all = this.loadDaily();
+    const prev = all[id];
+    if (prev && prev.score >= result.score) return false;
+    all[id] = result;
+    write(this.store, DAILY_KEY, JSON.stringify(all));
+    return true;
   }
 
   recordResult(chapter: ChapterId, difficulty: DifficultyId, stars: number): Progress {

@@ -1,12 +1,23 @@
-import { CHAPTERS } from '../data/chapters';
+import { CHAPTERS, type Objective } from '../data/chapters';
+import { DAILY_OBJECTIVES } from './daily';
 import { addLog } from './state';
 import { settleDay, settleHour } from './economy';
 import { endShift } from './shifts';
 import { MINUTES_PER_DAY } from '../core/time';
 import type { GameState } from './types';
 
+/** The chapter's end, or a Daily Challenge's one-shift end. */
+export function chapterEnd(s: GameState): number {
+  return s.endMinute ?? CHAPTERS[s.chapter].endMinute;
+}
+
+/** Chapter objectives, or the Daily Challenge's. */
+export function objectivesFor(s: GameState): readonly Objective[] {
+  return s.dailyId ? DAILY_OBJECTIVES : CHAPTERS[s.chapter].objectives;
+}
+
 export function objectiveStatus(s: GameState): boolean[] {
-  return CHAPTERS[s.chapter].objectives.map((o) => o.check(s));
+  return objectivesFor(s).map((o) => o.check(s));
 }
 
 /** Stars are cumulative: ★★ requires ★, ★★★ requires ★★. */
@@ -32,7 +43,7 @@ export function checkLose(s: GameState): boolean {
 }
 
 export function checkEnd(s: GameState): void {
-  if (s.minute < CHAPTERS[s.chapter].endMinute) return;
+  if (s.minute < chapterEnd(s)) return;
   if (s.minute % 60 !== 0) settleHour(s);
   if (s.shift) endShift(s);
   if (s.minute % MINUTES_PER_DAY !== 0) settleDay(s, true);
@@ -40,7 +51,7 @@ export function checkEnd(s: GameState): void {
   const stars = countStars(results);
   s.progress.stars = stars;
   if (stars >= 1) end(s, 'won', `Chapter complete! ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}`);
-  else end(s, 'lost', `Time is up and the goal was not met: ${CHAPTERS[s.chapter].objectives[0].label}.`);
+  else end(s, 'lost', `Time is up and the goal was not met: ${objectivesFor(s)[0]!.label}.`);
 }
 
 function end(s: GameState, status: 'won' | 'lost', text: string): void {

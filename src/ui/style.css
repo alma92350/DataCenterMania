@@ -374,3 +374,23 @@ body.eink .toast-fail, body.eink .toast-alarm { border-left: 8px solid #000; fon
   #toasts { left: 8px; right: 60px; width: auto; transform: none; bottom: 6px; }
   .toast { font-size: 0.75rem; padding: 4px 8px; max-height: 3.2em; overflow: hidden; }
 }
+
+/* ---------- v0.5: career, daily, achievements, post-mortems ---------- */
+.career { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 14px 0 6px; }
+.badge-title { font-weight: 700; font-size: 1.05rem; padding: 4px 14px; border: 1px solid var(--accent); border-radius: 99px; }
+.daily-card { text-align: left; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 14px; padding: 12px 14px; margin: 14px 0; }
+.achievements { margin-top: 16px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px; text-align: left; }
+.achievements summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; font-weight: 600; }
+.achv-grid { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.achv-grid li { display: flex; flex-direction: column; gap: 2px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
+.achv-grid li.locked { opacity: 0.45; }
+.achv-new li { gap: 8px; }
+.pm-card { background: var(--panel-2); border: 1px solid var(--warn); border-radius: var(--radius); padding: 10px 12px; margin: 8px 0; }
+.pm-steps { margin: 6px 0; padding-left: 20px; font-size: 0.88rem; }
+.pm-steps li + li { margin-top: 3px; }
+.share-text { white-space: pre-wrap; font-size: 0.8rem; background: var(--panel-2); border: 1px dashed var(--line); border-radius: 8px; padding: 8px; text-align: left; }
+body.eink .daily-card, body.eink .pm-card, body.eink .achievements, body.eink .badge-title { border: 2px solid #000; background: #fff; }
+
+/* stacking order: map overlays < tips/toasts < modals < full screens */
+#modal { z-index: 30; }
+#screen { z-index: 40; }

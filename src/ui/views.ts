@@ -8,7 +8,7 @@ import { suggestedCoolerJob, suggestedJob } from '../sim/commands';
 import { bandwidthCapacity } from '../sim/network';
 import { demandFactor } from '../sim/demand';
 import { deliveryTime } from '../sim/economy';
-import { objectiveStatus } from '../sim/objectives';
+import { chapterEnd, objectiveStatus, objectivesFor } from '../sim/objectives';
 import {
   activeContracts, contractAssignedUnits, contractById, contractCapacity, contractMarginPerDay, contractUptimeTodayPct, deviceUp,
   devicesInRack, hasFeature, offeredContracts, overallUptimePct, rackById,
@@ -17,6 +17,8 @@ import type { Alarm, Contract, Device, DifficultyId, GameState, LogEntry, PartId
 import { SEVERITY_LABEL } from '../sim/types';
 import { countdown, escapeHtml as e, money, stars } from './format';
 import { bestStars, isDifficultyUnlocked, isUnlocked, type Progress, type Settings } from './storage';
+import { ACHIEVEMENTS, careerTitle } from '../sim/achievements';
+import { DAILY_MODIFIERS, dailySpec, type DailySpec } from '../sim/daily';
 
 export type PanelId = 'alarms' | 'team' | 'contracts' | 'network' | 'shop' | 'goals';
 
@@ -44,7 +46,7 @@ const sevBadge = (sev: Alarm['severity']) =>
 
 export function topBar(s: GameState, speed: Speed, effective: Speed): string {
   const ch = CHAPTERS[s.chapter];
-  const left = Math.max(0, ch.endMinute - s.minute);
+  const left = Math.max(0, chapterEnd(s) - s.minute);
   const speeds: Speed[] = [0, 1, 2, 4];
   const alarms = s.alarms.filter((a) => a.kind !== 'powerHigh');
   const worst = alarms.reduce((m, a) => Math.max(m, a.severity), 0);
@@ -89,7 +91,7 @@ const ALARM_HINT: Partial<Record<Alarm['kind'], string>> = {
 
 export function alarmsPanel(s: GameState): string {
   const list = [...s.alarms].sort((a, b) => b.severity - a.severity || a.raisedAt - b.raisedAt);
-  const requests = requestsSection(s);
+  const requests = postMortemCard(s) + requestsSection(s);
   if (!list.length) return `${requests}<div class="empty">✅ All quiet. ${requests ? 'Time for those requests!' : hasFeature(s, 'projects') ? 'Maybe start an ops project (Team tab)?' : 'Enjoy your coffee.'}</div>`;
   return `${requests}${requests ? '<h3>Alarms</h3>' : ''}<ul class="list alarms">${list
     .map((a) => {
@@ -278,14 +280,15 @@ export function goalsPanel(s: GameState): string {
   return `
     <h3>Chapter ${ch.number}: ${e(ch.title)}</h3>
     <p class="muted">${e(ch.intro)}</p>
-    <ul class="list goals">${ch.objectives
+    <ul class="list goals">${objectivesFor(s)
       .map((o, i) => `<li class="row"><span class="star">${'★'.repeat(i + 1)}</span><span>${e(o.label)}</span><span class="${status[i] ? 'ok' : 'muted'}">${status[i] ? '✓ on track' : '…'}</span></li>`)
       .join('')}</ul>
-    <p class="muted small">Ends ${formatClock(ch.endMinute)} · goals are checked at the end · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
+    <p class="muted small">Ends ${formatClock(chapterEnd(s))} · goals are checked at the end · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
     ${last ? `<h3>Last day</h3><div class="report">
       <span>Revenue</span><b>${money(last.revenue)}</b><span>Penalties</span><b>${money(-last.penalties)}</b>
       <span>Salaries</span><b>${money(-last.salaries)}</b><span>Electricity</span><b>${money(-last.electricity)}</b>
       <span>Rent</span><b>${money(-last.rent)}</b>${last.network ? `<span>Network</span><b>${money(-last.network)}</b>` : ''}<span>Net</span><b class="${last.net < 0 ? 'neg' : 'pos'}">${money(last.net)}</b></div>` : ''}
+    ${incidentHistory(s)}
     <h3>Log</h3><ul class="list logs">${[...s.log].reverse().slice(0, 40).map(logLine).join('')}</ul>`;
 }
 
@@ -403,12 +406,19 @@ export function coolerModal(s: GameState, coolerId: string): string {
   </div>`;
 }
 
-export function startScreen(progress: Progress, settings: Settings, hasSave: boolean): string {
+export interface StartExtras {
+  daily: DailySpec;
+  dailyBest: { stars: number; share: string } | null;
+  achievements: Record<string, number>;
+}
+
+export function startScreen(progress: Progress, settings: Settings, hasSave: boolean, extras?: StartExtras): string {
   const diffs = Object.values(DIFFICULTIES);
   return `<div class="start">
     <h1>Data<span>Center</span>Mania</h1>
     <p class="tag">Keep the servers humming. Keep the customers happy. Keep your cool.</p>
     ${hasSave ? '<button class="primary big" data-action="continue">▶ Continue</button>' : ''}
+    ${extras ? careerCard(progress) + dailyCard(extras.daily, extras.dailyBest) : ''}
     <h3>Difficulty</h3>
     <div class="diffs">${diffs
       .map((d) => isDifficultyUnlocked(progress, d.id)
@@ -428,6 +438,7 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
     }).join('')}
       <div class="chapter locked"><span class="num">4</span><span class="ct"><b>Enterprise DC</b><span class="small">UPS, generators and shifts: coming soon</span></span><span class="best">🔒</span></div>
     </div>
+    ${extras ? achievementsGrid(extras.achievements) : ''}
     ${settingsForm(settings)}
     <p class="muted small">Free, no ads, works offline. Saves stay in this browser.</p>
   </div>`;
@@ -461,16 +472,22 @@ export function pauseMenu(s: GameState, settings: Settings): string {
   </div>`;
 }
 
-export function endScreen(s: GameState): string {
+export interface EndExtras {
+  newAchievements: string[];
+  share?: string;
+  newBest?: boolean;
+}
+
+export function endScreen(s: GameState, extras: EndExtras = { newAchievements: [] }): string {
   const ch = CHAPTERS[s.chapter];
   const won = s.progress.status === 'won';
   const status = objectiveStatus(s);
   const next = ch.next ? CHAPTERS[ch.next] : null;
   const profit = s.cash - s.progress.startCash;
   return `<div class="modal-card end ${won ? 'won' : 'lost'}" role="dialog" aria-modal="true">
-    <h2>${won ? '🎉 Chapter complete!' : '💥 Chapter failed'}</h2>
+    <h2>${s.dailyId ? (won ? '🎉 Daily complete!' : '💥 Daily failed') : won ? '🎉 Chapter complete!' : '💥 Chapter failed'}</h2>
     <div class="big-stars">${'★'.repeat(s.progress.stars)}${'☆'.repeat(3 - s.progress.stars)}</div>
-    <ul class="list goals">${ch.objectives.map((o, i) => `<li class="row"><span>${status[i] ? '✅' : '❌'}</span><span>${e(o.label)}</span></li>`).join('')}</ul>
+    <ul class="list goals">${objectivesFor(s).map((o, i) => `<li class="row"><span>${status[i] ? '✅' : '❌'}</span><span>${e(o.label)}</span></li>`).join('')}</ul>
     <div class="report">
       <span>Uptime</span><b>${overallUptimePct(s).toFixed(2)}%</b>
       <span>Profit</span><b class="${profit < 0 ? 'neg' : 'pos'}">${money(profit)}</b>
@@ -478,10 +495,17 @@ export function endScreen(s: GameState): string {
       <span>Critical alarms</span><b>${s.stats.criticals}</b>
       <span>Reputation</span><b>${stars(s.reputation)}</b>
     </div>
+    ${extras.newAchievements.length ? `<h3>🏆 Unlocked</h3><ul class="list achv-new">${extras.newAchievements
+      .map((id) => ACHIEVEMENTS.find((a) => a.id === id))
+      .filter((a): a is NonNullable<typeof a> => !!a)
+      .map((a) => `<li class="row"><span class="pi">${a.icon}</span><b>${e(a.name)}</b><span class="muted small">${e(a.description)}</span></li>`).join('')}</ul>` : ''}
+    ${s.dailyId ? `<div class="banner info"><span>📅 Daily #${dailySpec(s.dailyId).number}${extras.newBest ? ' · <b>new personal best!</b>' : ''}</span>
+      <button class="primary" data-action="share">📤 Share result</button></div>
+      <pre class="share-text">${e(extras.share ?? '')}</pre>` : ''}
     <div class="stack">
-      ${won && next ? `<button class="primary big" data-action="newGame" data-chapter="${next.id}">Next: ${e(next.title)} ▶</button>` : ''}
-      ${won && !next ? '<p>That is all for now, and <b>On-Call Nightmare</b> is unlocked! More chapters (power rooms, generators, cyber villains) are coming.</p>' : ''}
-      <button data-action="newGame" data-chapter="${ch.id}">↻ Retry</button>
+      ${!s.dailyId && won && next ? `<button class="primary big" data-action="newGame" data-chapter="${next.id}">Next: ${e(next.title)} ▶</button>` : ''}
+      ${!s.dailyId && won && !next ? '<p>That is all for now, and <b>On-Call Nightmare</b> is unlocked! More chapters (power rooms, generators, cyber villains) are coming.</p>' : ''}
+      ${s.dailyId ? '<button data-action="daily">↻ Retry today’s challenge</button>' : `<button data-action="newGame" data-chapter="${ch.id}">↻ Retry</button>`}
       <button class="ghost" data-action="quit">Menu</button>
     </div></div>`;
 }
@@ -503,7 +527,7 @@ export function dayProgress(s: GameState): number {
 export function goalBar(s: GameState): string {
   const ch = CHAPTERS[s.chapter];
   const shown = 0; // the ★ goal, with live progress; the Goals tab lists ★★ and ★★★
-  const o = ch.objectives[shown]!;
+  const o = objectivesFor(s)[shown]!;
   const ok = o.check(s);
   const goal = `<button class="chip-btn ${ok ? 'ok' : ''}" data-action="panel" data-panel="goals" title="${e(o.label)}">
     <span class="star">${'★'.repeat(shown + 1)}</span> ${e(o.progress ? o.progress(s) : o.label)} ${ok ? '✓' : ''}</button>`;
@@ -575,4 +599,46 @@ export function projectsSection(s: GameState): string {
           : `<button class="primary" data-action="project" data-project="${id}" ${s.cash < p.cost ? 'disabled' : ''}>Start</button>`}</div></li>`;
     })
     .join('')}</ul>`;
+}
+
+export function careerCard(p: Progress): string {
+  const c = careerTitle(p);
+  return `<div class="career"><span class="badge-title">🎓 ${e(c.title)}</span>
+    <span class="muted small">${c.stars}★ earned${c.next ? ` · ${c.starsToNext > 0 ? `${c.starsToNext}★ to ${e(c.next)}` : `win on 🔥 Nightmare to become ${e(c.next)}`}` : ''}</span></div>`;
+}
+
+export function dailyCard(d: DailySpec, best: { stars: number } | null): string {
+  const m = DAILY_MODIFIERS[d.modifier];
+  return `<div class="daily-card">
+    <div class="row"><b>📅 Daily Challenge #${d.number}</b><span class="chip">${m.icon} ${e(m.name)}</span></div>
+    <div class="row meta">${e(CHAPTERS[d.chapter].title)} · one shift · ${e(m.description)}</div>
+    <div class="row actions">${best ? `<span class="muted">Your best today: ${'★'.repeat(best.stars)}${'☆'.repeat(3 - best.stars)}</span>` : '<span class="muted">Same challenge for everyone today.</span>'}
+      <button class="primary" data-action="daily">${best ? 'Play again' : 'Play'}</button></div>
+  </div>`;
+}
+
+export function achievementsGrid(unlocked: Record<string, number>): string {
+  const n = ACHIEVEMENTS.filter((a) => a.id in unlocked).length;
+  return `<details class="achievements"><summary>🏆 Achievements ${n}/${ACHIEVEMENTS.length}</summary>
+    <ul class="achv-grid">${ACHIEVEMENTS.map((a) => {
+      const got = a.id in unlocked;
+      return `<li class="${got ? 'got' : 'locked'}" title="${e(a.description)}"><span class="pi">${got ? a.icon : '🔒'}</span><b>${e(a.name)}</b><span class="small">${e(a.description)}</span></li>`;
+    }).join('')}</ul></details>`;
+}
+
+export function postMortemCard(s: GameState): string {
+  const pm = s.pendingPostMortem;
+  if (!pm) return '';
+  return `<div class="pm-card" role="status">
+    <div class="row"><span>📋</span><b>Post-mortem: ${e(pm.customer)} down ${countdown(pm.minutes)}</b></div>
+    <ol class="pm-steps"><li><b>What:</b> outage ${formatClock(pm.from)}–${formatClock(pm.to)}</li><li><b>Why:</b> ${e(pm.cause)}</li><li><b>Prevent:</b> ${e(pm.prevent)}</li></ol>
+    <div class="row actions">${pm.remedy ? `<button class="primary" data-action="remedy" data-pm="${e(pm.id)}">${e(pm.remedy.label)}</button>` : ''}
+      <button class="ghost" data-action="dismissPm">Got it</button></div>
+  </div>`;
+}
+
+export function incidentHistory(s: GameState): string {
+  if (!s.postMortems.length) return '';
+  return `<h3>Incident history</h3><ul class="list">${[...s.postMortems].reverse().map((pm) =>
+    `<li><div class="row"><b>${e(pm.customer)}</b><span class="muted">${formatClock(pm.from)} · ${countdown(pm.minutes)}</span></div><div class="row meta">${e(pm.cause)}</div></li>`).join('')}</ul>`;
 }

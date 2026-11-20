@@ -28,6 +28,10 @@ npm run build      # typecheck + production build into dist/
 npm run e2e        # builds, then drives the real game in Chromium (desktop + phone)
 ```
 
+```bash
+node e2e/perf-probe.mjs   # mobile responsiveness probe: frame times and slow-finger taps on a throttled phone
+```
+
 **Kindle Scribe / e-ink:** the game switches to a black-and-white, motion-free display on e-ink screens (auto-detected). Force it with `?eink=1` or under Settings → Display.
 
 Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: `Space` pause, `1`/`2`/`3` speed, `H` heat map, `P` power map, `Esc` close.
@@ -40,6 +44,8 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 | Shifts (v0.4) | Each game day is a shift with a goal and bonus, a 22:00 report card, and "Sleep until 06:00" with a night recap; progress autosaves at every shift |
 | Live money (v0.4) | Revenue and costs credited every game hour with +$ pops, per-contract margin, HUD goal chip and today's earnings |
 | Calm-time play (v0.4) | Walk-in customer requests (timed favours) and ops projects (cable tidy, labels, firmware) with lasting bonuses |
+| Mastery (v0.5) | Hard ★★★ constraints per chapter, 14 achievements, career title (Intern → CTO), date-seeded Daily Challenge with a modifier and a share line, outage post-mortems with one-tap remedies |
+| Mobile | Taps survive live refreshes (DOM morphing + press guard), finger-sized map zoom with forgiving taps, landscape side panel, tips always reachable |
 | Display | Colour (desktop/phone) and e-ink (Kindle Scribe): monochrome palette, shapes and patterns for meaning, no animation, throttled redraws |
 | Difficulty | Intern, Sysadmin, Senior Engineer, On-Call Nightmare (unlocked by beating Ch3); multipliers in `src/data/difficulty.ts` |
 | Simulation | Demand curves, SLA with onboarding grace + setup fee, rack power budgets and breakers, thermal model with hot-weather cooler derating, temperature-driven failures (×2 per +10 °C), escalating alarms (disk → data loss), incident director |

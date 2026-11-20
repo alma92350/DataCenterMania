@@ -53,7 +53,16 @@ function migrateV2(d: AnyRecord): void {
   d.version = 3;
 }
 
-const MIGRATIONS: Record<number, (d: AnyRecord) => void> = { 1: migrateV1, 2: migrateV2 };
+/** v3 -> v4: post-mortems. */
+function migrateV3(d: AnyRecord): void {
+  d.outages ??= {};
+  d.postMortems ??= [];
+  d.pendingPostMortem ??= null;
+  d.alarmHistory ??= [];
+  d.version = 4;
+}
+
+const MIGRATIONS: Record<number, (d: AnyRecord) => void> = { 1: migrateV1, 2: migrateV2, 3: migrateV3 };
 
 /** Parses, validates and migrates a save to the current version. */
 export function deserialize(json: string): GameState {

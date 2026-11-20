@@ -2,6 +2,7 @@ import { pick } from '../core/rng';
 import { MINUTES_PER_DAY, dayOf, hourOf } from '../core/time';
 import { SHIFT } from '../data/catalog';
 import { CHAPTERS } from '../data/chapters';
+import { chapterEnd } from './objectives';
 import { DIFFICULTIES } from '../data/difficulty';
 import { suggestedCoolerJob, suggestedJob } from './commands';
 import { addFx, addLog } from './state';
@@ -17,7 +18,7 @@ export const SHIFT_GOAL_LABEL: Record<ShiftGoalKind, string> = {
 function startShift(s: GameState): void {
   const ch = CHAPTERS[s.chapter];
   const day = dayOf(s.minute);
-  const endMinute = Math.min(ch.endMinute, day * MINUTES_PER_DAY + SHIFT.endHour * 60);
+  const endMinute = Math.min(chapterEnd(s), day * MINUTES_PER_DAY + SHIFT.endHour * 60);
   const goal: ShiftGoalKind = ch.shiftGoal ?? (activeContracts(s).length ? pick(s.rng, ['sla', 'noCritical', 'fastFix'] as const) : 'fastFix');
   s.shift = {
     day, startMinute: s.minute, endMinute, goal, goalLabel: SHIFT_GOAL_LABEL[goal],
@@ -34,7 +35,7 @@ export function updateShift(s: GameState): void {
     const h = hourOf(s.minute);
     const day = dayOf(s.minute);
     const already = s.shiftReports.some((r) => r.day === day);
-    if (!already && h >= SHIFT.startHour && h < SHIFT.endHour && s.minute < ch.endMinute) startShift(s);
+    if (!already && h >= SHIFT.startHour && h < SHIFT.endHour && s.minute < chapterEnd(s)) startShift(s);
     return;
   }
   const sh = s.shift;

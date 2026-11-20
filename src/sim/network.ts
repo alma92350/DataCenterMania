@@ -36,7 +36,7 @@ export function updateNetwork(s: GameState, dt = 1): void {
   if (!s.features.includes('network')) return;
   for (const u of s.uplinks) if (!u.up && u.repairAt !== null && s.minute >= u.repairAt) restoreUplink(s, u, true);
   if (!s.failuresEnabled) return;
-  const rate = DIFFICULTIES[s.difficulty].incidentRate * (dt / 1440);
+  const rate = DIFFICULTIES[s.difficulty].incidentRate * (s.incidentMult ?? 1) * (dt / 1440);
   for (const r of s.racks) {
     if (!r.switchFailed && s.devices.some((d) => d.rackId === r.id) && chance(s.rng, NETWORK.switchFailPerDay * rate)) failSwitch(s, r);
   }

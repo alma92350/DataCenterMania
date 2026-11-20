@@ -219,6 +219,34 @@ try {
     check(animated === 0, 'no CSS animations on e-ink');
     await page.screenshot({ path: `${outDir}/eink-game.png` });
   });
+  await session('daily challenge', { ...devices['Pixel 5'] }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'sysadmin', display: 'color' }));
+    });
+    await page.reload();
+    await page.waitForSelector('.daily-card');
+    check((await page.textContent('.daily-card')).includes('Daily Challenge #'), 'start screen shows today’s Daily Challenge');
+    check((await page.textContent('.career')).includes('Intern'), 'start screen shows the career title');
+    await page.screenshot({ path: `${outDir}/daily-start.png` });
+    await page.tap('.daily-card [data-action="daily"]');
+    await page.waitForSelector('#topbar .stat');
+    const deadline = Date.now() + 160000;
+    while (Date.now() < deadline && !(await page.isVisible('.shift-card'))) {
+      const fast = page.locator('[data-action="speed"][data-speed="4"]');
+      if ((await fast.getAttribute('aria-pressed')) !== 'true' && !(await page.isVisible('#modal:not([hidden])'))) await fast.tap();
+      await page.waitForTimeout(800);
+    }
+    check(await page.isVisible('.shift-card'), 'the daily ends with its one shift report');
+    await page.tap('.shift-card [data-action="closeModal"]');
+    await page.waitForSelector('.end', { timeout: 5000 });
+    check((await page.textContent('.end')).includes('Daily'), 'daily end screen appears');
+    check((await page.textContent('.share-text')).startsWith('DataCenterMania Daily #'), 'a share line is ready');
+    await page.screenshot({ path: `${outDir}/daily-end.png` });
+    await page.tap('[data-action="quit"]');
+    await page.waitForSelector('.daily-card');
+    check((await page.textContent('.daily-card')).includes('Your best today'), 'today’s best result is remembered');
+    check((await page.textContent('.achievements summary')).match(/Achievements [1-9]/) !== null, 'achievements were unlocked and shown');
+  });
 } finally {
   server?.kill();
 }

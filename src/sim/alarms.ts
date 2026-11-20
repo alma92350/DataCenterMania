@@ -1,6 +1,7 @@
 import { COOLERS, ESCALATION_MIN } from '../data/catalog';
 import { DIFFICULTIES } from '../data/difficulty';
 import { addLog, newId, showTip } from './state';
+import { recordAlarmHistory } from './postmortem';
 import { deviceById, rackById } from './selectors';
 import type { Alarm, AlarmKind, GameState, Severity } from './types';
 import { SEVERITY_LABEL } from './types';
@@ -74,6 +75,7 @@ export function raiseAlarm(
     escalateAt: escalateAfter === null ? null : s.minute + escalateAfter, acknowledged: false,
   };
   s.alarms.push(alarm);
+  recordAlarmHistory(s, kind, rackId, deviceId);
   if (kind !== 'powerHigh' && kind !== 'bandwidth') s.stats.incidents++;
   addLog(s, 'alarm', `${SEVERITY_LABEL[severity]}: ${alarmLabel(s, alarm)}`);
   flag(s, alarm);

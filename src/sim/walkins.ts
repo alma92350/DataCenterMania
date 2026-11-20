@@ -36,6 +36,7 @@ export function completeWalkin(s: GameState, id: string | undefined): void {
   const w = s.walkins.find((x) => x.id === id);
   if (!w || w.status !== 'open') return;
   w.status = 'done';
+  s.stats.walkinsDone = (s.stats.walkinsDone ?? 0) + 1;
   s.cash += w.reward;
   s.today.revenue += w.reward;
   s.reputation = Math.min(5, s.reputation + 0.05);

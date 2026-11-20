@@ -261,6 +261,7 @@ export function completeJob(s: GameState, job: Job): void {
       clearFor(['psu']);
       break;
     case 'reboot':
+      s.stats.reboots = (s.stats.reboots ?? 0) + 1;
       if (dev) dev.faults = dev.faults.filter((f) => f !== 'hung');
       clearFor(['hung']);
       break;

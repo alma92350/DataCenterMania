@@ -26,7 +26,7 @@ export function applyFault(s: GameState, d: Device, fault: FaultKind): void {
 
 export function rollFailures(s: GameState, dt: number): void {
   if (!s.failuresEnabled) return;
-  const rate = DIFFICULTIES[s.difficulty].incidentRate * directorMultiplier(s);
+  const rate = DIFFICULTIES[s.difficulty].incidentRate * directorMultiplier(s) * (s.incidentMult ?? 1);
   for (const d of s.devices) {
     if (!deviceUp(s, d) && !d.faults.includes('disk')) continue;
     const rack = rackById(s, d.rackId);

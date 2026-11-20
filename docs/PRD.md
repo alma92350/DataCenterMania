@@ -488,7 +488,7 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 | Release | Theme | Contents | Exit criteria |
 |---|---|---|---|
 | **v0.4 "First Hour"** ✅ shipped | Onboarding and pacing | Shifts and report cards, one-shift Ch0, live money, goal chip, ops projects, walk-in requests, **e-ink mode** | Bot-measured: Ch0 4.7 sim-min (≈6–7 with tips); quiet daytime 58–65% (was 80–89%); longest quiet 53–112 s (was 4–5 min). Human playtest still to do. |
-| **v0.5 "Mastery"** | Replay reasons | Hard ★★★ constraints, achievements, career title, seeded daily challenge with share card, incident post-mortems | Default bot gets ★★★ in ≤ 20% of runs |
+| **v0.5 "Mastery"** ✅ shipped | Replay reasons | Hard ★★★ constraints, 14 achievements, career title, seeded Daily Challenge (4 modifiers) with share line, outage post-mortems with one-tap remedies; **mobile responsiveness fixes** | Default bot ★★★ rate 6% (1/16 runs); guarded in CI at ≤ 20% |
 | **v0.6 "Launch Week"** | Re-sequence and automation | Ch3/Ch4 split, auto-dispatch from Ch2, proactive specialists, juice pass | ≤ 2 new systems per chapter; actions/min flat from Ch2 to Ch4 |
 | **v0.7 "Hackers"** | Differentiator | Hacker Weekend event (2 villains, 3 micro-games), sandbox/endless mode | Event playable in ≤ 10 min |
 | **v1.0** | Enterprise and polish | UPS/generator/shifts chapter (fatigue moves here), accessibility audit, FR localisation | §19 KPIs met in a 20-player test |
@@ -625,6 +625,21 @@ The main issues are dead air, chapters too long for a session, a thin tutorial, 
 - **Economy:** walk-in rewards and shift bonuses scale with difficulty, and so do profit goals (Ch2 $12k, Ch3 $10k × the difficulty's starting-cash factor).
 - **Bot results by difficulty:** Sysadmin wins every seed, Senior about 2 of 3, Nightmare about 2 of 3 with thin margins. Human playtests are needed, because the bot reacts within 5 game minutes and completes every walk-in.
 - **Ch0 ★★★** ("keep every rack below 35°C") needs a deliberate action (power off idle servers or bring in a portable AC). The passive bot does not get it.
+
+---
+
+### 21.13 Mobile responsiveness (fixed alongside v0.5)
+Player report: "UI not very responsive on mobile". The probe (`e2e/perf-probe.mjs`, Pixel 5 emulation with the CPU throttled 4×) found:
+- **Lost taps:** live panels replaced their DOM up to 4×/s, and only 2/10 held presses survived on the Network panel. Fixed with in-place DOM morphing plus a press guard: 10/10, and an e2e regression check.
+- **Game looked frozen:** a mentor tip (which pauses the game) could sit under the open bottom sheet. Tips and toasts now stack above it, and the top bar shows "⏸ Tip".
+- **Racks too small to tap:** about 13 px on a 360 px phone. Touch screens now start at ≥ 30 px tiles centred on the racks, and taps pick the nearest rack or cooler within about a tile.
+- **Layout:** compact map controls on phones, a single overlay button, scrollable goal chips, fewer and shorter toasts, and a side-panel layout for landscape phones.
+- Frame rate was already fine (60 fps, ~70 ms tap-to-feedback).
+
+### 21.14 v0.5 notes
+- ★★★ per chapter: Ch0 below 35°C; Ch1 lean team and a profit; Ch2 no rack above 28°C; Ch3 perfect airflow and zero critical alarms.
+- Daily Challenge: chapter, modifier (Heatwave, Gremlins, Shoestring, Gone Viral) and seed derive from the local date. One shift, its own ★ goals, score = stars, then uptime, then profit. Best result per day is kept locally. Dailies do not count as chapter wins for achievements.
+- Post-mortems trigger after ≥ 10 game minutes of SLA failure for a customer. The cause is inferred from a 60-entry alarm history. They show as a card on the Alarms tab and in the Goals → Incident history list.
 
 ---
 

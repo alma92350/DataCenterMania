@@ -178,7 +178,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     objectives: [
       { label: '≥ 10 servers serving customers and SLA uptime ≥ 97%', check: (s) => servingDeviceCount(s) >= 10 && overallUptimePct(s) >= 97, progress: (s) => `${servingDeviceCount(s)}/10 servers · uptime ${overallUptimePct(s).toFixed(1)}%` },
       { label: 'SLA uptime ≥ 99%', check: (s) => overallUptimePct(s) >= 99 },
-      { label: 'Hire at most one technician', check: (s) => s.progress.maxTechs <= 2 },
+      { label: 'Lean team: hire at most one technician and finish in profit', check: (s) => s.progress.maxTechs <= 2 && s.cash > s.progress.startCash },
     ],
     next: 'ch2',
   },
@@ -231,7 +231,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     objectives: [
       { label: 'Make $12,000 profit (scaled by difficulty) with ≥ 3 active contracts', check: (s) => s.cash - s.progress.startCash >= profitGoal(s, 12000) && activeContracts(s).length >= 3, progress: (s) => `Profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 12000))} · ${activeContracts(s).length}/3 clients` },
       { label: 'SLA uptime ≥ 98%', check: (s) => overallUptimePct(s) >= 98 },
-      { label: 'Reputation ≥ 4.5★', check: (s) => s.reputation >= 4.5 },
+      { label: 'Cool operator: no rack ever above 28°C', check: (s) => s.stats.peakTemp < 28 },
     ],
     next: 'ch3',
   },
@@ -298,7 +298,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     objectives: [
       { label: 'SLA uptime ≥ 98% and $10,000 profit (scaled by difficulty)', check: (s) => overallUptimePct(s) >= 98 && s.cash - s.progress.startCash >= profitGoal(s, 10000), progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 98% · profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 10000))}` },
       { label: 'SLA uptime ≥ 99.8%', check: (s) => overallUptimePct(s) >= 99.8 },
-      { label: 'Perfect airflow: no rack breathing hot exhaust at the end', check: (s) => s.racks.every((r) => r.recirculation === 0) },
+      { label: 'Perfect airflow at the end and zero critical alarms', check: (s) => s.racks.every((r) => r.recirculation === 0) && s.stats.criticals === 0 },
     ],
     next: null,
   },

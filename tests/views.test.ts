@@ -7,6 +7,7 @@ import {
   networkPanel, startScreen, tabs, teamPanel, techStatus, topBar, visiblePanels,
 } from '../src/ui/views';
 import { DEFAULT_SETTINGS } from '../src/ui/storage';
+import { createDaily, dailySpec } from '../src/sim/daily';
 import type { ChapterId } from '../src/sim/types';
 
 describe('views', () => {
@@ -84,5 +85,30 @@ describe('views', () => {
   it('nightmare difficulty is locked until chapter 3 is beaten', () => {
     expect(startScreen({}, DEFAULT_SETTINGS, false)).not.toContain('data-difficulty="nightmare"');
     expect(startScreen({ ch3: { senior: 1 } }, DEFAULT_SETTINGS, false)).toContain('data-difficulty="nightmare"');
+  });
+
+  it('v0.5: start screen shows career, daily and achievements; post-mortem and daily end screen render', () => {
+    const html = startScreen({ ch0: { sysadmin: 3 } }, DEFAULT_SETTINGS, false, {
+      daily: dailySpec('2026-12-03'), dailyBest: null, achievements: { firstFix: 1 },
+    });
+    expect(html).toContain('Junior Sysadmin');
+    expect(html).toContain('Daily Challenge #');
+    expect(html).toContain('data-action="daily"');
+    expect(html).toMatch(/Achievements 1\/\d+/);
+
+    const s = createGame('ch1', 'sysadmin', 1);
+    s.pendingPostMortem = { id: 'pm1', customer: 'ByteBank', from: 600, to: 640, minutes: 40, kind: 'psu', cause: 'A power supply died.', prevent: 'Keep spares.', remedy: { label: 'Order 2 spare PSUs', cmd: { type: 'order', part: 'psu', qty: 2 } } };
+    const alarms = alarmsPanel(s);
+    expect(alarms).toContain('Post-mortem: ByteBank');
+    expect(alarms).toContain('data-action="remedy"');
+
+    const d = createDaily('2026-12-03');
+    d.progress.status = 'won';
+    d.progress.stars = 2;
+    const end = endScreen(d, { newAchievements: ['dailyGrind'], share: 'DataCenterMania Daily #14 ★★☆', newBest: true });
+    expect(end).toContain('Daily complete');
+    expect(end).toContain('data-action="share"');
+    expect(end).toContain('Daily Grind');
+    expect(end).not.toContain('Next:');
   });
 });

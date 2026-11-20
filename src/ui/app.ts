@@ -7,6 +7,8 @@ import { contractAssignedUnits, contractById, firstFreeSlot, rackById } from '..
 import { tileAt } from '../sim/grid';
 import type { Facing, GameState, LogEntry, PartId, ProjectId, ServerModelId, ShiftReport } from '../sim/types';
 import { formatClock } from '../core/time';
+import { ACHIEVEMENTS, earnedAchievements } from '../sim/achievements';
+import { createDaily, dailyIdFor, dailyScore, dailySpec, shareLine } from '../sim/daily';
 import { clampCamera, createCamera, panBy, pickNearest, screenToWorld, touchFitCamera, zoomAt } from '../render/camera';
 import { drawFrame, techColor, type Overlay } from '../render/renderer';
 import { Sound } from './audio';
@@ -84,7 +86,11 @@ export class App {
     this.state = null;
     this.modal = null;
     document.body.classList.add('at-start');
-    this.html('#screen', startScreen(this.store.loadProgress(), this.settings, this.store.loadGame()?.progress.status === 'playing'));
+    const today = dailyIdFor(new Date());
+    const best = this.store.loadDaily()[today] ?? null;
+    this.html('#screen', startScreen(this.store.loadProgress(), this.settings, this.store.loadGame()?.progress.status === 'playing', {
+      daily: dailySpec(today), dailyBest: best, achievements: this.store.loadAchievements(),
+    }), true);
   }
 
   private startGame(s: GameState): void {
@@ -137,6 +143,10 @@ export class App {
       }
       this.consumeLog(s);
       if (s.pendingShiftReport) {
+        for (const id of this.store.unlockAchievements(earnedAchievements(s, this.store.loadProgress()))) {
+          const a = ACHIEVEMENTS.find((x) => x.id === id);
+          if (a) this.toast(`🏆 Achievement unlocked: ${a.icon} ${a.name}`, 'success', 6000);
+        }
         this.modal = { kind: 'shift', report: s.pendingShiftReport };
         s.pendingShiftReport = null;
         this.store.saveGame(s);
@@ -167,8 +177,19 @@ export class App {
     requestAnimationFrame((n) => this.frame(n));
   }
 
+  private endExtras: { newAchievements: string[]; share?: string; newBest?: boolean } = { newAchievements: [] };
+
   private finish(s: GameState): void {
-    this.store.recordResult(s.chapter, s.difficulty, s.progress.status === 'won' ? s.progress.stars : 0);
+    let progress = this.store.loadProgress();
+    if (s.dailyId) {
+      const share = shareLine(s, location.origin + location.pathname);
+      const newBest = this.store.recordDaily(s.dailyId, { stars: s.progress.stars, score: dailyScore(s), share });
+      this.endExtras = { newAchievements: [], share, newBest };
+    } else {
+      progress = this.store.recordResult(s.chapter, s.difficulty, s.progress.status === 'won' ? s.progress.stars : 0);
+      this.endExtras = { newAchievements: [] };
+    }
+    this.endExtras.newAchievements = this.store.unlockAchievements(earnedAchievements(s, progress));
     this.store.clearGame();
     this.modal = { kind: 'end' };
     if (s.progress.status === 'won') this.sound.success();
@@ -221,7 +242,7 @@ export class App {
     if (this.modal?.kind === 'rack') modal = rackModal(s, this.modal.id);
     else if (this.modal?.kind === 'cooler') modal = coolerModal(s, this.modal.id);
     else if (this.modal?.kind === 'menu') modal = pauseMenu(s, this.settings);
-    else if (this.modal?.kind === 'end') modal = endScreen(s);
+    else if (this.modal?.kind === 'end') modal = endScreen(s, this.endExtras);
     else if (this.modal?.kind === 'shift') modal = shiftReportModal(s, this.modal.report);
     else if (this.modal?.kind === 'recap') modal = recapModal(this.modal.lines, this.modal.woke);
     const modalEl = $('#modal');
@@ -326,8 +347,19 @@ export class App {
         if (saved) this.startGame(saved);
         return;
       }
+      case 'daily':
+        this.startGame(createDaily(dailyIdFor(new Date())));
+        return;
+      case 'share': {
+        const text = this.endExtras.share ?? '';
+        const nav = navigator as Navigator & { share?: (d: { text: string }) => Promise<void> };
+        if (nav.share) nav.share({ text }).catch(() => {});
+        else navigator.clipboard?.writeText(text).then(() => this.toast('Result copied: paste it anywhere!', 'success', 3000), () => {});
+        return;
+      }
       case 'restart':
-        if (s) this.newGame(s.chapter);
+        if (s?.dailyId) this.startGame(createDaily(s.dailyId));
+        else if (s) this.newGame(s.chapter);
         return;
       case 'quit':
         if (s && s.progress.status === 'playing') this.store.saveGame(s);
@@ -443,6 +475,16 @@ export class App {
       case 'favor': {
         const techId = el.parentElement?.querySelector<HTMLSelectElement>('.tech-pick')?.value ?? 'best';
         this.run({ type: 'dispatch', job: 'favor', walkinId: d.walkin, techId });
+        return;
+      }
+      case 'dismissPm':
+        if (s.pendingPostMortem) s.pendingPostMortem = null;
+        this.renderUi(true);
+        return;
+      case 'remedy': {
+        const pm = s.postMortems.find((x) => x.id === d.pm);
+        if (pm?.remedy && this.run(pm.remedy.cmd)) s.pendingPostMortem = null;
+        this.renderUi(true);
         return;
       }
       case 'project':

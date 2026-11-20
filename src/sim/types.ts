@@ -331,7 +331,23 @@ export interface GameState {
   seenTips: string[];
   reports: DayReport[];
   progress: ChapterProgress;
-  stats: { incidents: number; resolved: number; criticals: number; thermalShutdowns: number; peakTemp: number };
+  stats: {
+    incidents: number; resolved: number; criticals: number; thermalShutdowns: number; peakTemp: number;
+    walkinsDone?: number; reboots?: number;
+  };
+  /** Set when this game is a Daily Challenge (e.g. '2026-11-20'). */
+  dailyId?: string | null;
+  dailyModifier?: string;
+  /** Overrides the chapter's end (Daily Challenge = one shift). */
+  endMinute?: number;
+  /** Extra multipliers set by Daily Challenge modifiers. */
+  incidentMult?: number;
+  demandMult?: number;
+  /** Outage tracking and post-mortems (PRD §21.8). */
+  outages: Record<string, number>;
+  postMortems: import('./postmortem').PostMortem[];
+  pendingPostMortem: import('./postmortem').PostMortem | null;
+  alarmHistory: { kind: AlarmKind; rackId: string | null; deviceId: string | null; minute: number }[];
   energyTodayKwh: number;
   /** Today's money so far: revenue and costs are credited every game hour (PRD §21.3). */
   today: DayReport;

@@ -30,4 +30,11 @@ describe('engagement guardrails', () => {
     const quiet = runs.reduce((a, m) => a + m.quietDaytimePct, 0) / runs.length;
     expect(quiet).toBeLessThanOrEqual(70);
   });
+
+  it('★★★ is a real mastery goal: the default bot rarely gets it (PRD v0.5 exit criterion ≤ 20%)', () => {
+    const runs = (['ch0', 'ch1', 'ch2', 'ch3'] as const).flatMap((ch) => [1, 2].map((seed) => measure(ch, seed)));
+    const three = runs.filter((m) => m.state.progress.stars === 3).length;
+    expect(runs.every((m) => m.state.progress.status === 'won')).toBe(true);
+    expect(three / runs.length).toBeLessThanOrEqual(0.2);
+  });
 });
