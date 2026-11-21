@@ -61,7 +61,7 @@ describe('outage post-mortems', () => {
   });
 
   it('a fiber cut suggests a second uplink, and the remedy works as a command', () => {
-    const s = quiet('ch3');
+    const s = quiet('ch4');
     cutUplink(s, s.uplinks[0]!);
     run(s, 15);
     s.uplinks[0]!.up = true;

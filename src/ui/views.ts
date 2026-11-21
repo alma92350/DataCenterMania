@@ -440,7 +440,7 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
         <span class="num">${ch.number}</span><span class="ct"><b>${e(ch.title)}</b><span class="small">${e(ch.subtitle)}</span></span>
         <span class="best">${open ? `${'★'.repeat(best)}${'☆'.repeat(3 - best)}` : '🔒'}</span></button>`;
     }).join('')}
-      <div class="chapter locked"><span class="num">4</span><span class="ct"><b>Enterprise DC</b><span class="small">UPS, generators and shifts: coming soon</span></span><span class="best">🔒</span></div>
+      <div class="chapter locked"><span class="num">5</span><span class="ct"><b>Enterprise DC</b><span class="small">UPS, generators and shifts: coming soon</span></span><span class="best">🔒</span></div>
     </div>
     ${extras ? achievementsGrid(extras.achievements) : ''}
     ${settingsForm(settings)}

@@ -73,6 +73,7 @@ export function rackTargetTemp(s: GameState, rack: Rack, cooling: { kw: number; 
 export function updateThermal(s: GameState, dt: number): void {
   const cooling = coolingByRack(s);
   const recirculation = computeRecirculation(s);
+  if ([...recirculation.values()].some((v) => v > 0)) s.stats.airflowMinutes = (s.stats.airflowMinutes ?? 0) + dt;
   const alpha = 1 - Math.exp(-dt / THERMAL.tau);
   for (const rack of s.racks) {
     rack.recirculation = recirculation.get(rack.id) ?? 0;

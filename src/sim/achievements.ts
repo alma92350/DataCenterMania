@@ -42,7 +42,7 @@ export function earnedAchievements(s: GameState, progress: StarProgress): string
 }
 
 const TITLES: [number, string][] = [
-  [0, 'Intern'], [3, 'Junior Sysadmin'], [6, 'Sysadmin'], [9, 'Senior Engineer'], [12, 'Architect'],
+  [0, 'Intern'], [3, 'Junior Sysadmin'], [6, 'Sysadmin'], [10, 'Senior Engineer'], [15, 'Architect'],
 ];
 
 /** Career title from the best stars of each chapter (PRD §21.7). */
@@ -53,7 +53,7 @@ export function careerTitle(p: StarProgress): { title: string; stars: number; ne
   TITLES.forEach(([min], i) => {
     if (stars >= min) idx = i;
   });
-  if (stars >= 12 && nightmareWin) return { title: 'CTO', stars, next: null, starsToNext: 0 };
+  if (stars >= 15 && nightmareWin) return { title: 'CTO', stars, next: null, starsToNext: 0 };
   const next = TITLES[idx + 1];
   return {
     title: TITLES[idx]![1], stars,

@@ -21,11 +21,11 @@ export interface Grid {
 }
 
 export type DifficultyId = 'intern' | 'sysadmin' | 'senior' | 'nightmare';
-export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3';
+export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4';
 export type FeatureFlag =
   | 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote'
   | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance'
-  | 'projects' | 'walkins';
+  | 'projects' | 'walkins' | 'autodispatch';
 
 export type PartId =
   | 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc'
@@ -336,6 +336,8 @@ export interface GameState {
   stats: {
     incidents: number; resolved: number; criticals: number; thermalShutdowns: number; peakTemp: number;
     walkinsDone?: number; reboots?: number;
+    /** Game minutes during which at least one rack breathed hot exhaust (aisles). */
+    airflowMinutes?: number;
   };
   /** Set when this game is a Daily Challenge (e.g. '2026-11-20'). */
   dailyId?: string | null;

@@ -11,7 +11,7 @@ import { createDaily, dailySpec } from '../src/sim/daily';
 import type { ChapterId } from '../src/sim/types';
 
 describe('views', () => {
-  it.each(['ch0', 'ch1', 'ch2', 'ch3'] as ChapterId[])('render every panel for %s without throwing', (ch) => {
+  it.each(['ch0', 'ch1', 'ch2', 'ch3', 'ch4'] as ChapterId[])('render every panel for %s without throwing', (ch) => {
     const s = createGame(ch, 'sysadmin', 1);
     advance(s, 600);
     applyFault(s, s.devices[0]!, 'disk');
@@ -71,8 +71,8 @@ describe('views', () => {
     expect(startScreen({ ch0: { intern: 1 } }, DEFAULT_SETTINGS, true)).toContain('data-chapter="ch1"');
   });
 
-  it('chapter 3 shows the network tab, aisle info and cooler maintenance', () => {
-    const s = createGame('ch3', 'sysadmin', 1);
+  it('Launch Week shows the network tab, aisle info and cooler maintenance', () => {
+    const s = createGame('ch4', 'sysadmin', 1);
     advance(s, 120);
     expect(visiblePanels(s)).toContain('network');
     expect(networkPanel(s)).toContain('MetroFiber A');

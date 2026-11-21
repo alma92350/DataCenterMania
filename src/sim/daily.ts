@@ -19,7 +19,7 @@ export const DAILY_MODIFIERS = {
 } as const;
 export type DailyModifier = keyof typeof DAILY_MODIFIERS;
 
-const DAILY_CHAPTERS: ChapterId[] = ['ch1', 'ch2', 'ch3'];
+const DAILY_CHAPTERS: ChapterId[] = ['ch1', 'ch2', 'ch3', 'ch4'];
 
 export interface DailySpec {
   id: string;

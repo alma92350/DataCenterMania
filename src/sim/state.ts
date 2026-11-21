@@ -2,7 +2,7 @@ import { createRng, pick, randInt, rand } from '../core/rng';
 import { dayOf } from '../core/time';
 import { COOLERS, MORALE, RACK_CAPACITY_U } from '../data/catalog';
 import { CHAPTERS, type ContractSeed } from '../data/chapters';
-import { FIRST_NAMES, HIREABLE_ROLES, LAST_NAMES, TIPS, TRAITS } from '../data/content';
+import { FIRST_NAMES, LAST_NAMES, TIPS, TRAITS, availableRoles } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
 import { parseMap } from './grid';
 import { nextContractName } from './naming';
@@ -71,7 +71,7 @@ export function makeCandidate(s: GameState): Candidate {
     speed: Math.round((1.1 + rand(s.rng) * 0.5) * 100) / 100,
     salaryPerDay: 90 + skill * 45 + randInt(s.rng, 0, 30),
     trait,
-    role: s.features.includes('roles') ? pick(s.rng, HIREABLE_ROLES) : 'hw',
+    role: s.features.includes('roles') ? pick(s.rng, availableRoles(s.features)) : 'hw',
   };
 }
 
@@ -200,7 +200,7 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
   s.progress.maxTechs = s.techs.length;
   if (s.features.includes('hire')) for (let i = 0; i < 3; i++) s.candidates.push(makeCandidate(s));
   // with specialists, the first candidates always include one of each new role
-  if (s.features.includes('roles')) (['hvac', 'net'] as const).forEach((role, i) => (s.candidates[i]!.role = role));
+  if (s.features.includes('roles')) availableRoles(s.features).filter((r) => r !== 'hw').forEach((role, i) => (s.candidates[i]!.role = role));
 
   addLog(s, 'story', `Chapter ${ch.number}: ${ch.title}. ${ch.intro}`);
   return s;

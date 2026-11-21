@@ -54,8 +54,9 @@ describe('achievements', () => {
   it('nightmare and architect need the right conditions', () => {
     expect(earnedAchievements(won('ch2', 1, 'nightmare'), {})).toContain('onCallLegend');
     expect(earnedAchievements(won('ch2'), {})).not.toContain('onCallLegend');
-    const all3 = { ch0: { sysadmin: 3 }, ch1: { senior: 3 }, ch2: { sysadmin: 3 }, ch3: { intern: 3 } };
-    expect(earnedAchievements(won('ch3', 3), all3)).toContain('architect');
+    const all3 = { ch0: { sysadmin: 3 }, ch1: { senior: 3 }, ch2: { sysadmin: 3 }, ch3: { intern: 3 }, ch4: { sysadmin: 3 } };
+    expect(earnedAchievements(won('ch4', 3), all3)).toContain('architect');
+    expect(earnedAchievements(won('ch4', 3), { ...all3, ch4: undefined })).not.toContain('architect');
   });
 
   it('a Daily Challenge does not count as a chapter win', () => {
@@ -81,9 +82,9 @@ describe('career title', () => {
     expect(careerTitle({}).title).toBe('Intern');
     expect(careerTitle({ ch0: { sysadmin: 3 } }).title).toBe('Junior Sysadmin');
     expect(careerTitle({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 } }).title).toBe('Sysadmin');
-    const twelve = { ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 }, ch3: { sysadmin: 3 } };
-    expect(careerTitle(twelve).title).toBe('Architect');
-    expect(careerTitle({ ...twelve, ch3: { sysadmin: 3, nightmare: 1 } }).title).toBe('CTO');
+    const fifteen = { ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 }, ch3: { sysadmin: 3 }, ch4: { sysadmin: 3 } };
+    expect(careerTitle(fifteen).title).toBe('Architect');
+    expect(careerTitle({ ...fifteen, ch3: { sysadmin: 3, nightmare: 1 } }).title).toBe('CTO');
     expect(careerTitle({}).next).toBe('Junior Sysadmin');
     expect(careerTitle({}).starsToNext).toBe(3);
   });

@@ -23,6 +23,13 @@ function ch3(): GameState {
   return s;
 }
 
+function ch4(): GameState {
+  const s = createGame('ch4', 'sysadmin', 1);
+  s.failuresEnabled = false;
+  s.progress.firedEvents = ['*all*'];
+  return s;
+}
+
 function runJobs(s: GameState, max = 2000): void {
   for (let m = 0; m < max && s.jobs.length; m++) {
     updateTechs(s, 1);
@@ -38,21 +45,27 @@ function hire(s: GameState, role: 'hw' | 'hvac' | 'net') {
   return s.techs[s.techs.length - 1]!;
 }
 
-describe('chapter 3 setup', () => {
-  it('builds the colocation floor', () => {
+describe('chapter setups', () => {
+  it('Colocation Floor: 15 racks, CRAC, no uplink yet, HVAC specialist available', () => {
     const s = createGame('ch3', 'sysadmin', 1);
     expect(s.racks).toHaveLength(15);
     expect(s.racks.every((r) => r.facing === 'S')).toBe(true);
     expect(s.coolers.map((c) => c.kind).sort()).toEqual(['crac', 'wallAc']);
-    expect(s.uplinks).toHaveLength(1);
-    expect(s.uplinks[0]!.capacityGbps).toBe(8);
+    expect(s.uplinks).toHaveLength(0);
     expect(s.techs.map((t) => t.role)).toEqual(['manager', 'hw']);
-    expect(s.candidates.some((c) => c.role !== 'hw')).toBe(true);
-    expect(s.contracts.filter((c) => c.status === 'active').every((c) => c.bandwidthPerUnit > 0)).toBe(true);
   });
 
-  it('chapter 2 now leads to chapter 3', () => {
+  it('Launch Week: one 8 Gbps uplink, bandwidth-using customers, a network engineer to hire', () => {
+    const s = createGame('ch4', 'sysadmin', 1);
+    expect(s.uplinks).toHaveLength(1);
+    expect(s.uplinks[0]!.capacityGbps).toBe(8);
+    expect(s.contracts.filter((c) => c.status === 'active').every((c) => c.bandwidthPerUnit > 0)).toBe(true);
+    expect(s.candidates.some((c) => c.role === 'net')).toBe(true);
+  });
+
+  it('chapter 2 leads to 3, and 3 leads to 4', () => {
     expect(CHAPTERS.ch2.next).toBe('ch3');
+    expect(CHAPTERS.ch3.next).toBe('ch4');
   });
 });
 
@@ -169,7 +182,7 @@ describe('cooler maintenance', () => {
 
 describe('network', () => {
   it('a failed top-of-rack switch takes the rack offline until a network engineer replaces it', () => {
-    const s = ch3();
+    const s = ch4();
     const rack = s.racks[0]!;
     failSwitch(s, rack);
     const dev = s.devices.find((d) => d.rackId === rack.id)!;
@@ -184,7 +197,7 @@ describe('network', () => {
   });
 
   it('bandwidth demand above uplink capacity breaks every bandwidth-using contract', () => {
-    const s = ch3();
+    const s = ch4();
     s.minute = at(0, 20);
     updateDemand(s, 1);
     expect(s.bandwidthUsed).toBeGreaterThan(0);
@@ -196,7 +209,7 @@ describe('network', () => {
   });
 
   it('a fiber cut drops capacity; the ISP repairs it eventually, a network engineer faster', () => {
-    const s = ch3();
+    const s = ch4();
     cutUplink(s, s.uplinks[0]!);
     expect(bandwidthCapacity(s)).toBe(0);
     expect(s.alarms.find((a) => a.kind === 'uplink')?.severity).toBe(3);
@@ -206,7 +219,7 @@ describe('network', () => {
     runJobs(s);
     expect(s.uplinks[0]!.up).toBe(true);
 
-    const t = ch3();
+    const t = ch4();
     cutUplink(t, t.uplinks[0]!);
     t.minute = t.uplinks[0]!.repairAt!;
     updateNetwork(t);
@@ -215,7 +228,7 @@ describe('network', () => {
   });
 
   it('buying a second uplink adds capacity and a daily cost', () => {
-    const s = ch3();
+    const s = ch4();
     const cash = s.cash;
     expect(applyCommand(s, { type: 'buyUplink' }).ok).toBe(true);
     expect(s.cash).toBe(cash - EXTRA_UPLINK.setupCost);
@@ -230,7 +243,7 @@ describe('network', () => {
 
 describe('fatigue & morale', () => {
   it('working tires techs; resting in the staff room recovers them', () => {
-    const s = ch3();
+    const s = ch4();
     const t = s.techs[1]!;
     s.jobs.push({ id: 'jx', kind: 'install', rackId: s.racks[4]!.id, deviceId: null, techId: t.id, stage: 'working', workLeft: 999, workTotal: 999, part: null, site: s.racks[4]!.pos, model: 'server1u', slot: 9 });
     t.jobId = 'jx';
@@ -245,7 +258,7 @@ describe('fatigue & morale', () => {
   });
 
   it('exhausted techs take a break and refuse new jobs until rested', () => {
-    const s = ch3();
+    const s = ch4();
     const t = s.techs[1]!;
     t.fatigue = FATIGUE.breakAt + 1;
     updateFatigue(s, 1);
@@ -256,7 +269,7 @@ describe('fatigue & morale', () => {
   });
 
   it('miserable staff may quit at midnight', () => {
-    const s = ch3();
+    const s = ch4();
     while (s.candidates.length) hire(s, 'hw');
     for (const t of s.techs) if (t.role !== 'manager') t.morale = 0;
     const before = s.techs.length;
@@ -267,7 +280,7 @@ describe('fatigue & morale', () => {
   });
 
   it('the coffee machine upgrade raises morale', () => {
-    const s = ch3();
+    const s = ch4();
     applyCommand(s, { type: 'order', part: 'coffee', qty: 1 });
     advance(s, 120);
     expect(s.coffeeLevel).toBe(1);

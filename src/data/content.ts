@@ -46,7 +46,10 @@ export const TRAITS: TraitDef[] = [
   { id: 'oldTimer', name: 'Old Timer', description: 'Slow walker, never botches a job.', speedMult: 0.8, workMult: 1, mistakeMult: 0 },
 ];
 
-export const HIREABLE_ROLES: TechRole[] = ['hw', 'hvac', 'net'];
+/** Specialists you can hire: each arrives with the system it looks after (PRD §21.5). */
+export function availableRoles(features: readonly string[]): TechRole[] {
+  return ['hw', ...(features.includes('maintenance') ? (['hvac'] as const) : []), ...(features.includes('network') ? (['net'] as const) : [])];
+}
 
 export const traitOf = (id: string | null): TraitDef | undefined => TRAITS.find((t) => t.id === id);
 
