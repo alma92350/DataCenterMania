@@ -23,7 +23,7 @@ function startShift(s: GameState): void {
   s.shift = {
     day, startMinute: s.minute, endMinute, goal, goalLabel: SHIFT_GOAL_LABEL[goal],
     bonus: Math.round((SHIFT.baseBonus + SHIFT.bonusPerChapter * ch.number) * DIFFICULTIES[s.difficulty].startingCash), goalFailed: false,
-    criticalsAtStart: s.stats.criticals, incidentsAtStart: s.stats.incidents, resolvedAtStart: s.stats.resolved, cashAtStart: s.cash,
+    criticalsAtStart: s.stats.criticals, incidentsAtStart: s.stats.incidents, resolvedAtStart: s.stats.resolved, cashAtStart: s.cash, preventedAtStart: s.stats.prevented ?? 0,
   };
   addLog(s, 'story', `Shift ${s.shiftReports.length + 1} begins. Goal: ${s.shift.goalLabel} (+$${s.shift.bonus}).`);
 }
@@ -77,6 +77,8 @@ export function endShift(s: GameState): ShiftReport | null {
   const resolved = s.stats.resolved - sh.resolvedAtStart;
   const highlights: string[] = [];
   if (resolved) highlights.push(`${resolved} incident${resolved > 1 ? 's' : ''} fixed`);
+  const prevented = (s.stats.prevented ?? 0) - (sh.preventedAtStart ?? 0);
+  if (prevented > 0) highlights.push(`Specialists prevented ${prevented} problem${prevented > 1 ? 's' : ''}`);
   if (criticals === 0) highlights.push('No critical alarm');
   if (uptimePct >= SHIFT.goodUptime) highlights.push(`Uptime ${uptimePct.toFixed(2)}%`);
   const rep: ShiftReport = {

@@ -475,6 +475,12 @@ export class App {
       case 'hire':
         this.run({ type: 'hire', candidateId: d.candidate! });
         return;
+      case 'hireLead':
+        this.run({ type: 'hireLead' });
+        return;
+      case 'autoDispatch':
+        this.run({ type: 'setAutoDispatch', on: d.on === '1' });
+        return;
       case 'favor': {
         const techId = el.parentElement?.querySelector<HTMLSelectElement>('.tech-pick')?.value ?? 'best';
         this.run({ type: 'dispatch', job: 'favor', walkinId: d.walkin, techId });

@@ -78,7 +78,7 @@ export interface Cooler {
   broken: boolean;
 }
 
-export type TechRole = 'manager' | 'hw' | 'hvac' | 'net';
+export type TechRole = 'manager' | 'hw' | 'hvac' | 'net' | 'lead';
 
 export interface Tech {
   id: string;
@@ -124,7 +124,8 @@ export type JobKind =
   | 'replaceSwitch'
   | 'repairUplink'
   | 'project'
-  | 'favor';
+  | 'favor'
+  | 'audit';
 
 export type JobStage = 'queued' | 'toStorage' | 'toSite' | 'working' | 'done';
 
@@ -149,6 +150,8 @@ export interface Job {
   facing?: Facing;
   projectId?: ProjectId;
   walkinId?: string;
+  /** Started by an idle specialist on their own initiative. */
+  proactive?: boolean;
   botched?: boolean;
 }
 
@@ -238,6 +241,7 @@ export interface Shift {
   incidentsAtStart: number;
   resolvedAtStart: number;
   cashAtStart: number;
+  preventedAtStart?: number;
 }
 
 export interface ShiftReport {
@@ -338,7 +342,16 @@ export interface GameState {
     walkinsDone?: number; reboots?: number;
     /** Game minutes during which at least one rack breathed hot exhaust (aisles). */
     airflowMinutes?: number;
+    /** Successful player commands (the 'actions per minute' workload metric). */
+    commands?: number;
+    /** Problems caught early by idle specialists. */
+    prevented?: number;
+    autoDispatched?: number;
   };
+  /** The Shift Lead sends specialists to alarms automatically. */
+  autoDispatch: boolean;
+  /** Cable audit protection lasts until this minute. */
+  auditUntil: number;
   /** Set when this game is a Daily Challenge (e.g. '2026-11-20'). */
   dailyId?: string | null;
   dailyModifier?: string;

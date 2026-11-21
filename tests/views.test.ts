@@ -111,4 +111,20 @@ describe('views', () => {
     expect(end).toContain('Daily Grind');
     expect(end).not.toContain('Next:');
   });
+
+  it('v0.6: the Team tab offers a Shift Lead, then a toggle, and shows what specialists prevented', () => {
+    const s = createGame('ch2', 'sysadmin', 1);
+    expect(teamPanel(s)).toContain('data-action="hireLead"');
+    applyCommand(s, { type: 'hireLead' });
+    let html = teamPanel(s);
+    expect(html).toContain('Shift Lead');
+    expect(html).toContain('data-action="autoDispatch"');
+    expect(html).toContain('data-on="1"');
+    applyCommand(s, { type: 'setAutoDispatch', on: true });
+    s.stats.prevented = 2;
+    html = teamPanel(s);
+    expect(html).toContain('data-on="0"');
+    expect(html).toContain('prevented <b>2</b>');
+    expect(teamPanel(createGame('ch1', 'sysadmin', 1))).not.toContain('hireLead');
+  });
 });

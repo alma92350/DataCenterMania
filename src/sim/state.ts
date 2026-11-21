@@ -162,6 +162,8 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
     pendingShiftReport: null,
     walkins: [],
     projects: [],
+    autoDispatch: false,
+    auditUntil: 0,
     outages: {},
     postMortems: [],
     pendingPostMortem: null,

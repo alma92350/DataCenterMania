@@ -1,4 +1,4 @@
-import { CONTRACT_GRACE_MIN, COOLERS, EXTRA_UPLINK, JOB_LABEL, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
+import { CONTRACT_GRACE_MIN, COOLERS, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
 import { CHAPTERS, CHAPTER_ORDER } from '../data/chapters';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
@@ -6,6 +6,7 @@ import { MINUTES_PER_DAY, formatClock, dayOf, type Speed } from '../core/time';
 import { alarmLabel } from '../sim/alarms';
 import { contractLabel } from '../sim/naming';
 import { avatarSvg, partSvg } from './icons';
+import { AUTO } from '../sim/automation';
 import { suggestedCoolerJob, suggestedJob } from '../sim/commands';
 import { bandwidthCapacity } from '../sim/network';
 import { demandFactor } from '../sim/demand';
@@ -167,7 +168,9 @@ export function teamPanel(s: GameState): string {
   } else {
     hire = `<p class="muted small">🔒 Hiring unlocks in Chapter 1. For now, it is just you.</p>`;
   }
-  return `<ul class="list">${staff}</ul>${projectsSection(s)}${hire}`;
+  const prevented = s.stats.prevented ?? 0;
+  const badge = prevented ? `<div class="banner info"><span>🛡️ Your specialists prevented <b>${prevented}</b> problem${prevented === 1 ? '' : 's'} before they started.</span></div>` : '';
+  return `${badge}<ul class="list">${staff}</ul>${leadSection(s)}${projectsSection(s)}${hire}`;
 }
 
 function contractRow(s: GameState, c: Contract): string {
@@ -645,4 +648,23 @@ export function incidentHistory(s: GameState): string {
   if (!s.postMortems.length) return '';
   return `<h3>Incident history</h3><ul class="list">${[...s.postMortems].reverse().map((pm) =>
     `<li><div class="row"><b>${e(pm.customer)}</b><span class="muted">${formatClock(pm.from)} · ${countdown(pm.minutes)}</span></div><div class="row meta">${e(pm.cause)}</div></li>`).join('')}</ul>`;
+}
+
+/** Hire a Shift Lead and switch on auto-dispatch (PRD §13, §21.6). */
+export function leadSection(s: GameState): string {
+  if (!hasFeature(s, 'autodispatch')) return '';
+  const lead = s.techs.find((t) => t.role === 'lead');
+  if (!lead) {
+    return `<h3>Shift Lead</h3><div class="lead-card">
+      <span class="avatar">${avatarSvg('lead', 'Shift Lead')}</span>
+      <div class="lead-text"><b>Delegate the routine</b>
+        <span class="muted small">A Shift Lead sends the best specialist to routine alarms and customer requests while you run the floor. They never touch a rack themselves. ${money(LEAD.salaryPerDay)}/day.</span></div>
+      <button class="primary" data-action="hireLead">Hire</button></div>`;
+  }
+  const sent = s.stats.autoDispatched ?? 0;
+  return `<h3>Shift Lead</h3><div class="lead-card">
+    <span class="avatar">${avatarSvg('lead', lead.name)}</span>
+    <div class="lead-text"><b>${e(lead.name)}</b>
+      <span class="muted small">Auto-dispatch is <b>${s.autoDispatch ? 'ON' : 'OFF'}</b>. Alarms wait ${AUTO.reactMin} minutes for you first.${sent ? ` Sent ${sent} so far.` : ''}</span></div>
+    <button class="${s.autoDispatch ? '' : 'primary'}" data-action="autoDispatch" data-on="${s.autoDispatch ? '0' : '1'}">${s.autoDispatch ? 'Turn off' : 'Turn on'}</button></div>`;
 }

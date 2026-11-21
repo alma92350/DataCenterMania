@@ -10,10 +10,12 @@ export interface EngagementStats {
   quietDaytimePct: number;
   longestQuietRealSec: number;
   shiftRealMinutes: number[];
+  /** Successful player commands per real minute at 1x (the workload metric, PRD §21.6). */
+  actionsPerMinute: number;
 }
 
 /** Plays a chapter with the bot and measures pacing (PRD §19, §21.10). */
-export function measure(chapter: ChapterId, seed: number, difficulty: DifficultyId = 'sysadmin'): EngagementStats {
+export function measure(chapter: ChapterId, seed: number, difficulty: DifficultyId = 'sysadmin', auto = false): EngagementStats {
   const s = createGame(chapter, difficulty, seed);
   let realSec = 0;
   let dayMin = 0;
@@ -24,7 +26,7 @@ export function measure(chapter: ChapterId, seed: number, difficulty: Difficulty
   const shiftRealMinutes: number[] = [];
   let reports = 0;
   while (s.progress.status === 'playing') {
-    if (s.minute % 5 === 0) autopilot(s);
+    if (s.minute % 5 === 0) autopilot(s, { auto });
     const night = isNight(s.minute);
     const calm = !s.alarms.some((a) => a.kind !== 'powerHigh' && a.kind !== 'bandwidth') && s.jobs.length === 0;
     if (!night) {
@@ -46,5 +48,6 @@ export function measure(chapter: ChapterId, seed: number, difficulty: Difficulty
   return {
     state: s, realMinutes: realSec / 60, quietDaytimePct: (quietDay / Math.max(1, dayMin)) * 100,
     longestQuietRealSec: longest / 3, shiftRealMinutes,
+    actionsPerMinute: (s.stats.commands ?? 0) / Math.max(1, realSec / 60),
   };
 }

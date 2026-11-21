@@ -1,5 +1,5 @@
 import { chance } from '../core/rng';
-import { JOB_LABEL, JOB_ROLES, JOB_WORK_MIN, MANAGER_SPECIALIST_RATE, PROJECTS, PROJECT_EFFECT, RACK_CAPACITY_U } from '../data/catalog';
+import { AUDIT, JOB_LABEL, JOB_ROLES, JOB_WORK_MIN, MANAGER_SPECIALIST_RATE, PROJECTS, PROJECT_EFFECT, RACK_CAPACITY_U } from '../data/catalog';
 import { completeWalkin } from './walkins';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
@@ -26,6 +26,7 @@ export interface JobSpec {
   facing?: Job['facing'];
   projectId?: Job['projectId'];
   walkinId?: string;
+  proactive?: boolean;
   workMin?: number;
 }
 
@@ -34,7 +35,7 @@ export function createJob(s: GameState, spec: JobSpec): Job {
     id: newId(s, 'j'), kind: spec.kind, rackId: spec.rackId ?? null, deviceId: spec.deviceId ?? null,
     techId: null, stage: 'queued', workLeft: spec.workMin ?? JOB_WORK_MIN[spec.kind], workTotal: spec.workMin ?? JOB_WORK_MIN[spec.kind], part: spec.part,
     site: { ...spec.site }, model: spec.model, slot: spec.slot, contractId: spec.contractId, coolerKind: spec.coolerKind,
-    coolerId: spec.coolerId, uplinkId: spec.uplinkId, facing: spec.facing, projectId: spec.projectId, walkinId: spec.walkinId,
+    coolerId: spec.coolerId, uplinkId: spec.uplinkId, facing: spec.facing, projectId: spec.projectId, walkinId: spec.walkinId, proactive: spec.proactive,
   };
   if (spec.part) s.inventory[spec.part]--;
   s.jobs.push(job);
@@ -311,6 +312,10 @@ export function completeJob(s: GameState, job: Job): void {
         c.health = 1;
         c.broken = false;
       }
+      if (job.proactive) {
+        s.stats.prevented = (s.stats.prevented ?? 0) + 1;
+        addLog(s, 'success', '🛡️ A filter was changed before it clogged. Trouble prevented.');
+      }
       clearAlarms(s, (a) => (a.kind === 'filter' || a.kind === 'coolerDown') && a.coolerId === job.coolerId);
       break;
     }
@@ -333,6 +338,11 @@ export function completeJob(s: GameState, job: Job): void {
       break;
     case 'favor':
       completeWalkin(s, job.walkinId);
+      break;
+    case 'audit':
+      s.auditUntil = s.minute + AUDIT.durationMin;
+      s.stats.prevented = (s.stats.prevented ?? 0) + 1;
+      addLog(s, 'success', '🛡️ Cable audit done: switches and fiber are less likely to fail for a day.');
       break;
   }
 }

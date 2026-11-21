@@ -3,6 +3,7 @@ import { updateDemand } from './demand';
 import { escalateAlarms } from './alarms';
 import { accrueMinute, settleDay, settleHour, updateOrders } from './economy';
 import { updateShift } from './shifts';
+import { runAutomation } from './automation';
 import { updateWalkins } from './walkins';
 import { runScriptedEvents } from './events';
 import { rollFailures } from './failures';
@@ -29,6 +30,7 @@ export function step(s: GameState): void {
   updateThermal(s, dt);
   rollFailures(s, dt);
   escalateAlarms(s);
+  runAutomation(s);
   updateTechs(s, dt);
   updateFatigue(s, dt);
   updateOrders(s);

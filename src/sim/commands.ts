@@ -1,10 +1,10 @@
 import { contractLabel } from './naming';
-import { CONTRACT_GRACE_MIN, EXTRA_UPLINK, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
+import { CONTRACT_GRACE_MIN, EXTRA_UPLINK, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
 import { dayOf } from '../core/time';
 import { deliveryTime } from './economy';
 import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
 import { isWalkable, nearestTile, tileAt } from './grid';
-import { addLog, homeSpot, homeTile, newId, showTip, techFromCandidate } from './state';
+import { addLog, homeSpot, homeTile, makeCandidate, newId, showTip, techFromCandidate } from './state';
 import { blockedTiles, contractById, deviceById, hasFeature, rackById, slotFree, techById } from './selectors';
 import type { AlarmKind, Cooler, Facing, GameState, JobKind, PartId, ProjectId, ServerModelId, Vec } from './types';
 
@@ -28,6 +28,8 @@ export type Command =
   | { type: 'serviceCooler'; coolerId: string; techId: TechChoice }
   | { type: 'repairCooler'; coolerId: string; techId: TechChoice }
   | { type: 'buyUplink' }
+  | { type: 'hireLead' }
+  | { type: 'setAutoDispatch'; on: boolean }
   | { type: 'startProject'; project: ProjectId; techId?: TechChoice };
 
 export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor'>;
@@ -94,7 +96,17 @@ function dispatchJob(s: GameState, spec: JobSpec, techId: TechChoice): CommandRe
   return ok();
 }
 
-export function applyCommand(s: GameState, cmd: Command): CommandResult {
+/**
+ * The single write path for player actions. Successful commands are counted (the "actions per
+ * minute" workload metric); `auto` marks work done by the Shift Lead, which is not.
+ */
+export function applyCommand(s: GameState, cmd: Command, opts: { auto?: boolean } = {}): CommandResult {
+  const res = exec(s, cmd);
+  if (res.ok && !opts.auto) s.stats.commands = (s.stats.commands ?? 0) + 1;
+  return res;
+}
+
+function exec(s: GameState, cmd: Command): CommandResult {
   if (s.progress.status !== 'playing') return fail('The chapter is over.');
   switch (cmd.type) {
     case 'dispatch': {
@@ -276,6 +288,21 @@ export function applyCommand(s: GameState, cmd: Command): CommandResult {
         addLog(s, 'money', `Started ${def.name} ($${def.cost}).`);
       }
       return res;
+    }
+    case 'hireLead': {
+      if (!hasFeature(s, 'autodispatch')) return fail('A Shift Lead unlocks in Chapter 2.');
+      if (s.techs.some((t) => t.role === 'lead')) return fail('You already have a Shift Lead.');
+      const lead = techFromCandidate({ ...makeCandidate(s), role: 'lead', skill: 3, trait: null, salaryPerDay: LEAD.salaryPerDay }, homeSpot(s, s.techs.length));
+      s.techs.push(lead);
+      s.progress.maxTechs = Math.max(s.progress.maxTechs, s.techs.length);
+      addLog(s, 'success', `${lead.name} joined as Shift Lead. Switch on auto-dispatch in the Team tab.`);
+      return ok();
+    }
+    case 'setAutoDispatch': {
+      if (cmd.on && !s.techs.some((t) => t.role === 'lead')) return fail('Hire a Shift Lead first.');
+      s.autoDispatch = cmd.on;
+      addLog(s, 'info', cmd.on ? 'Auto-dispatch is ON: the Shift Lead sends specialists to routine alarms.' : 'Auto-dispatch is OFF.');
+      return ok();
     }
     case 'buyUplink': {
       if (!hasFeature(s, 'network')) return fail('Networking unlocks in Chapter 3.');

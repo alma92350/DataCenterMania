@@ -37,4 +37,18 @@ describe('engagement guardrails', () => {
     expect(runs.every((m) => m.state.progress.status === 'won')).toBe(true);
     expect(three / runs.length).toBeLessThanOrEqual(0.2);
   });
+
+  it('workload stays flat from chapter 2 to 4 once you delegate to a Shift Lead (PRD v0.6 exit criterion)', () => {
+    const apm = (ch: 'ch2' | 'ch3' | 'ch4', auto: boolean) => [1, 2].reduce((sum, seed) => sum + measure(ch, seed, 'sysadmin', auto).actionsPerMinute, 0) / 2;
+    const base = apm('ch2', true);
+    expect(base).toBeGreaterThan(0);
+    expect(apm('ch3', true) / base).toBeLessThanOrEqual(1.6);
+    expect(apm('ch4', true) / base).toBeLessThanOrEqual(1.6);
+  });
+
+  it('delegating really removes work: the Shift Lead cuts actions per minute by more than half', () => {
+    const manual = measure('ch3', 1).actionsPerMinute;
+    const delegated = measure('ch3', 1, 'sysadmin', true).actionsPerMinute;
+    expect(delegated).toBeLessThan(manual * 0.5);
+  });
 });

@@ -404,3 +404,8 @@ body.eink .daily-card, body.eink .pm-card, body.eink .achievements, body.eink .b
 .avatar { display: inline-block; width: 46px; height: 46px; flex: none; border-radius: 50%; border: 3px solid transparent; background: var(--panel); }
 body.eink .avatar { border-color: #000 !important; }
 .shop li .row:first-child { gap: 10px; }
+
+/* ---------- shift lead ---------- */
+.lead-card { display: flex; align-items: center; gap: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.lead-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+body.eink .lead-card { border: 2px solid #000; background: #fff; }

@@ -5,14 +5,22 @@ import { PARTS, PROJECTS } from '../src/data/catalog';
 import type { GameState } from '../src/sim/types';
 
 /** A simple bot standing in for a competent player: fix every alarm, keep spares, fill contracts. */
-export function autopilot(s: GameState): void {
+export function autopilot(s: GameState, opts: { auto?: boolean } = {}): void {
+  // a player who trusts the Shift Lead hires one early and lets them handle routine alarms and requests
+  if (opts.auto && s.features.includes('autodispatch')) {
+    if (!s.techs.some((t) => t.role === 'lead') && s.cash > 4000) applyCommand(s, { type: 'hireLead' });
+    if (s.techs.some((t) => t.role === 'lead') && !s.autoDispatch) applyCommand(s, { type: 'setAutoDispatch', on: true });
+  }
+  const delegated = !!opts.auto && s.autoDispatch;
   for (const a of s.alarms) {
+    if (delegated) break;
     const job = suggestedJob(a.kind);
     if (!job) continue;
     if (s.jobs.some((j) => (a.deviceId ? j.deviceId === a.deviceId : j.rackId === a.rackId) && j.kind === job)) continue;
     applyCommand(s, { type: 'dispatch', job, deviceId: a.deviceId ?? undefined, rackId: a.rackId ?? undefined, uplinkId: a.uplinkId ?? undefined, techId: 'best' });
   }
   for (const a of s.alarms) {
+    if (delegated) break;
     const job = suggestedCoolerJob(a.kind);
     if (!job || !a.coolerId || s.jobs.some((j) => j.coolerId === a.coolerId)) continue;
     applyCommand(s, { type: job, coolerId: a.coolerId, techId: 'best' });
@@ -44,7 +52,7 @@ export function autopilot(s: GameState): void {
     if (fullTraffic > cap * 0.8 || s.alarms.some((a) => a.kind === 'bandwidth' || a.kind === 'uplink')) applyCommand(s, { type: 'buyUplink' });
   }
   for (const w of s.walkins) {
-    if (w.status === 'open' && !s.jobs.some((j) => j.walkinId === w.id)) applyCommand(s, { type: 'dispatch', job: 'favor', walkinId: w.id, techId: 'best' });
+    if (!delegated && w.status === 'open' && !s.jobs.some((j) => j.walkinId === w.id)) applyCommand(s, { type: 'dispatch', job: 'favor', walkinId: w.id, techId: 'best' });
   }
   if (s.features.includes('projects') && !s.alarms.some((x) => x.severity >= 2)) {
     for (const p of ['labels', 'firmware', 'cableTidy'] as const) {

@@ -200,7 +200,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     ],
     startMinute: at(0, 8),
     endMinute: at(4, 22),
-    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'projects', 'walkins'],
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'projects', 'walkins', 'autodispatch'],
     startCash: 14000,
     ambient: 24,
     rackPowerBudgetW: 3000,
@@ -223,6 +223,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     dailyOffers: true,
     events: [
       { id: 'demandTip', at: at(0, 8, 2), actions: [{ type: 'tip', key: 'demand' }] },
+      { id: 'autoTip', at: at(0, 11), actions: [{ type: 'tip', key: 'autodispatch' }] },
       { id: 'powerTip', at: at(0, 9), actions: [{ type: 'tip', key: 'power' }] },
       { id: 'buildTip', at: at(0, 12), actions: [{ type: 'tip', key: 'buildRack' }] },
       { id: 'heatwave', at: at(2, 10), actions: [{ type: 'ambient', value: 31, text: 'Heatwave! The building air is up to 31°C. Your coolers have to work harder.' }, { type: 'tip', key: 'heat' }] },

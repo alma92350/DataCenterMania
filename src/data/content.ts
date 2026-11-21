@@ -24,6 +24,7 @@ export const TIPS: Record<string, string> = {
   network: 'All traffic leaves through your ISP uplinks. If customers need more bandwidth than you have, everybody suffers. A second uplink on a separate route also protects you from fiber cuts.',
   uplinkCut: 'A backhoe just cut your fiber! Until it is spliced, only your other uplinks carry traffic. A network engineer can fix it faster than the ISP.',
   switchDown: 'A top-of-rack switch died: every server in that rack is offline. Network engineers carry spare switches. Make sure you have some in stock.',
+  autodispatch: 'Busy? Hire a Shift Lead in the Team tab. They send the best specialist to routine alarms and customer requests so you can focus on the big decisions. It costs a daily salary: you are buying back your attention.',
   quit: 'Unhappy, exhausted staff quit. Watch fatigue and morale in the Team tab.',
 };
 

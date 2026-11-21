@@ -60,6 +60,7 @@ export const JOB_WORK_MIN: Record<JobKind, number> = {
   repairUplink: 90,
   project: 120,
   favor: 15,
+  audit: 45,
 };
 
 export const JOB_LABEL: Record<JobKind, string> = {
@@ -78,6 +79,7 @@ export const JOB_LABEL: Record<JobKind, string> = {
   repairUplink: 'Splice fiber',
   project: 'Ops project',
   favor: 'Customer favour',
+  audit: 'Cable audit',
 };
 
 /**
@@ -88,10 +90,10 @@ export const JOB_ROLES: Record<JobKind, TechRole[]> = {
   reboot: ['hw'], resetBreaker: ['hw'], swapDisk: ['hw'], replacePsu: ['hw'], install: ['hw'], remove: ['hw'],
   buildRack: ['hw'], rotateRack: ['hw'], placeCooler: ['hw', 'hvac'],
   serviceCooler: ['hvac'], repairCooler: ['hvac'], replaceSwitch: ['net'], repairUplink: ['net'],
-  project: ['hw', 'net'], favor: ['hw', 'hvac', 'net'],
+  project: ['hw', 'net'], favor: ['hw', 'hvac', 'net'], audit: ['net'],
 };
 
-export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer' };
+export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer', lead: 'Shift Lead' };
 /** Manager work-speed factor on specialist (non-hardware) jobs. */
 export const MANAGER_SPECIALIST_RATE = 0.5;
 
@@ -155,3 +157,12 @@ export const WALKINS = { fromHour: 8, toHour: 20, meanGapMin: 40, deadlineMin: 6
 
 /** Shifts (PRD §21.1). */
 export const SHIFT = { startHour: 6, endHour: 22, fastFixMin: 30, baseBonus: 300, bonusPerChapter: 200, goodUptime: 99.5 } as const;
+
+/** The Shift Lead (PRD §13): dispatches for you, for a daily salary. */
+export const LEAD = { salaryPerDay: 170 } as const;
+
+/** Preventive work by idle specialists (PRD §21.6). */
+export const PROACTIVE = { everyMin: 30, filterBelow: 0.8 } as const;
+
+/** A cable audit cuts switch failures and fiber trouble for a day. */
+export const AUDIT = { riskMult: 0.4, durationMin: 1440, renewBeforeMin: 120 } as const;

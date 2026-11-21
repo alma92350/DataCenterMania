@@ -66,6 +66,8 @@ function migrateV3(d: AnyRecord): void {
 /** v4 -> v5: contract names. */
 function migrateV4(d: AnyRecord): void {
   assignMissingNames(d.contracts as { customer: string; name?: string }[]);
+  d.autoDispatch ??= false;
+  d.auditUntil ??= 0;
   d.version = 5;
 }
 

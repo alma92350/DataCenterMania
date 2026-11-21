@@ -1,9 +1,14 @@
 import { chance } from '../core/rng';
-import { NETWORK } from '../data/catalog';
+import { AUDIT, NETWORK } from '../data/catalog';
 import { DIFFICULTIES } from '../data/difficulty';
 import { clearAlarms, escalationDelay, raiseAlarm } from './alarms';
 import { addLog, showTip } from './state';
 import type { GameState, Rack, Uplink } from './types';
+
+/** A recent cable audit makes switch failures and fiber cuts less likely. */
+export function networkRiskMultiplier(s: GameState): number {
+  return s.minute < s.auditUntil ? AUDIT.riskMult : 1;
+}
 
 export function bandwidthCapacity(s: GameState): number {
   return s.uplinks.filter((u) => u.up).reduce((sum, u) => sum + u.capacityGbps, 0);
@@ -36,7 +41,7 @@ export function updateNetwork(s: GameState, dt = 1): void {
   if (!s.features.includes('network')) return;
   for (const u of s.uplinks) if (!u.up && u.repairAt !== null && s.minute >= u.repairAt) restoreUplink(s, u, true);
   if (!s.failuresEnabled) return;
-  const rate = DIFFICULTIES[s.difficulty].incidentRate * (s.incidentMult ?? 1) * (dt / 1440);
+  const rate = DIFFICULTIES[s.difficulty].incidentRate * (s.incidentMult ?? 1) * networkRiskMultiplier(s) * (dt / 1440);
   for (const r of s.racks) {
     if (!r.switchFailed && s.devices.some((d) => d.rackId === r.id) && chance(s.rng, NETWORK.switchFailPerDay * rate)) failSwitch(s, r);
   }
