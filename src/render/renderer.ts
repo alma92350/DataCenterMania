@@ -3,6 +3,7 @@ import { deviceUp, devicesInRack } from '../sim/selectors';
 import { tileAt } from '../sim/grid';
 import type { Alarm, Device, GameState, Rack, Severity, Tech, TileKind } from '../sim/types';
 import { worldToScreen, type Camera } from './camera';
+import { avatarSprite, drawSprite, glyphSprite, partSprite, placeSprite } from './sprites';
 
 export type Overlay = 'none' | 'heat' | 'power';
 
@@ -141,24 +142,11 @@ function drawTiles(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera): vo
         ctx.moveTo(p.x, p.y + z);
         ctx.lineTo(p.x + z, p.y);
         ctx.stroke();
-      } else if (kind === 'storage' && z >= 18) {
-        icon(ctx, '📦', p.x + z / 2, p.y + z / 2, z * 0.5);
-      } else if (kind === 'noc' && z >= 18) {
-        icon(ctx, '☕', p.x + z / 2, p.y + z / 2, z * 0.45);
-      } else if (kind === 'dock' && z >= 18) {
-        icon(ctx, '🚚', p.x + z / 2, p.y + z / 2, z * 0.5);
+      } else if ((kind === 'storage' || kind === 'noc' || kind === 'dock') && z >= 18) {
+        drawSprite(ctx, placeSprite(kind, EINK), p.x + z / 2, p.y + z / 2, z * 0.86, 0.9);
       }
     }
   }
-}
-
-function icon(ctx: CanvasRenderingContext2D, glyph: string, x: number, y: number, size: number, alpha = 0.85): void {
-  ctx.globalAlpha = alpha;
-  ctx.font = `${Math.round(size)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(glyph, x, y);
-  ctx.globalAlpha = 1;
 }
 
 function drawCooler(
@@ -173,13 +161,10 @@ function drawCooler(
   ctx.strokeStyle = on ? P.coolerEdgeOn : P.coolerEdgeOff;
   ctx.lineWidth = Math.max(1, z * 0.05);
   ctx.stroke();
-  const spin = on ? (time / 400) % (Math.PI * 2) : 0;
-  ctx.save();
-  ctx.translate(p.x + z / 2, p.y + z / 2);
-  ctx.rotate(spin);
-  icon(ctx, kind === 'portableAc' ? '❄️' : kind === 'officeAc' ? '🌬️' : kind === 'crac' ? '🏭' : '🧊', 0, 0, z * 0.55, on ? 1 : 0.35);
-  ctx.restore();
-  if (broken) icon(ctx, '🛠️', p.x + z * 0.78, p.y + z * 0.2, z * 0.35, 1);
+  // a gentle bob while running replaces the old spinning emoji
+  const bob = on && !EINK ? Math.sin(time / 500) * z * 0.015 : 0;
+  drawSprite(ctx, partSprite(kind as 'officeAc', EINK), p.x + z / 2, p.y + z / 2 + bob, z * 0.84, on ? 1 : 0.4);
+  if (broken) drawSprite(ctx, glyphSprite('broken', EINK), p.x + z * 0.8, p.y + z * 0.2, z * 0.4);
   else if (health < 0.99 && z >= 18) {
     ctx.fillStyle = P.barBg;
     ctx.fillRect(p.x + z * 0.15, p.y + z * 0.86, z * 0.7, Math.max(2, z * 0.06));
@@ -237,9 +222,10 @@ function drawRack(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, r: R
     ctx.fillStyle = P.exhaust; // exhaust
     ctx.fillRect(x + w * 0.1, back, w * 0.8, Math.max(2, z * 0.07));
   }
-  if (r.tripped && z >= 14) icon(ctx, '⚡', p.x + z / 2, p.y + z / 2, z * 0.6, 1);
-  else if (r.switchFailed && z >= 14) icon(ctx, '🔀', p.x + z / 2, p.y + z / 2, z * 0.5, 1);
-  else if (r.maintenance && z >= 14) icon(ctx, '↻', p.x + z / 2, p.y + z / 2, z * 0.6, 1);
+  if (z >= 14) {
+    const g = r.tripped ? 'bolt' : r.switchFailed ? 'switchx' : r.maintenance ? 'rotate' : null;
+    if (g) drawSprite(ctx, glyphSprite(g, EINK), p.x + z / 2, p.y + z / 2, z * (g === 'switchx' ? 0.8 : 0.62));
+  }
   if (z >= 40) {
     ctx.fillStyle = r.temp >= THERMAL.warn ? P.warn : P.tempText;
     ctx.font = `${Math.round(z * 0.2)}px ui-monospace, monospace`;
@@ -269,23 +255,24 @@ function drawTech(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, t: T
     ctx.globalAlpha = 1;
   }
   const c = worldToScreen(cam, t.pos.x + 0.5, t.pos.y + 0.5);
-  const radius = z * 0.3;
+  const radius = z * 0.36;
   ctx.fillStyle = EINK ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.35)';
   ctx.beginPath();
-  ctx.ellipse(c.x, c.y + radius * 0.8, radius * 0.9, radius * 0.35, 0, 0, Math.PI * 2);
+  ctx.ellipse(c.x, c.y + radius * 0.85, radius * 0.9, radius * 0.32, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = color;
+  // portrait (role outfit + a face that is always the same for this person), ringed in their own colour
+  const portrait = avatarSprite(t.role, t.role === 'manager' ? 'manager' : t.name, EINK);
+  if (!drawSprite(ctx, portrait, c.x, c.y, radius * 2)) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2, z * 0.07);
   ctx.beginPath();
   ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = EINK ? '#ffffff' : P.ink;
-  ctx.lineWidth = Math.max(1, z * 0.05);
   ctx.stroke();
-  ctx.fillStyle = EINK ? '#ffffff' : P.ink;
-  ctx.font = `bold ${Math.round(radius * 1.1)}px system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(t.role === 'manager' ? '★' : t.name[0] ?? '?', c.x, c.y + 1);
 
   const job = s.jobs.find((j) => j.id === t.jobId);
   if (job?.stage === 'working') {
@@ -295,9 +282,9 @@ function drawTech(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, t: T
     ctx.beginPath();
     ctx.arc(c.x, c.y, radius + z * 0.1, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2);
     ctx.stroke();
-    icon(ctx, '🔧', c.x + radius, c.y - radius, z * 0.3, 1);
+    drawSprite(ctx, glyphSprite('wrench', EINK), c.x + radius, c.y - radius, z * 0.42);
   } else if (t.carrying) {
-    icon(ctx, '📦', c.x + radius, c.y - radius, z * 0.3, 1);
+    drawSprite(ctx, partSprite(t.carrying, EINK), c.x + radius, c.y - radius, z * 0.5);
   }
 }
 

@@ -99,6 +99,17 @@ const EMPTY_INVENTORY: Record<PartId, number> = {
   disk: 0, psu: 0, server1u: 0, server2u: 0, rack: 0, portableAc: 0, wallAc: 0, crac: 0, filter: 0, switch: 0, coffee: 0,
 };
 
+/** Staff-room spot for the n-th person, so people do not stack on one tile. */
+export function homeSpot(s: GameState, who: Tech | number): Vec {
+  const spots: Vec[] = [];
+  s.grid.tiles.forEach((k, i) => {
+    if (k === 'noc') spots.push({ x: i % s.grid.w, y: Math.floor(i / s.grid.w) });
+  });
+  if (!spots.length) return homeTile(s);
+  const idx = typeof who === 'number' ? who : s.techs.indexOf(who);
+  return spots[Math.max(0, idx) % spots.length]!;
+}
+
 export function homeTile(s: GameState): Vec {
   const i = s.grid.tiles.indexOf('noc');
   const j = i >= 0 ? i : s.grid.tiles.indexOf('floor');
@@ -178,13 +189,12 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
     });
   }
 
-  const home = homeTile(s);
   s.techs.push({
     id: 'manager', name: 'You (Manager)', role: 'manager', skill: 2, speed: 1, salaryPerDay: 0,
-    pos: { ...home }, path: [], jobId: null, carrying: null, trait: null, fatigue: 0, morale: MORALE.base, onBreak: false,
+    pos: { ...homeSpot(s, 0) }, path: [], jobId: null, carrying: null, trait: null, fatigue: 0, morale: MORALE.base, onBreak: false,
   });
   for (let i = 0; i < ch.hwTechs; i++) {
-    const t = techFromCandidate({ ...makeCandidate(s), skill: 3, trait: null, role: ch.startingRoles?.[i] ?? 'hw' }, home);
+    const t = techFromCandidate({ ...makeCandidate(s), skill: 3, trait: null, role: ch.startingRoles?.[i] ?? 'hw' }, homeSpot(s, s.techs.length));
     s.techs.push(t);
   }
   s.progress.maxTechs = s.techs.length;

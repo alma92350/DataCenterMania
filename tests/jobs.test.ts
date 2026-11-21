@@ -2,6 +2,8 @@ import { applyCommand } from '../src/sim/commands';
 import { updateTechs } from '../src/sim/jobs';
 import { applyFault } from '../src/sim/failures';
 import { deviceUp } from '../src/sim/selectors';
+import { homeSpot } from '../src/sim/state';
+import { tileAt } from '../src/sim/grid';
 import { JOB_WORK_MIN } from '../src/data/catalog';
 import type { GameState } from '../src/sim/types';
 import { quietGame } from './helpers';
@@ -135,5 +137,27 @@ describe('technician jobs', () => {
     expect(s.inventory.disk).toBe(stock);
     expect(s.jobs).toHaveLength(0);
     expect(s.techs[0]!.jobId).toBeNull();
+  });
+});
+
+describe('staff room spots', () => {
+  it('each person gets their own staff-room tile instead of stacking on one', () => {
+    const s = quietGame('ch3');
+    while (s.candidates.length) applyCommand(s, { type: 'hire', candidateId: s.candidates[0]!.id });
+    const spots = s.techs.map((t) => `${Math.round(t.pos.x)},${Math.round(t.pos.y)}`);
+    const tiles = s.grid.tiles.filter((k) => k === 'noc').length;
+    expect(new Set(spots).size).toBe(Math.min(s.techs.length, tiles)); // as many distinct spots as the room has
+    for (const t of s.techs) expect(tileAt(s.grid, Math.round(t.pos.x), Math.round(t.pos.y))).toBe('noc');
+  });
+
+  it('after a job, a tech walks back to their own spot', () => {
+    const s = quietGame('ch3');
+    const hw = s.techs.find((t) => t.role === 'hw')!;
+    const mine = homeSpot(s, hw);
+    applyFault(s, s.devices[0]!, 'hung');
+    applyCommand(s, { type: 'dispatch', job: 'reboot', deviceId: s.devices[0]!.id, techId: hw.id });
+    runTechs(s);
+    for (let i = 0; i < 200; i++) updateTechs(s, 1);
+    expect({ x: Math.round(hw.pos.x), y: Math.round(hw.pos.y) }).toEqual(mine);
   });
 });

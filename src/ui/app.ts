@@ -16,6 +16,8 @@ import { effectiveSpeed, minutesToAdvance, shouldAutoPause } from './clock';
 import { Persistence, type Settings } from './storage';
 import { browserEnv, resolveEink, shouldRedraw } from './display';
 import { morph } from './morph';
+import { setMonoIcons } from './icons';
+import { spriteVersion } from '../render/sprites';
 import {
   alarmsPanel, contractsPanel, coolerModal, endScreen, goalBar, goalsPanel, networkPanel, pauseMenu, rackModal, recapModal, shiftReportModal, shopPanel, startScreen, tabs,
   teamPanel, tipCard, topBar, visiblePanels, type PanelId,
@@ -73,6 +75,7 @@ export class App {
   /** Switches between the colour UI and the e-ink (Kindle Scribe) UI. */
   private applyDisplay(): void {
     this.eink = resolveEink(this.settings.display, browserEnv());
+    setMonoIcons(this.eink);
     document.body.classList.toggle('eink', this.eink);
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', this.eink ? '#ffffff' : '#0b0f15');
     this.lastDrawKey = '';
@@ -162,7 +165,7 @@ export class App {
         eink: this.eink,
       };
       const key = [s.minute, this.cam.x, this.cam.y, this.cam.scale, this.overlay, view.selectedRackId, JSON.stringify(view.buildPreview),
-        this.canvas.width, this.canvas.height, s.jobs.length, s.alarms.length].join('|');
+        this.canvas.width, this.canvas.height, s.jobs.length, s.alarms.length, spriteVersion()].join('|');
       if (shouldRedraw({ key, lastKey: this.lastDrawKey, now: t, lastDraw: this.lastDrawAt, eink: this.eink })) {
         drawFrame(this.ctx, s, this.cam, view);
         this.lastDrawKey = key;
@@ -263,7 +266,7 @@ export class App {
   private paintTechDots(s: GameState): void {
     for (const el of document.querySelectorAll<HTMLElement>('[data-tech-color]')) {
       const t = s.techs.find((x) => x.id === el.dataset.techColor);
-      if (t) el.style.background = techColor(s, t);
+      if (t) el.style.borderColor = techColor(s, t);
     }
   }
 

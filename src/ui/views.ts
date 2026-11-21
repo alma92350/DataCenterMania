@@ -5,6 +5,7 @@ import { DIFFICULTIES } from '../data/difficulty';
 import { MINUTES_PER_DAY, formatClock, dayOf, type Speed } from '../core/time';
 import { alarmLabel } from '../sim/alarms';
 import { contractLabel } from '../sim/naming';
+import { avatarSvg, partSvg } from './icons';
 import { suggestedCoolerJob, suggestedJob } from '../sim/commands';
 import { bandwidthCapacity } from '../sim/network';
 import { demandFactor } from '../sim/demand';
@@ -141,7 +142,7 @@ export function teamPanel(s: GameState): string {
       const trait = traitOf(t.trait);
       const queued = s.jobs.filter((j) => j.techId === t.id && j.stage === 'queued');
       return `<li class="tech">
-        <div class="row"><span class="dot" data-tech-color="${e(t.id)}"></span><b>${e(t.name)}</b>
+        <div class="row"><span class="avatar" data-tech-color="${e(t.id)}">${avatarSvg(t.role, t.role === 'manager' ? 'manager' : t.name)}</span><b>${e(t.name)}</b>
           <span class="muted">${ROLE_LABEL[t.role]} · ${'★'.repeat(t.skill)}</span></div>
         <div class="row meta">${e(techStatus(s, t))}${queued.length ? ` · +${queued.length} queued` : ''}</div>
         ${hasFeature(s, 'fatigue') ? `<div class="row meta vitals"><span title="Fatigue">😓</span><div class="bar mini"><div style="width:${t.fatigue.toFixed(0)}%" class="${t.fatigue > 60 ? 'bad' : ''}"></div></div>
@@ -157,7 +158,7 @@ export function teamPanel(s: GameState): string {
     hire = `<h3>Candidates</h3><ul class="list">${s.candidates
       .map((c) => {
         const trait = traitOf(c.trait);
-        return `<li><div class="row"><b>${e(c.name)}</b><span class="chip">${ROLE_LABEL[c.role]}</span><span class="muted">${'★'.repeat(c.skill)}${'☆'.repeat(5 - c.skill)} · walks ${c.speed.toFixed(1)} tiles/min</span></div>
+        return `<li><div class="row"><span class="avatar">${avatarSvg(c.role, c.name)}</span><b>${e(c.name)}</b><span class="chip">${ROLE_LABEL[c.role]}</span><span class="muted">${'★'.repeat(c.skill)}${'☆'.repeat(5 - c.skill)} · walks ${c.speed.toFixed(1)} tiles/min</span></div>
           ${trait ? `<div class="row meta">🏷️ ${e(trait.name)}: ${e(trait.description)}</div>` : ''}
           <div class="row actions"><span class="muted">${money(c.salaryPerDay)}/day</span>
           <button class="primary" data-action="hire" data-candidate="${e(c.id)}">Hire</button></div></li>`;
@@ -256,7 +257,7 @@ export function shopPanel(s: GameState): string {
         : '';
       const dt = deliveryTime(s, p);
       const placeable = PLACEABLE.has(p);
-      return `<li><div class="row"><span class="pi">${info.icon}</span><b>${e(info.name)}</b><span class="muted">${money(info.price)}</span></div>
+      return `<li><div class="row"><span class="ico">${partSvg(p)}</span><b>${e(info.name)}</b><span class="muted">${money(info.price)}</span></div>
         <div class="row meta">${p === 'coffee' ? `Current machine: level <b>${s.coffeeLevel}</b>` : `In stock: <b>${s.inventory[p]}</b>`} · delivery ${dt === 0 ? 'instant' : countdown(dt)}${extra ? ` · ${extra}` : ''}</div>
         <div class="row actions">
           ${placeable && s.inventory[p] > 0 ? `<button class="primary" data-action="build" data-part="${p}">Place on floor</button>` : ''}
@@ -266,7 +267,7 @@ export function shopPanel(s: GameState): string {
     })
     .join('');
   const orders = s.orders.length
-    ? `<h3>On the way</h3><ul class="list">${s.orders.map((o) => `<li class="row"><span>${PARTS[o.part].icon} ${o.qty} × ${e(PARTS[o.part].name)}</span><span class="muted">arrives ${formatClock(o.arriveAt)}</span></li>`).join('')}</ul>`
+    ? `<h3>On the way</h3><ul class="list">${s.orders.map((o) => `<li class="row"><span class="inline-ico"><span class="ico sm">${partSvg(o.part)}</span> ${o.qty} × ${e(PARTS[o.part].name)}</span><span class="muted">arrives ${formatClock(o.arriveAt)}</span></li>`).join('')}</ul>`
     : '';
   return `<ul class="list shop">${rows}</ul>${orders}`;
 }
@@ -337,7 +338,7 @@ function deviceRow(s: GameState, d: Device): string {
     .map((c) => `<option value="${e(c.id)}" ${c.id === d.contractId ? 'selected' : ''}>${e(contractLabel(c))}</option>`)
     .join('')}`;
   return `<li class="slot dev ${cls}" style="--u:${m.u}">
-    <div class="row"><span class="u">U${d.slot + 1}${m.u > 1 ? `-${d.slot + m.u}` : ''}</span><b>${e(m.name)}</b><span class="chip ${cls}">${status}</span></div>
+    <div class="row"><span class="u">U${d.slot + 1}${m.u > 1 ? `-${d.slot + m.u}` : ''}</span><span class="ico xs">${partSvg(d.model)}</span><b>${e(m.name)}</b><span class="chip ${cls}">${status}</span></div>
     <div class="row meta">${d.faults.map((f) => `⚠ ${e(f)}`).join(' ')} ${up ? `Load ${(d.load * 100).toFixed(0)}%` : ''} ${contract ? `· for ${e(contractLabel(contract))}` : ''}</div>
     <div class="row actions">
       ${job ? `<span class="busy">🔧 ${e(JOB_LABEL[job.kind])}…</span>` : fixes}
@@ -357,7 +358,7 @@ export function rackModal(s: GameState, rackId: string): string {
   const tempCls = rack.temp >= THERMAL.major ? 'bad' : rack.temp >= THERMAL.warn ? 'warn' : 'ok';
   const breakerJob = s.jobs.find((j) => j.kind === 'resetBreaker' && j.rackId === rack.id);
   return `<div class="modal-card" role="dialog" aria-modal="true" aria-label="${e(rackName(s, rack))}">
-    <header><h2>🗄️ ${e(rackName(s, rack))}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
+    <header><h2 class="inline-ico"><span class="ico sm">${partSvg('rack')}</span> ${e(rackName(s, rack))}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
     <div class="rack-stats">
       <div><span class="k">Temperature</span><b class="${tempCls}">${rack.temp.toFixed(1)}°C</b></div>
       <div><span class="k">Power</span><b class="${powerPct > 90 ? 'bad' : powerPct > 70 ? 'warn' : ''}">${Math.round(rack.loadW)} / ${rack.powerBudgetW} W</b>
@@ -398,7 +399,7 @@ export function coolerModal(s: GameState, coolerId: string): string {
   const busy = s.jobs.find((j) => j.coolerId === c.id);
   const maint = hasFeature(s, 'maintenance') && c.kind !== 'officeAc';
   return `<div class="modal-card small-card" role="dialog" aria-modal="true">
-    <header><h2>❄️ ${COOLERS[c.kind].name}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
+    <header><h2 class="inline-ico"><span class="ico sm">${partSvg(c.kind)}</span> ${COOLERS[c.kind].name}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
     <p>Capacity <b>${c.capacityKw} kW</b> of heat · draws ${c.powerW} W · ${c.broken ? '<b class="bad">BROKEN</b>' : c.on ? 'running' : 'off'}</p>
     ${maint ? `<p>Filter <div class="bar"><div style="width:${(c.health * 100).toFixed(0)}%" class="${c.health < 0.4 ? 'bad' : ''}"></div></div>
       <span class="muted small">A dirty filter cuts capacity by up to half and can make the unit break down.</span></p>

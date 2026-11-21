@@ -7,7 +7,7 @@ import { clearAlarms } from './alarms';
 import { accessTile, findPath, isWalkable, nearestTile } from './grid';
 import { mistakeFactor, staminaFactor } from './fatigue';
 import { restoreUplink } from './network';
-import { addLog, homeTile, makeCooler, makeRack, newId, showTip } from './state';
+import { addLog, homeSpot, makeCooler, makeRack, newId, showTip } from './state';
 import { blockedTiles, deviceById, isIdle, rackById, techById, techQueueLength } from './selectors';
 import type { GameState, Job, JobKind, PartId, ServerModelId, Tech, Vec } from './types';
 
@@ -141,7 +141,7 @@ function releaseJob(s: GameState, tech: Tech, job: Job): void {
   job.stage = 'queued';
   tech.jobId = null;
   tech.carrying = null;
-  routeTo(s, tech, homeTile(s));
+  routeTo(s, tech, homeSpot(s, tech));
 }
 
 function walkSpeed(t: Tech): number {
@@ -237,7 +237,7 @@ function finishWork(s: GameState, tech: Tech, job: Job): void {
   s.jobs = s.jobs.filter((j) => j.id !== job.id);
   tech.jobId = null;
   tech.carrying = null;
-  const home = homeTile(s);
+  const home = homeSpot(s, tech);
   const next = s.jobs.find((j) => j.techId === tech.id && j.stage === 'queued');
   if (next && !tech.onBreak) startJob(s, tech, next);
   else routeTo(s, tech, home);

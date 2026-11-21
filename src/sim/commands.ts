@@ -4,7 +4,7 @@ import { dayOf } from '../core/time';
 import { deliveryTime } from './economy';
 import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
 import { isWalkable, nearestTile, tileAt } from './grid';
-import { addLog, homeTile, newId, showTip, techFromCandidate } from './state';
+import { addLog, homeSpot, homeTile, newId, showTip, techFromCandidate } from './state';
 import { blockedTiles, contractById, deviceById, hasFeature, rackById, slotFree, techById } from './selectors';
 import type { AlarmKind, Cooler, Facing, GameState, JobKind, PartId, ProjectId, ServerModelId, Vec } from './types';
 
@@ -200,7 +200,7 @@ export function applyCommand(s: GameState, cmd: Command): CommandResult {
       const cand = s.candidates.find((c) => c.id === cmd.candidateId);
       if (!cand) return fail('Unknown candidate.');
       s.candidates = s.candidates.filter((c) => c.id !== cand.id);
-      s.techs.push(techFromCandidate(cand, homeTile(s)));
+      s.techs.push(techFromCandidate(cand, homeSpot(s, s.techs.length)));
       s.progress.maxTechs = Math.max(s.progress.maxTechs, s.techs.length);
       addLog(s, 'success', `${cand.name} joined the team!`);
       return ok();
