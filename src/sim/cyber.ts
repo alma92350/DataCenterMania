@@ -60,7 +60,7 @@ export function launchAttack(s: GameState, kind: AttackKind, villain: Villain = 
   };
   s.cyber.attack = attack;
   addLog(s, 'alarm', `🛡️ ${KIND_NAME[kind]} from ${VILLAIN_NAME[villain]}! ${pick(s.rng, TAUNTS[villain])}`);
-  s.attention = { severity: 3, text: `${KIND_NAME[kind]}: ${VILLAIN_NAME[villain]} is attacking!` };
+  s.attention = { severity: 3, text: `${KIND_NAME[kind]}: ${VILLAIN_NAME[villain]} is attacking!`, kind: 'attack' };
   return attack;
 }
 

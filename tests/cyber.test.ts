@@ -29,6 +29,12 @@ describe('attack lifecycle', () => {
     expect(s.cyber.attack).toBeNull();
   });
 
+  it('flags attention for the sound and shake, but never asks to auto-pause (the prompt pauses by itself)', () => {
+    const s = cyberGame();
+    launchAttack(s, 'flood');
+    expect(s.attention?.kind).toBe('attack');
+  });
+
   it('launches one pending attack at a time, queues the rest, and flags attention', () => {
     const s = cyberGame();
     const a = launchAttack(s, 'flood')!;

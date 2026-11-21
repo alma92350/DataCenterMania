@@ -420,5 +420,5 @@ export interface GameState {
   projects: ProjectId[];
   failuresEnabled: boolean;
   /** Set when something needs the player's attention (used by the UI for auto-pause). */
-  attention: { severity: Severity; text: string } | null;
+  attention: { severity: Severity; text: string; /** Attacks open their own pause-and-defend prompt, so they never auto-pause. */ kind?: 'attack' } | null;
 }

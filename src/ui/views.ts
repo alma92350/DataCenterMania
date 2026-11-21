@@ -7,6 +7,7 @@ import { alarmLabel } from '../sim/alarms';
 import { contractLabel } from '../sim/naming';
 import { avatarSvg, partSvg } from './icons';
 import { AUTO } from '../sim/automation';
+import { attackCard, cyberChips, eventCard } from './cyberViews';
 import { suggestedCoolerJob, suggestedJob } from '../sim/commands';
 import { bandwidthCapacity } from '../sim/network';
 import { demandFactor } from '../sim/demand';
@@ -94,7 +95,7 @@ const ALARM_HINT: Partial<Record<Alarm['kind'], string>> = {
 
 export function alarmsPanel(s: GameState): string {
   const list = [...s.alarms].sort((a, b) => b.severity - a.severity || a.raisedAt - b.raisedAt);
-  const requests = postMortemCard(s) + requestsSection(s);
+  const requests = attackCard(s) + postMortemCard(s) + requestsSection(s);
   if (!list.length) return `${requests}<div class="empty">✅ All quiet. ${requests ? 'Time for those requests!' : hasFeature(s, 'projects') ? 'Maybe start an ops project (Team tab)?' : 'Enjoy your coffee.'}</div>`;
   return `${requests}${requests ? '<h3>Alarms</h3>' : ''}<ul class="list alarms">${list
     .map((a) => {
@@ -120,6 +121,7 @@ export function alarmsPanel(s: GameState): string {
 
 export function techStatus(s: GameState, t: Tech): string {
   const job = s.jobs.find((j) => j.id === t.jobId);
+  if (!job && (t.lockedUntil ?? 0) > s.minute) return `🔒 Locked out (phished) · ${countdown((t.lockedUntil ?? 0) - s.minute)}`;
   if (!job && t.onBreak) return 'On a break 😴';
   if (!job) return t.path.length ? 'Walking back to the staff room' : 'Idle ☕';
   const where = job.rackId ? ` · ${rackName(s, rackById(s, job.rackId))}` : '';
@@ -425,7 +427,7 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
     <h1>Data<span>Center</span>Mania</h1>
     <p class="tag">Keep the servers humming. Keep the customers happy. Keep your cool.</p>
     ${hasSave ? '<button class="primary big" data-action="continue">▶ Continue</button>' : ''}
-    ${extras ? careerCard(progress) + dailyCard(extras.daily, extras.dailyBest) : ''}
+    ${extras ? careerCard(progress) + dailyCard(extras.daily, extras.dailyBest) + eventCard('hack', isUnlocked(progress, 'hack'), bestStars(progress, 'hack')) : ''}
     <h3>Difficulty</h3>
     <div class="diffs">${diffs
       .map((d) => isDifficultyUnlocked(progress, d.id)
@@ -545,7 +547,7 @@ export function goalBar(s: GameState): string {
   const today = s.today.revenue - s.today.salaries - s.today.rent - s.today.network - s.today.electricity;
   const money$ = `<span class="chip-btn ${today < 0 ? 'bad' : 'ok'}" title="Today so far (credited every hour)">💰 Today ${today >= 0 ? '+' : ''}${money(today)}</span>`;
   const streak = s.streak.hours >= 2 ? `<span class="chip-btn ok" title="Hours in a row with every customer within SLA (best ${s.streak.best}h)">🔥 Streak ${s.streak.hours}h</span>` : '';
-  return `${goal}${shift}${streak}${money$}`;
+  return `${cyberChips(s)}${goal}${shift}${streak}${money$}`;
 }
 
 /** A burst of falling pieces for a perfect shift. Pure CSS, deterministic, off for reduced motion and e-ink. */

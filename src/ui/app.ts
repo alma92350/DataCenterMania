@@ -17,6 +17,8 @@ import { Persistence, type Settings } from './storage';
 import { browserEnv, resolveEink, shouldRedraw } from './display';
 import { morph } from './morph';
 import { setMonoIcons } from './icons';
+import { attackPrompt, miniGameModal, miniResultModal, outcomeOf, type MiniOutcome } from './cyberViews';
+import { createFlood, createPhish, createWorm, Flood, Phish, Worm, type MiniGame } from '../sim/minigames';
 import { spriteVersion } from '../render/sprites';
 import {
   alarmsPanel, contractsPanel, coolerModal, endScreen, goalBar, goalsPanel, networkPanel, pauseMenu, rackModal, recapModal, shiftReportModal, shopPanel, startScreen, tabs,
@@ -25,7 +27,8 @@ import {
 
 type Modal =
   | { kind: 'rack'; id: string } | { kind: 'cooler'; id: string } | { kind: 'menu' } | { kind: 'end' }
-  | { kind: 'shift'; report: ShiftReport } | { kind: 'recap'; lines: string[]; woke: string | null } | null;
+  | { kind: 'shift'; report: ShiftReport } | { kind: 'recap'; lines: string[]; woke: string | null }
+  | { kind: 'attack' } | { kind: 'mini' } | { kind: 'miniResult'; out: MiniOutcome } | null;
 type BuildMode = { part: Extract<PartId, 'rack' | 'portableAc' | 'wallAc' | 'crac'>; facing: Facing } | null;
 
 const $ = <T extends HTMLElement>(sel: string): T => {
@@ -62,6 +65,11 @@ export class App {
     this.sound.enabled = this.settings.sound;
     this.applyDisplay();
     this.bindInput();
+    // the real visible height: older phone browsers lack `dvh`, and `100vh` hides the bottom tab bar behind the toolbar
+    const fitHeight = (): void => document.documentElement.style.setProperty('--app-h', `${window.innerHeight}px`);
+    fitHeight();
+    window.addEventListener('resize', fitHeight);
+    window.visualViewport?.addEventListener('resize', fitHeight);
     new ResizeObserver(() => this.resize()).observe($('#stage'));
     this.resize();
     this.showStart();
@@ -134,7 +142,7 @@ export class App {
         step(s);
         if (s.minute % 60 === 0) this.store.saveGame(s);
         if (s.attention) {
-          if (shouldAutoPause(s, this.settings.autoPause)) {
+          if (s.attention.kind !== 'attack' && shouldAutoPause(s, this.settings.autoPause)) {
             this.speed = 0;
             this.carry = 0;
             this.toast(`⏸ Auto-paused: ${s.attention.text}`, 'alarm', 5000);
@@ -146,6 +154,7 @@ export class App {
         }
       }
       this.consumeLog(s);
+      this.driveCyber(s, dt, t);
       if (s.pendingShiftReport) {
         for (const id of this.store.unlockAchievements(earnedAchievements(s, this.store.loadProgress()))) {
           const a = ACHIEVEMENTS.find((x) => x.id === id);
@@ -249,6 +258,9 @@ export class App {
     else if (this.modal?.kind === 'end') modal = endScreen(s, this.endExtras);
     else if (this.modal?.kind === 'shift') modal = shiftReportModal(s, this.modal.report);
     else if (this.modal?.kind === 'recap') modal = recapModal(this.modal.lines, this.modal.woke);
+    else if (this.modal?.kind === 'attack') modal = attackPrompt(s);
+    else if (this.modal?.kind === 'mini' && this.mini) modal = miniGameModal(s, this.mini);
+    else if (this.modal?.kind === 'miniResult') modal = miniResultModal(s, this.modal.out);
     const modalEl = $('#modal');
     const keepInstall = modalEl.querySelector('.install-form') !== null && this.modal?.kind === 'rack';
     if (!keepInstall) this.html('#modal', modal, force);
@@ -479,6 +491,42 @@ export class App {
       case 'hireLead':
         this.run({ type: 'hireLead' });
         return;
+      case 'attackOpen':
+        this.modal = { kind: 'attack' };
+        this.renderUi(true);
+        return;
+      case 'attackLater':
+        this.modal = null;
+        this.renderUi(true);
+        return;
+      case 'attackAuto':
+      case 'mgSkip':
+        this.mini = null;
+        this.modal = null;
+        this.run({ type: 'resolveAttack', score: 1, mode: 'auto' });
+        return;
+      case 'attackDefend':
+        this.startMini(s);
+        return;
+      case 'mgTap':
+        if (this.mini instanceof Flood) this.mini.tap(Number(d.id));
+        this.renderUi();
+        return;
+      case 'mgNode':
+        if (this.mini instanceof Worm) this.mini.isolate(Number(d.id));
+        this.renderUi();
+        return;
+      case 'mgPhish':
+        if (this.mini instanceof Phish) this.mini.answer(d.guess === 'phish');
+        this.renderUi();
+        return;
+      case 'mgDone': {
+        const out = this.modal?.kind === 'miniResult' ? this.modal.out : null;
+        this.mini = null;
+        this.modal = null;
+        if (out) this.run({ type: 'resolveAttack', score: out.score, mode: 'played', infected: out.infected });
+        return;
+      }
       case 'autoDispatch':
         this.run({ type: 'setAutoDispatch', on: d.on === '1' });
         return;
@@ -592,6 +640,48 @@ export class App {
     setTimeout(() => stage.classList.remove('shake'), 500);
   }
 
+  // ---------- cyber attacks (v0.7) ----------
+
+  private mini: MiniGame | null = null;
+  private promptedAttack = '';
+  private lastMiniRender = 0;
+
+  /** Opens the prompt for a new attack, and runs the micro-game while its modal is up. */
+  private driveCyber(s: GameState, dt: number, t: number): void {
+    const attack = s.cyber.attack;
+    if (attack && !this.modal && this.promptedAttack !== attack.id && s.progress.status === 'playing') {
+      this.promptedAttack = attack.id;
+      this.modal = { kind: 'attack' };
+      this.renderUi(true);
+      return;
+    }
+    if (this.modal?.kind === 'mini' && this.mini) {
+      this.mini.tick(Math.min(dt, 0.1) * 1000);
+      if (this.mini.over) {
+        const out = outcomeOf(s, this.mini);
+        this.modal = { kind: 'miniResult', out };
+        this.sound.alarm(out.score >= 0.7 ? 1 : 3);
+        this.renderUi(true);
+      } else if (t - this.lastMiniRender > (this.eink ? 500 : 90)) {
+        this.lastMiniRender = t;
+        this.renderUi();
+      }
+    }
+    if (!attack && (this.modal?.kind === 'attack' || this.modal?.kind === 'mini')) {
+      this.modal = null; // the attack was resolved elsewhere
+      this.mini = null;
+    }
+  }
+
+  private startMini(s: GameState): void {
+    const a = s.cyber.attack;
+    if (!a) return;
+    this.mini = a.kind === 'flood' ? createFlood(a.payload.seed) : a.kind === 'phish' ? createPhish(a.payload.seed) : createWorm(a.payload.seed, a.payload.rackIds.length);
+    this.modal = { kind: 'mini' };
+    this.lastMiniRender = 0;
+    this.renderUi(true);
+  }
+
   private openRack(id: string): void {
     this.modal = { kind: 'rack', id };
     this.renderUi(true);
@@ -607,16 +697,22 @@ export class App {
       const isField = el.matches('select, input');
       if (isField !== (ev.type === 'change')) return;
       if (el.matches('button')) ev.preventDefault();
+      if (el.dataset.fast !== undefined && ev.type === 'click' && (ev as MouseEvent).detail !== 0) return; // already handled on pointer-down
       this.onAction(el, ev);
     };
     document.addEventListener('click', handler);
-    document.addEventListener('pointerdown', (ev) => (this.pressing = ev.target as Element), { capture: true, passive: true });
+    document.addEventListener('pointerdown', (ev) => {
+      this.pressing = ev.target as Element;
+      const fast = (ev.target as HTMLElement).closest<HTMLElement>('[data-fast]');
+      if (fast && !(fast as HTMLButtonElement).disabled) this.onAction(fast, ev);
+    }, { capture: true });
     const release = () => setTimeout(() => (this.pressing = null), 0);
     document.addEventListener('pointerup', release, { capture: true, passive: true });
     document.addEventListener('pointercancel', release, { capture: true, passive: true });
     document.addEventListener('change', handler);
     $('#modal').addEventListener('click', (ev) => {
-      if (ev.target === ev.currentTarget && this.modal?.kind !== 'end') {
+      const sticky = ['end', 'attack', 'mini', 'miniResult', 'shift', 'recap'];
+      if (ev.target === ev.currentTarget && !sticky.includes(this.modal?.kind ?? '')) {
         this.modal = null;
         this.renderUi(true);
       }
@@ -633,7 +729,8 @@ export class App {
         p: () => (this.overlay = this.overlay === 'power' ? 'none' : 'power'),
         Escape: () => {
           if (this.build) this.build = null;
-          else if (this.modal?.kind !== 'end') this.modal = null;
+          else if (this.modal?.kind === 'attack') this.modal = null; // 'Later'
+          else if (!['end', 'mini', 'miniResult'].includes(this.modal?.kind ?? '')) this.modal = null;
         },
       };
       const fn = keys[ev.key];

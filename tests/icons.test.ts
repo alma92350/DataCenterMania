@@ -1,5 +1,5 @@
 import { PARTS } from '../src/data/catalog';
-import { avatarSvg, glyphSvg, partSvg, placeSvg, svgUri, setMonoIcons, avatarLook, PART_SPRITES } from '../src/ui/icons';
+import { avatarSvg, glyphSvg, partSvg, placeSvg, svgUri, setMonoIcons, avatarLook, villainSvg, PART_SPRITES } from '../src/ui/icons';
 import type { PartId } from '../src/sim/types';
 
 const PART_IDS = Object.keys(PARTS) as PartId[];
@@ -127,5 +127,19 @@ describe('people sprites', () => {
 
   it('the manager is a fixed character regardless of seed', () => {
     expect(avatarSvg('manager', 'anything')).toBe(avatarSvg('manager', 'something else'));
+  });
+});
+
+describe('villain sprites', () => {
+  it('Script Kiddies and Captain Phish are distinct, strict-XML portraits in colour and e-ink', () => {
+    const drawings = (['kiddies', 'phish'] as const).flatMap((v) => [false, true].map((mono) => ({ v, mono, svg: villainSvg(v, mono) })));
+    for (const { svg, mono } of drawings) {
+      expect(balanced(svg)).toBe(true);
+      expect(strictXml(svg)).toBeNull();
+      expect(svg).not.toMatch(/undefined|NaN/);
+      if (mono) for (const h of hexes(svg)) expect(isGrey(h)).toBe(true);
+    }
+    expect(villainSvg('kiddies')).not.toBe(villainSvg('phish'));
+    expect(hexes(villainSvg('phish', false)).some((h) => !isGrey(h))).toBe(true);
   });
 });

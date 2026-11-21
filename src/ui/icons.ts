@@ -334,3 +334,31 @@ ${o.hat(c)}</g></g>`);
 export function svgUri(svg: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
+
+// ---------------------------------------------------------------- villains
+
+/** The two cartoon hackers of the Hacker Weekend (PRD §9): round portraits like the staff. */
+export function villainSvg(who: 'kiddies' | 'phish', mono: boolean = monoDefault): string {
+  const c = pal(mono);
+  if (who === 'kiddies') {
+    // a hooded figure with glowing eyes, a wide grin and a terminal prompt on the chest
+    return wrap(`<circle cx="32" cy="32" r="30.5" fill="${c.g4}" ${S(c, 2.4)}/>
+<path d="M5 66 C5 49 18 45 32 45 C46 45 59 49 59 66 Z" fill="${c.navy}" ${S(c, 2)}/>
+<path d="M12 50 Q10 10 32 7 Q54 10 52 50 Q44 40 32 40 Q20 40 12 50 Z" fill="${c.g3}" ${S(c, 2)}/>
+<ellipse cx="32" cy="31" rx="14" ry="15" fill="${c.line}"/>
+<ellipse cx="26" cy="29" rx="3.6" ry="2.6" fill="${c.green}" ${S(c, 1)}/><ellipse cx="38" cy="29" rx="3.6" ry="2.6" fill="${c.green}" ${S(c, 1)}/>
+<path d="M22 38 Q32 46 42 38" stroke="${c.w}" stroke-width="2.4"/><path d="M26 40.5 v2.5 M30 41.7 v2.6 M34 41.7 v2.6 M38 40.5 v2.5" stroke="${c.w}" stroke-width="1.6"/>
+<rect x="22" y="52" width="20" height="9" rx="2" fill="${c.line}" ${S(c, 1.2)}/><path d="M25 55 l3 2 l-3 2 M30 59 h6" stroke="${c.green}" stroke-width="1.8"/>`);
+  }
+  // Captain Phish: an orange fish in a pirate captain's hat, with a hook on a line
+  return wrap(`<circle cx="32" cy="32" r="30.5" fill="${c.navy}" ${S(c, 2.4)}/>
+<path d="M46 38 L62 26 L62 50 Z" fill="${c.orange}" ${S(c, 2)}/>
+<ellipse cx="30" cy="40" rx="24" ry="17" fill="${c.orange}" ${S(c, 2.2)}/>
+<path d="M40 25 Q47 18 47 31" fill="${c.red}" ${S(c, 1.8)}/><path d="M38 46 Q46 52 40 58" fill="${c.red}" ${S(c, 1.8)}/>
+<path d="M37 31 Q41 40 37 49" ${S(c, 1.8)}/><path d="M33 34 Q36 40 33 46" ${S(c, 1.4)}/>
+<circle cx="16" cy="36" r="6.4" fill="${c.w}" ${S(c, 1.8)}/><circle cx="14.6" cy="36.6" r="2.8" fill="${c.line}"/><path d="M9 29 l11 2.4" ${S(c, 2.4)}/>
+<path d="M7 45 Q16 50 26 46" ${S(c, 2)}/><path d="M10 45 l2 3 l2 -2.6 M16 47.4 l2 3 l2 -3 M22 46.6 l2 3 l1.6 -3.4" fill="${c.w}" ${S(c, 1.2)}/>
+<path d="M4 44 v12 a4 4 0 0 0 8 0" ${S(c, 1.6)}/><path d="M4 44 v-4" ${S(c, 1.6)}/>
+<path d="M6 25 Q18 3 34 9 Q50 5 58 24 Q40 14 26 20 Q16 18 6 25 Z" fill="${c.line}" ${S(c, 1.8)}/><path d="M6 25 Q30 15 58 24" stroke="${c.yellow}" stroke-width="2.2"/>
+<circle cx="32" cy="14" r="3.6" fill="${c.w}" ${S(c, 1)}/><path d="M29 18 h6 M30.4 16.5 v1.6 M33.6 16.5 v1.6" stroke="${c.line}" stroke-width="1.1"/>`);
+}

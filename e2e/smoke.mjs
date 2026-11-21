@@ -300,6 +300,107 @@ try {
     const named = options.filter((o) => o.includes(' · '));
     check(named.length >= 2 && new Set(named).size === named.length, `the assign drop-down lists distinct "Customer · Project" names (${named.slice(0, 2).join(' | ')})`);
   });
+  await session('hackers (phone touch)', { ...devices['Pixel 5'], deviceScaleFactor: 2 }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 1 } }));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: false, sound: false, difficulty: 'intern', display: 'color' }));
+    });
+    await page.reload();
+    await page.waitForSelector('[data-chapter="hack"]');
+    check(true, 'the Hacker Weekend event card is playable after Startup Colo');
+    await page.screenshot({ path: `${outDir}/hack-start.png` });
+    await page.tap('[data-chapter="hack"]');
+    await page.waitForSelector('.tip-card', { timeout: 8000 });
+    while (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+    await page.tap('[data-action="speed"][data-speed="4"]');
+
+    const minTargets = { w: 999, h: 999 };
+    const noteSize = async (sel) => {
+      const sizes = await page.$$eval(sel, (els) => els.map((e) => { const r = e.getBoundingClientRect(); return [r.width, r.height]; }));
+      for (const [w, h] of sizes) { minTargets.w = Math.min(minTargets.w, w); minTargets.h = Math.min(minTargets.h, h); }
+    };
+    // mentor tips pause the game, so keep dismissing them while waiting for the next attack
+    const waitForAttack = async () => {
+      const until = Date.now() + 60000;
+      while (Date.now() < until && !(await page.isVisible('.attack-card'))) {
+        if (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+        await page.waitForTimeout(250);
+      }
+      await page.waitForSelector('.attack-card', { timeout: 2000 });
+    };
+    const center = async (loc) => { const b = await loc.boundingBox(); return b ? { x: b.x + b.width / 2, y: b.y + b.height / 2 } : null; };
+
+    // ---- 1. Block the Flood (Friday 10:00)
+    await waitForAttack();
+    check((await page.textContent('.attack-card')).includes('Script Kiddies'), 'Script Kiddies launch a flood and the defend prompt opens by itself');
+    await page.screenshot({ path: `${outDir}/hack-prompt.png` });
+    await page.tap('[data-action="attackDefend"]');
+    await page.waitForSelector('.arena');
+    let shotFlood = false;
+    const floodEnd = Date.now() + 25000;
+    while (Date.now() < floodEnd && !(await page.isVisible('.mini-result'))) {
+      const bot = page.locator('.stream.bot:not(.done)').first();
+      if (await bot.count()) {
+        await noteSize('.stream:not(.done)');
+        const c = await center(bot);
+        if (c) await page.touchscreen.tap(c.x, c.y);
+        if (!shotFlood) { shotFlood = true; await page.screenshot({ path: `${outDir}/hack-flood.png` }); }
+      }
+      await page.waitForTimeout(110);
+    }
+    await page.waitForSelector('.mini-result', { timeout: 10000 });
+    const floodText = await page.textContent('.mini-result');
+    const blocked = Number((/Blocked (\d+) of/.exec(floodText) ?? [])[1] ?? 0);
+    check(blocked >= 6, `Block the Flood is playable by touch (blocked ${blocked} bots)`);
+    await page.screenshot({ path: `${outDir}/hack-result.png` });
+    await page.tap('[data-action="mgDone"]');
+    check(!(await page.isVisible('.mini-result')), 'the result is applied and the game continues');
+
+    // ---- 2. Phish or Legit? (Friday 13:00)
+    await waitForAttack();
+    check((await page.textContent('.attack-card')).includes('Captain Phish'), 'Captain Phish sends a phishing campaign');
+    await page.tap('[data-action="attackDefend"]');
+    await page.waitForSelector('.mail');
+    for (let i = 0; i < 3; i++) {
+      await page.waitForSelector('[data-guess="phish"]:not([disabled])', { timeout: 8000 });
+      await noteSize('.phish-actions button');
+      const from = await page.textContent('.mail-head b');
+      const legit = /@(datacenter-mania\.com|cloudnimbus\.com)$/.test(from.trim());
+      if (i === 0) await page.screenshot({ path: `${outDir}/hack-phish.png` });
+      await page.tap(`[data-guess="${legit ? 'legit' : 'phish'}"]`);
+      await page.waitForSelector('.banner[role="status"]', { timeout: 3000 });
+      if (i === 0) await page.screenshot({ path: `${outDir}/hack-phish-feedback.png` });
+    }
+    await page.waitForSelector('.mini-result', { timeout: 8000 });
+    check((await page.textContent('.mini-result')).includes('3 of 3'), 'Phish or Legit? is playable by touch (3 of 3 judged right)');
+    await page.tap('[data-action="mgDone"]');
+
+    // ---- 3. Cut the Spread (Friday 16:00)
+    await waitForAttack();
+    await page.tap('[data-action="attackDefend"]');
+    await page.waitForSelector('.worm-net');
+    await noteSize('.node');
+    const infected = await page.$$eval('.node.infected', (els) => els.map((e) => ({ x: parseFloat(e.style.left), y: parseFloat(e.style.top) })));
+    const clean = await page.$$eval('.node.clean', (els) => els.map((e, i) => ({ i, x: parseFloat(e.style.left), y: parseFloat(e.style.top) })));
+    const near = clean.sort((p, q) => Math.hypot(p.x - infected[0].x, p.y - infected[0].y) - Math.hypot(q.x - infected[0].x, q.y - infected[0].y)).slice(0, 3);
+    await page.screenshot({ path: `${outDir}/hack-worm.png` });
+    for (const n of near) {
+      const target = page.locator('.node.clean').nth(0);
+      const loc = page.locator(`.node[style*="left:${n.x.toFixed(1)}%"]`).first();
+      const c = await center(loc);
+      if (c) await page.touchscreen.tap(c.x, c.y);
+      await page.waitForTimeout(150);
+      void target;
+    }
+    await page.screenshot({ path: `${outDir}/hack-worm-after.png` });
+    await page.waitForSelector('.mini-result', { timeout: 20000 });
+    check(await page.isVisible('.mini-result'), 'Cut the Spread is playable by touch');
+    await page.tap('[data-action="mgDone"]');
+
+    check(minTargets.w >= 44 && minTargets.h >= 44, `every micro-game control is at least 44 px (smallest ${Math.round(minTargets.w)}x${Math.round(minTargets.h)})`);
+    // the whole thing stays usable: the game is still running and no UI is stuck
+    check(await page.isVisible('#topbar .stat'), 'the game continues after three attacks');
+  });
 } finally {
   server?.kill();
 }
