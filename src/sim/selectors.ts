@@ -9,7 +9,7 @@ export const contractById = (s: GameState, id: string | null): Contract | undefi
 
 export const devicesInRack = (s: GameState, rackId: string): Device[] => s.devices.filter((d) => d.rackId === rackId);
 
-const BLOCKING_FAULTS = new Set(['psu', 'hung', 'dataloss']);
+const BLOCKING_FAULTS = new Set(['psu', 'hung', 'dataloss', 'malware']);
 
 /** Is the device serving traffic right now? */
 export function deviceUp(s: GameState, d: Device): boolean {

@@ -61,6 +61,7 @@ export const JOB_WORK_MIN: Record<JobKind, number> = {
   project: 120,
   favor: 15,
   audit: 45,
+  reimage: 45,
 };
 
 export const JOB_LABEL: Record<JobKind, string> = {
@@ -80,6 +81,7 @@ export const JOB_LABEL: Record<JobKind, string> = {
   project: 'Ops project',
   favor: 'Customer favour',
   audit: 'Cable audit',
+  reimage: 'Clean & re-image',
 };
 
 /**
@@ -90,7 +92,7 @@ export const JOB_ROLES: Record<JobKind, TechRole[]> = {
   reboot: ['hw'], resetBreaker: ['hw'], swapDisk: ['hw'], replacePsu: ['hw'], install: ['hw'], remove: ['hw'],
   buildRack: ['hw'], rotateRack: ['hw'], placeCooler: ['hw', 'hvac'],
   serviceCooler: ['hvac'], repairCooler: ['hvac'], replaceSwitch: ['net'], repairUplink: ['net'],
-  project: ['hw', 'net'], favor: ['hw', 'hvac', 'net'], audit: ['net'],
+  project: ['hw', 'net'], favor: ['hw', 'hvac', 'net'], audit: ['net'], reimage: ['hw', 'net'],
 };
 
 export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer', lead: 'Shift Lead' };

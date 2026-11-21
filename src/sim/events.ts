@@ -1,6 +1,7 @@
 import { CHAPTERS, type ScriptedAction } from '../data/chapters';
 import { applyFault } from './failures';
 import { cutUplink } from './network';
+import { launchAttack } from './cyber';
 import { addLog, makeContract, showTip } from './state';
 import type { GameState } from './types';
 
@@ -34,6 +35,9 @@ function run(s: GameState, a: ScriptedAction): void {
       if (c) c.health = Math.min(c.health, a.health);
       break;
     }
+    case 'attack':
+      launchAttack(s, a.kind, a.villain);
+      break;
     case 'cutUplink': {
       const u = s.uplinks[a.uplink];
       if (a.text) addLog(s, 'story', a.text);

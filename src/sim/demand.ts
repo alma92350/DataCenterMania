@@ -34,12 +34,17 @@ export function demandFactor(profile: DemandProfileId, minute: number): number {
 
 const IDLE_LOAD = 0.05;
 
+/** A successful flood multiplies everyone's traffic until it ends (v0.7). */
+export function floodFactor(s: GameState): number {
+  return s.minute < s.floodUntil ? 1 + s.floodStrength : 1;
+}
+
 /** Spreads each contract's demand over its live servers and books SLA minutes. */
 export function updateDemand(s: GameState, dt: number): void {
   for (const d of s.devices) d.load = IDLE_LOAD;
   const bandwidthOk = updateBandwidth(s);
   for (const c of activeContracts(s)) {
-    const needed = c.units * Math.min(1, demandFactor(c.profile, s.minute) * (s.demandMult ?? 1));
+    const needed = c.units * Math.min(1, demandFactor(c.profile, s.minute) * (s.demandMult ?? 1)) * floodFactor(s);
     const live = contractDevices(s, c.id).filter((d) => deviceUp(s, d));
     const capacity = live.reduce((sum, d) => sum + unitsOf(d), 0);
     if (c.liveFrom === null) {
@@ -73,7 +78,7 @@ export function updateBandwidth(s: GameState): boolean {
   let used = 0;
   for (const c of activeContracts(s)) {
     if (c.liveFrom === null) continue;
-    used += c.units * demandFactor(c.profile, s.minute) * c.bandwidthPerUnit;
+    used += c.units * demandFactor(c.profile, s.minute) * c.bandwidthPerUnit * floodFactor(s);
   }
   s.bandwidthUsed = used;
   if (!s.features.includes('network')) return true;

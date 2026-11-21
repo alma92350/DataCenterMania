@@ -3,6 +3,7 @@ import { updateDemand } from './demand';
 import { escalateAlarms } from './alarms';
 import { accrueMinute, settleDay, settleHour, updateOrders } from './economy';
 import { updateShift } from './shifts';
+import { updateCyber } from './cyber';
 import { runAutomation } from './automation';
 import { expireBubbles } from './bubbles';
 import { updateWalkins } from './walkins';
@@ -23,6 +24,7 @@ export function step(s: GameState): void {
   const dt = 1;
   runScriptedEvents(s);
   updateShift(s);
+  updateCyber(s);
   updateWalkins(s, dt);
   updateNetwork(s, dt);
   updateDemand(s, dt);

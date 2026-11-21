@@ -72,7 +72,15 @@ function migrateV4(d: AnyRecord): void {
   d.version = 5;
 }
 
-const MIGRATIONS: Record<number, (d: AnyRecord) => void> = { 1: migrateV1, 2: migrateV2, 3: migrateV3, 4: migrateV4 };
+/** v5 -> v6: cyber attacks. */
+function migrateV5(d: AnyRecord): void {
+  d.cyber ??= { attack: null, queue: [], followUp: null, blocked: 0, hits: 0, perfect: 0, history: [] };
+  d.floodUntil ??= 0;
+  d.floodStrength ??= 0;
+  d.version = 6;
+}
+
+const MIGRATIONS: Record<number, (d: AnyRecord) => void> = { 1: migrateV1, 2: migrateV2, 3: migrateV3, 4: migrateV4, 5: migrateV5 };
 
 /** Parses, validates and migrates a save to the current version. */
 export function deserialize(json: string): GameState {

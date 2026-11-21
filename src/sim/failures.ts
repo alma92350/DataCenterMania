@@ -11,7 +11,7 @@ export function failureMultiplier(temp: number): number {
   return temp <= THERMAL.failRef ? 1 : 2 ** ((temp - THERMAL.failRef) / 10);
 }
 
-const FAULT_SEVERITY: Record<FaultKind, Severity> = { disk: 1, psu: 2, hung: 2, dataloss: 3 };
+const FAULT_SEVERITY: Record<FaultKind, Severity> = { disk: 1, psu: 2, hung: 2, dataloss: 3, malware: 2 };
 
 export function hungRateMultiplier(s: GameState): number {
   return s.projects.includes('firmware') ? PROJECT_EFFECT.firmwareHungMult : 1;

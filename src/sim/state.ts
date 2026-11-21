@@ -10,7 +10,7 @@ import type {
   Candidate, ChapterId, Contract, Cooler, DayReport, DifficultyId, Facing, Fx, GameState, LogKind, PartId, Rack, Tech, Vec,
 } from './types';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 const LOG_CAP = 200;
 
 export function emptyReport(day: number): DayReport {
@@ -163,6 +163,9 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
     walkins: [],
     projects: [],
     autoDispatch: false,
+    cyber: { attack: null, queue: [], followUp: null, blocked: 0, hits: 0, perfect: 0, history: [] },
+    floodUntil: 0,
+    floodStrength: 0,
     streak: { hours: 0, best: 0, hit: false },
     auditUntil: 0,
     outages: {},

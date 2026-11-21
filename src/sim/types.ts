@@ -25,14 +25,14 @@ export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4';
 export type FeatureFlag =
   | 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote'
   | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance'
-  | 'projects' | 'walkins' | 'autodispatch';
+  | 'projects' | 'walkins' | 'autodispatch' | 'cyber';
 
 export type PartId =
   | 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc'
   | 'crac' | 'filter' | 'switch' | 'coffee';
 export type ServerModelId = 'server1u' | 'server2u';
 
-export type FaultKind = 'disk' | 'dataloss' | 'psu' | 'hung';
+export type FaultKind = 'disk' | 'dataloss' | 'psu' | 'hung' | 'malware';
 
 export interface Device {
   id: string;
@@ -97,6 +97,8 @@ export interface Tech {
   /** 0 (miserable) .. 100 (happy). */
   morale: number;
   onBreak: boolean;
+  /** Phished: locked out of their account until this minute (v0.7). */
+  lockedUntil?: number;
 }
 
 export interface Candidate {
@@ -125,7 +127,8 @@ export type JobKind =
   | 'repairUplink'
   | 'project'
   | 'favor'
-  | 'audit';
+  | 'audit'
+  | 'reimage';
 
 export type JobStage = 'queued' | 'toStorage' | 'toSite' | 'working' | 'done';
 
@@ -157,7 +160,7 @@ export interface Job {
 
 export type AlarmKind =
   | 'disk' | 'dataloss' | 'psu' | 'hung' | 'overheat' | 'breaker' | 'powerHigh'
-  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth';
+  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth' | 'malware';
 
 export interface Alarm {
   id: string;
@@ -213,6 +216,30 @@ export interface Uplink {
 }
 
 /** Ops projects: optional calm-time jobs with lasting bonuses (PRD §21.4). */
+/** Cyber attacks (PRD §9, v0.7). */
+export type AttackKind = 'flood' | 'phish' | 'worm';
+export type Villain = 'kiddies' | 'phish';
+
+export interface Attack {
+  id: string;
+  kind: AttackKind;
+  villain: Villain;
+  startedAt: number;
+  expiresAt: number;
+  /** Seed for the micro-game, and the worm's targets (null = an office machine, not a rack). */
+  payload: { seed: number; rackIds: (string | null)[] };
+}
+
+export interface CyberState {
+  attack: Attack | null;
+  queue: { kind: AttackKind; villain: Villain }[];
+  followUp: { at: number; kind: AttackKind; villain: Villain } | null;
+  blocked: number;
+  hits: number;
+  perfect: number;
+  history: { kind: AttackKind; score: number; mode: string; minute: number }[];
+}
+
 export type ProjectId = 'cableTidy' | 'labels' | 'firmware';
 
 /** A walk-in request: a timed customer favour (PRD §21.4). */
@@ -353,6 +380,14 @@ export interface GameState {
   };
   /** The Shift Lead sends specialists to alarms automatically. */
   autoDispatch: boolean;
+  cyber: CyberState;
+  /** Extra traffic from a successful flood, until floodUntil. */
+  floodUntil: number;
+  floodStrength: number;
+  /** Sandbox: attacks arrive at random. */
+  cyberRandom?: boolean;
+  /** Sandbox: incident rate grows by this fraction per day. */
+  rampPerDay?: number;
   /** Hours in a row in which every live contract met its SLA. */
   streak: { hours: number; best: number; hit: boolean };
   /** Cable audit protection lasts until this minute. */

@@ -1,6 +1,6 @@
 import { at } from '../core/time';
 import { DIFFICULTIES } from './difficulty';
-import type { ChapterId, Contract, Facing, FaultKind, FeatureFlag, GameState, PartId, ServerModelId, TechRole, Uplink } from '../sim/types';
+import type { AttackKind, ChapterId, Contract, Facing, FaultKind, FeatureFlag, GameState, PartId, ServerModelId, TechRole, Uplink, Villain } from '../sim/types';
 import { overallUptimePct, servingDeviceCount, activeContracts } from '../sim/selectors';
 
 /** Money goals shrink with the difficulty's starting cash, so harder levels stay fair. */
@@ -21,7 +21,8 @@ export type ScriptedAction =
   | { type: 'offer'; contract: ContractSeed }
   | { type: 'failures'; enabled: boolean }
   | { type: 'filter'; cooler: number; health: number }
-  | { type: 'cutUplink'; uplink: number; text?: string };
+  | { type: 'cutUplink'; uplink: number; text?: string }
+  | { type: 'attack'; kind: AttackKind; villain?: Villain };
 
 export interface ScriptedEvent {
   id: string;

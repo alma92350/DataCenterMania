@@ -3,6 +3,7 @@ import { CONTRACT_GRACE_MIN, EXTRA_UPLINK, LEAD, PARTS, PROJECTS, ROLE_LABEL, SE
 import { dayOf } from '../core/time';
 import { deliveryTime } from './economy';
 import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
+import { resolveAttack } from './cyber';
 import { isWalkable, nearestTile, tileAt } from './grid';
 import { addLog, homeSpot, homeTile, makeCandidate, newId, showTip, techFromCandidate } from './state';
 import { blockedTiles, contractById, deviceById, hasFeature, rackById, slotFree, techById } from './selectors';
@@ -29,10 +30,11 @@ export type Command =
   | { type: 'repairCooler'; coolerId: string; techId: TechChoice }
   | { type: 'buyUplink' }
   | { type: 'hireLead' }
+  | { type: 'resolveAttack'; score: number; mode: 'played' | 'auto'; infected?: number[] }
   | { type: 'setAutoDispatch'; on: boolean }
   | { type: 'startProject'; project: ProjectId; techId?: TechChoice };
 
-export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor'>;
+export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor' | 'reimage'>;
 
 export type CommandResult = { ok: true } | { ok: false; error: string };
 
@@ -43,6 +45,8 @@ export function suggestedJob(kind: AlarmKind): DispatchJob | null {
   switch (kind) {
     case 'switch':
       return 'replaceSwitch';
+    case 'malware':
+      return 'reimage';
     case 'uplink':
       return 'repairUplink';
     case 'disk':
@@ -90,6 +94,7 @@ function dispatchJob(s: GameState, spec: JobSpec, techId: TechChoice): CommandRe
   if (techId !== 'best') {
     const tech = techById(s, techId);
     if (!tech) return fail('Unknown technician.');
+    if ((tech.lockedUntil ?? 0) > s.minute) return fail(`${tech.name} is locked out of their account (phished) for ${Math.ceil((tech.lockedUntil ?? 0) - s.minute)} more minutes.`);
     if (!canDo(tech, spec.kind)) return fail(`${tech.name} is a ${ROLE_LABEL[tech.role]} and can\u2019t do that. Pick someone else.`);
   }
   assignJob(s, createJob(s, spec), techId);
@@ -117,6 +122,13 @@ function exec(s: GameState, cmd: Command): CommandResult {
         const rack = rackById(s, w.rackId);
         if (!rack) return fail('Unknown rack.');
         return dispatchJob(s, { kind: 'favor', rackId: rack.id, walkinId: w.id, part: null, site: rack.pos }, cmd.techId);
+      }
+      if (cmd.job === 'reimage') {
+        const rack = rackById(s, cmd.rackId ?? null);
+        if (!rack) return fail('Unknown rack.');
+        if (!s.devices.some((d) => d.rackId === rack.id && d.faults.includes('malware'))) return fail('Nothing to clean there.');
+        if (pendingFor(s, 'reimage', rack.id)) return fail('Someone is already on it.');
+        return dispatchJob(s, { kind: 'reimage', rackId: rack.id, part: null, site: rack.pos }, cmd.techId);
       }
       if (cmd.job === 'rotateRack') {
         const rack = rackById(s, cmd.rackId ?? null);
@@ -288,6 +300,12 @@ function exec(s: GameState, cmd: Command): CommandResult {
         addLog(s, 'money', `Started ${def.name} ($${def.cost}).`);
       }
       return res;
+    }
+    case 'resolveAttack': {
+      if (!s.cyber.attack) return fail('There is no attack to defend against.');
+      if (!Number.isFinite(cmd.score)) return fail('Invalid result.');
+      resolveAttack(s, cmd.score, cmd.mode, cmd.infected);
+      return ok();
     }
     case 'hireLead': {
       if (!hasFeature(s, 'autodispatch')) return fail('A Shift Lead unlocks in Chapter 2.');

@@ -37,11 +37,12 @@ const LESSONS: Partial<Record<PostMortemKind, { cause: string; prevent: string; 
   bandwidth: { cause: 'Customers needed more bandwidth than your uplinks carry.', prevent: 'Add uplink capacity before signing traffic-heavy customers.', remedy: { label: 'Order a second uplink', cmd: { type: 'buyUplink' } } },
   coolerDown: { cause: 'A cooler broke down and the floor heated up.', prevent: 'Change filters before they clog: a dirty cooler can break.', remedy: { label: 'Order 2 filters', cmd: { type: 'order', part: 'filter', qty: 2 } } },
   filter: { cause: 'A clogged filter cut cooling capacity.', prevent: 'Have an HVAC tech change filters when they turn amber.', remedy: { label: 'Order 2 filters', cmd: { type: 'order', part: 'filter', qty: 2 } } },
+  malware: { cause: 'Malware got in and the infected servers were quarantined.', prevent: 'Spot phishing emails, cut the spread fast, and re-image infected racks quickly.' },
   capacity: { cause: 'Demand was higher than the servers assigned to this customer could handle.', prevent: 'Assign one spare server per customer (N+1) and watch the demand marker on the contract card.' },
 };
 
 /** Lower is more likely the root cause. */
-const PRIORITY: PostMortemKind[] = ['uplink', 'bandwidth', 'breaker', 'switch', 'coolerDown', 'overheat', 'dataloss', 'psu', 'hung', 'filter', 'disk'];
+const PRIORITY: PostMortemKind[] = ['malware', 'uplink', 'bandwidth', 'breaker', 'switch', 'coolerDown', 'overheat', 'dataloss', 'psu', 'hung', 'filter', 'disk'];
 
 const GLOBAL: ReadonlySet<AlarmKind> = new Set(['uplink', 'bandwidth', 'coolerDown', 'filter']);
 

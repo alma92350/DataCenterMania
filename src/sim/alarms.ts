@@ -19,6 +19,7 @@ export const ALARM_TEXT: Record<AlarmKind, string> = {
   switch: 'Top-of-rack switch failed (rack offline)',
   uplink: 'Fiber uplink cut',
   bandwidth: 'Uplink bandwidth exhausted',
+  malware: 'Malware outbreak (servers quarantined)',
 };
 
 export interface AlarmTarget {

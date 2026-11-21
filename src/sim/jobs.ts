@@ -2,6 +2,7 @@ import { chance } from '../core/rng';
 import { AUDIT, JOB_LABEL, JOB_ROLES, JOB_WORK_MIN, MANAGER_SPECIALIST_RATE, PROJECTS, PROJECT_EFFECT, RACK_CAPACITY_U } from '../data/catalog';
 import { completeWalkin } from './walkins';
 import { say } from './bubbles';
+import { clearMalware } from './cyber';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
 import { clearAlarms } from './alarms';
@@ -46,6 +47,9 @@ export function createJob(s: GameState, spec: JobSpec): Job {
 const tile = (p: Vec): Vec => ({ x: Math.round(p.x), y: Math.round(p.y) });
 const manhattan = (a: Vec, b: Vec) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
+/** On a break, or locked out of their account after a phishing click (v0.7). */
+export const unavailable = (s: GameState, t: Tech): boolean => t.onBreak || (t.lockedUntil ?? 0) > s.minute;
+
 /** Specialists only take their own kind of job; the manager can do anything (PRD §6.1). */
 export function canDo(t: Tech, kind: JobKind): boolean {
   return t.role === 'manager' || JOB_ROLES[kind].includes(t.role);
@@ -53,7 +57,7 @@ export function canDo(t: Tech, kind: JobKind): boolean {
 
 /** Prefer rested specialists close to the site with a short queue; the manager is the fallback. */
 export function bestTech(s: GameState, site: Vec, kind: JobKind = 'reboot'): Tech {
-  const able = s.techs.filter((t) => canDo(t, kind) && !t.onBreak);
+  const able = s.techs.filter((t) => canDo(t, kind) && !unavailable(s, t));
   const pool = able.length ? able : s.techs.filter((t) => t.role === 'manager');
   const score = (t: Tech) =>
     techQueueLength(s, t) * 40 + manhattan(t.pos, site) + (t.role === 'manager' ? (kind in SPECIALIST ? 30 : 3) : 0) + t.fatigue * 0.2;
@@ -175,12 +179,13 @@ export function updateTechs(s: GameState, dt: number): void {
   for (const tech of s.techs) {
     let time = dt;
     const current = s.jobs.find((j) => j.id === tech.jobId);
-    if (tech.onBreak) {
+    const away = unavailable(s, tech);
+    if (away) {
       // finish what is in your hands, hand back everything else, then rest
       if (current && current.stage !== 'working') releaseJob(s, tech, current);
       for (const j of s.jobs) if (j.techId === tech.id && j.stage === 'queued') j.techId = null;
     }
-    if (tech.jobId === null && !tech.onBreak) {
+    if (tech.jobId === null && !away) {
       const next =
         s.jobs.find((j) => j.techId === tech.id && j.stage === 'queued') ??
         s.jobs.find((j) => j.techId === null && j.stage === 'queued' && canDo(tech, j.kind));
@@ -244,11 +249,11 @@ function finishWork(s: GameState, tech: Tech, job: Job): void {
   tech.carrying = null;
   const home = homeSpot(s, tech);
   const next = s.jobs.find((j) => j.techId === tech.id && j.stage === 'queued');
-  if (next && !tech.onBreak) startJob(s, tech, next);
+  if (next && !unavailable(s, tech)) startJob(s, tech, next);
   else routeTo(s, tech, home);
 }
 
-const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker', 'replaceSwitch', 'repairCooler', 'repairUplink']);
+const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker', 'replaceSwitch', 'repairCooler', 'repairUplink', 'reimage']);
 
 /** Applies a finished job's effect on the world. */
 export function completeJob(s: GameState, job: Job): void {
@@ -342,6 +347,9 @@ export function completeJob(s: GameState, job: Job): void {
       break;
     case 'favor':
       completeWalkin(s, job.walkinId);
+      break;
+    case 'reimage':
+      if (job.rackId) clearMalware(s, job.rackId);
       break;
     case 'audit':
       s.auditUntil = s.minute + AUDIT.durationMin;
