@@ -492,7 +492,7 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 | **v0.4 "First Hour"** ✅ shipped | Onboarding and pacing | Shifts and report cards, one-shift Ch0, live money, goal chip, ops projects, walk-in requests, **e-ink mode** | Bot-measured: Ch0 4.7 sim-min (≈6–7 with tips); quiet daytime 58–65% (was 80–89%); longest quiet 53–112 s (was 4–5 min). Human playtest still to do. |
 | **v0.5 "Mastery"** ✅ shipped | Replay reasons | Hard ★★★ constraints, 14 achievements, career title, seeded Daily Challenge (4 modifiers) with share line, outage post-mortems with one-tap remedies; **mobile responsiveness fixes** | Default bot ★★★ rate 6% (1/16 runs); guarded in CI at ≤ 20% |
 | **v0.6 "Launch Week"** ✅ shipped | Re-sequence and automation | Ch3/Ch4 split, Shift Lead auto-dispatch from Ch2, proactive specialists, juice pass (speech bubbles, SLA streak, confetti, screen shake), contract names, new artwork | ≤ 2 new systems per chapter ✓ (tested); with a Shift Lead the bot's workload is 1.18 / 1.66 / 1.31 actions/min in Ch2 / Ch3 / Ch4 (≈ 4.5 by hand) ✓ |
-| **v0.7 "Hackers"** | Differentiator | Hacker Weekend event (2 villains, 3 micro-games), sandbox/endless mode | Event playable in ≤ 10 min |
+| **v0.7 "Hackers"** ✅ shipped | Differentiator | Hacker Weekend event (2 villains, 3 micro-games), sandbox/endless mode | Event playable in ≤ 10 min ✓ (tested); micro-games pass phone touch tests (controls ≥ 44 px) ✓ |
 | **v1.0** | Enterprise and polish | UPS/generator/shifts chapter (fatigue moves here), accessibility audit, FR localisation | §19 KPIs met in a 20-player test |
 
 ### MVP (vertical slice): Chapters 0–2 (shipped)
@@ -657,6 +657,14 @@ Player report: "UI not very responsive on mobile". The probe (`e2e/perf-probe.mj
 - **Known gap.** The planned "contract negotiation" cards (§21.4) and the 50% quiet-time target are still open; quiet daytime remains 52–65%.
 
 ---
+
+### 21.16 v0.7 results
+
+- **Hacker Weekend** (event, unlocked by Startup Colo): Script Kiddies and Captain Phish launch seven attacks over two shifts. Three 10-second micro-games, each a pure state machine: *Block the Flood* (tap bots, spare users), *Phish or Legit?* (three emails, feedback teaches), *Cut the Spread* (isolate machines before the worm jumps). Skipping any of them auto-defends at half strength, so nobody is forced to play. An ignored attack lands at full force.
+- **Damage**: a flood multiplies traffic for 75 min; phished technicians are locked out for 2 h and a bad phish brings the worm; infected racks go down until cleaned and re-imaged. Spotting every email pays a $400 bug bounty.
+- **Guardrails**: event ≤ 10 min for the bot; the auto-defend bot wins but never earns 3★; perfect play does. Micro-game controls are ≥ 44 px (phone e2e). Attacks never trigger the generic auto-pause.
+- **Sandbox / Endless** (unlocked by Startup Colo): choose floor (small / colo / big hall), starting cash ×0.5/1/2, incident rate ×0.5/1/2, random hackers on/off and a daily +8% ramp-up. No end date: the game ends on bankruptcy or zero reputation. Score = days × 1000 + peak cash / 20 + attacks blocked × 100; the high score is stored per browser.
+- **Fix**: the app height is now measured in JS (`--app-h`) so the bottom tab bar stays on screen in phone browsers without `dvh` support.
 
 ## Appendix A: Example "first 5 minutes"
 

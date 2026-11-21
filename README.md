@@ -47,6 +47,8 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 | Mastery (v0.5) | Hard ★★★ constraints per chapter, 14 achievements, career title (Intern → CTO), date-seeded Daily Challenge with a modifier and a share line, outage post-mortems with one-tap remedies |
 | Automation (v0.6) | Hire a Shift Lead from Chapter 2: auto-dispatch of routine alarms and requests; idle specialists do preventive work; the bot's workload stays flat from Ch2 to Ch4 |
 | Juice (v0.6) | Speech bubbles, SLA-perfect streak, confetti on a clean shift, screen shake on criticals (off for reduced motion and e-ink) |
+| Hackers (v0.7) | Hacker Weekend event after Startup Colo: Script Kiddies and Captain Phish attack, you defend in three touch micro-games (or auto-defend at half strength) |
+| Sandbox (v0.7) | Endless mode after Startup Colo: pick floor and pressure, play until bankruptcy, beat your high score |
 | Art (v0.6) | Hand-drawn SVG portraits for the manager and every hire role, illustrations for every part, cooler and place; pure-greys versions for e-ink; unique project names for every contract |
 | Mobile | Taps survive live refreshes (DOM morphing + press guard), finger-sized map zoom with forgiving taps, landscape side panel, tips always reachable |
 | Display | Colour (desktop/phone) and e-ink (Kindle Scribe): monochrome palette, shapes and patterns for meaning, no animation, throttled redraws |

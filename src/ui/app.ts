@@ -8,6 +8,7 @@ import { tileAt } from '../sim/grid';
 import type { Facing, GameState, LogEntry, PartId, ProjectId, ServerModelId, ShiftReport } from '../sim/types';
 import { formatClock } from '../core/time';
 import { ACHIEVEMENTS, earnedAchievements } from '../sim/achievements';
+import { createSandbox, sandboxDays, sandboxScore, type SandboxConfig } from '../sim/sandbox';
 import { createDaily, dailyIdFor, dailyScore, dailySpec, shareLine } from '../sim/daily';
 import { clampCamera, createCamera, panBy, pickNearest, screenToWorld, touchFitCamera, zoomAt } from '../render/camera';
 import { drawFrame, techColor, type Overlay } from '../render/renderer';
@@ -100,7 +101,7 @@ export class App {
     const today = dailyIdFor(new Date());
     const best = this.store.loadDaily()[today] ?? null;
     this.html('#screen', startScreen(this.store.loadProgress(), this.settings, this.store.loadGame()?.progress.status === 'playing', {
-      daily: dailySpec(today), dailyBest: best, achievements: this.store.loadAchievements(),
+      daily: dailySpec(today), dailyBest: best, sandboxBest: this.store.loadSandboxBest(), achievements: this.store.loadAchievements(),
     }), true);
   }
 
@@ -194,7 +195,10 @@ export class App {
 
   private finish(s: GameState): void {
     let progress = this.store.loadProgress();
-    if (s.dailyId) {
+    if (s.sandbox) {
+      const newBest = this.store.recordSandbox({ score: sandboxScore(s), days: sandboxDays(s) });
+      this.endExtras = { newAchievements: [], newBest };
+    } else if (s.dailyId) {
       const share = shareLine(s, location.origin + location.pathname);
       const newBest = this.store.recordDaily(s.dailyId, { stars: s.progress.stars, score: dailyScore(s), share });
       this.endExtras = { newAchievements: [], share, newBest };
@@ -355,6 +359,17 @@ export class App {
         this.store.saveSettings(this.settings);
         this.showStart();
         return;
+      case 'sandboxOpt': {
+        const cfg = this.settings.sandbox as unknown as Record<string, unknown>;
+        const raw = d.value ?? '';
+        cfg[d.key as string] = raw === 'true' ? true : raw === 'false' ? false : d.key === 'floor' ? raw : Number(raw);
+        this.store.saveSettings(this.settings);
+        this.showStart();
+        return;
+      }
+      case 'sandbox':
+        this.startGame(createSandbox(this.settings.sandbox, this.settings.difficulty, (Date.now() ^ (Math.random() * 1e9)) >>> 0));
+        return;
       case 'newGame':
         this.newGame(d.chapter as GameState['chapter']);
         return;
@@ -374,7 +389,8 @@ export class App {
         return;
       }
       case 'restart':
-        if (s?.dailyId) this.startGame(createDaily(s.dailyId));
+        if (s?.sandbox) this.startGame(createSandbox(s.sandbox as SandboxConfig, s.difficulty, (Date.now() ^ (Math.random() * 1e9)) >>> 0));
+        else if (s?.dailyId) this.startGame(createDaily(s.dailyId));
         else if (s) this.newGame(s.chapter);
         return;
       case 'quit':

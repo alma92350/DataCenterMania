@@ -20,7 +20,8 @@ import {
 import type { Alarm, Contract, Device, DifficultyId, GameState, LogEntry, PartId, ProjectId, Rack, ShiftReport, Tech } from '../sim/types';
 import { SEVERITY_LABEL } from '../sim/types';
 import { countdown, escapeHtml as e, money, stars } from './format';
-import { bestStars, isDifficultyUnlocked, isUnlocked, type Progress, type Settings } from './storage';
+import { bestStars, isDifficultyUnlocked, isSandboxUnlocked, isUnlocked, type Progress, type Settings } from './storage';
+import { SANDBOX_FLOORS, sandboxDays, sandboxScore, type SandboxConfig, type SandboxFloor } from '../sim/sandbox';
 import { ACHIEVEMENTS, careerTitle } from '../sim/achievements';
 import { DAILY_MODIFIERS, dailySpec, type DailySpec } from '../sim/daily';
 
@@ -292,7 +293,7 @@ export function goalsPanel(s: GameState): string {
     <ul class="list goals">${objectivesFor(s)
       .map((o, i) => `<li class="row"><span class="star">${'★'.repeat(i + 1)}</span><span>${e(o.label)}</span><span class="${status[i] ? 'ok' : 'muted'}">${status[i] ? '✓ on track' : '…'}</span></li>`)
       .join('')}</ul>
-    <p class="muted small">Ends ${formatClock(chapterEnd(s))} · goals are checked at the end · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
+    <p class="muted small">${s.sandbox ? `No end date · score ${sandboxScore(s).toLocaleString('en-US')} · milestones` : `Ends ${formatClock(chapterEnd(s))} · goals are checked at the end`} · goals are checked at the end · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
     ${last ? `<h3>Last day</h3><div class="report">
       <span>Revenue</span><b>${money(last.revenue)}</b><span>Penalties</span><b>${money(-last.penalties)}</b>
       <span>Salaries</span><b>${money(-last.salaries)}</b><span>Electricity</span><b>${money(-last.electricity)}</b>
@@ -416,6 +417,7 @@ export function coolerModal(s: GameState, coolerId: string): string {
 }
 
 export interface StartExtras {
+  sandboxBest?: { score: number; days: number } | null;
   daily: DailySpec;
   dailyBest: { stars: number; share: string } | null;
   achievements: Record<string, number>;
@@ -427,7 +429,7 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
     <h1>Data<span>Center</span>Mania</h1>
     <p class="tag">Keep the servers humming. Keep the customers happy. Keep your cool.</p>
     ${hasSave ? '<button class="primary big" data-action="continue">▶ Continue</button>' : ''}
-    ${extras ? careerCard(progress) + dailyCard(extras.daily, extras.dailyBest) + eventCard('hack', isUnlocked(progress, 'hack'), bestStars(progress, 'hack')) : ''}
+    ${extras ? careerCard(progress) + dailyCard(extras.daily, extras.dailyBest) + eventCard('hack', isUnlocked(progress, 'hack'), bestStars(progress, 'hack')) + sandboxCard(settings.sandbox, isSandboxUnlocked(progress), extras.sandboxBest ?? null) : ''}
     <h3>Difficulty</h3>
     <div class="diffs">${diffs
       .map((d) => isDifficultyUnlocked(progress, d.id)
@@ -470,7 +472,7 @@ export function settingsForm(settings: Settings): string {
 export function pauseMenu(s: GameState, settings: Settings): string {
   return `<div class="modal-card small-card" role="dialog" aria-modal="true" aria-label="Menu">
     <header><h2>⏸ Paused</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
-    <p class="muted">Chapter ${CHAPTERS[s.chapter].number}: ${e(CHAPTERS[s.chapter].title)} · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
+    <p class="muted">${s.sandbox ? `Sandbox: ${e(SANDBOX_FLOORS[s.sandbox.floor].name)}, day ${sandboxDays(s)}` : `Chapter ${CHAPTERS[s.chapter].number}: ${e(CHAPTERS[s.chapter].title)}`} · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
     <div class="stack">
       <button class="primary" data-action="closeModal">Resume</button>
       <button data-action="restart">Restart chapter</button>
@@ -487,7 +489,28 @@ export interface EndExtras {
   newBest?: boolean;
 }
 
+export function sandboxEnd(s: GameState, extras: EndExtras): string {
+  const score = sandboxScore(s);
+  return `<div class="modal-card end lost" role="dialog" aria-modal="true">
+    <h2>♾️ Sandbox over</h2>
+    <p class="muted">${e(s.log.filter((l) => l.kind === 'fail').slice(-1)[0]?.text ?? 'The data center closed its doors.')}</p>
+    <div class="big-stars">${sandboxDays(s)} days</div>
+    <div class="report">
+      <span>Score</span><b>${score.toLocaleString('en-US')}</b>
+      <span>Peak cash</span><b>${money(s.progress.peakCash)}</b>
+      <span>Attacks blocked</span><b>${s.cyber.blocked}</b>
+      <span>Uptime</span><b>${overallUptimePct(s).toFixed(2)}%</b>
+      <span>Incidents fixed</span><b>${s.stats.resolved} / ${s.stats.incidents}</b>
+    </div>
+    ${extras.newBest ? '<div class="banner info"><span>🏅 <b>New high score!</b></span></div>' : ''}
+    ${extras.newAchievements.length ? `<h3>🏆 Unlocked</h3><ul class="list achv-new">${extras.newAchievements
+      .map((id) => ACHIEVEMENTS.find((a) => a.id === id)).filter((a): a is NonNullable<typeof a> => !!a)
+      .map((a) => `<li class="row"><span class="pi">${a.icon}</span><b>${e(a.name)}</b></li>`).join('')}</ul>` : ''}
+    <div class="stack"><button class="primary big" data-action="sandbox">↻ Go again</button><button class="ghost" data-action="quit">Menu</button></div></div>`;
+}
+
 export function endScreen(s: GameState, extras: EndExtras = { newAchievements: [] }): string {
+  if (s.sandbox) return sandboxEnd(s, extras);
   const ch = CHAPTERS[s.chapter];
   const won = s.progress.status === 'won';
   const status = objectiveStatus(s);
@@ -632,6 +655,21 @@ export function dailyCard(d: DailySpec, best: { stars: number } | null): string 
     <div class="row actions">${best ? `<span class="muted">Your best today: ${'★'.repeat(best.stars)}${'☆'.repeat(3 - best.stars)}</span>` : '<span class="muted">Same challenge for everyone today.</span>'}
       <button class="primary" data-action="daily">${best ? 'Play again' : 'Play'}</button></div>
   </div>`;
+}
+
+export function sandboxCard(cfg: SandboxConfig, unlocked: boolean, best: { score: number; days: number } | null): string {
+  if (!unlocked) return `<div class="daily-card locked"><div class="row"><b>♾️ Sandbox</b><span class="chip">🔒</span></div><div class="row meta">Beat Startup Colo to unlock endless play.</div></div>`;
+  const opt = (key: string, value: string | number | boolean, label: string, on: boolean) =>
+    `<button class="opt ${on ? 'on' : ''}" data-action="sandboxOpt" data-key="${key}" data-value="${value}" aria-pressed="${on}">${label}</button>`;
+  const floors = (Object.keys(SANDBOX_FLOORS) as SandboxFloor[]).map((f) => opt('floor', f, SANDBOX_FLOORS[f].name, cfg.floor === f)).join('');
+  return `<details class="daily-card sandbox" ${best ? '' : 'open'}><summary><b>♾️ Sandbox</b> <span class="muted">${best ? `best ${best.score.toLocaleString('en-US')} · ${best.days} days` : 'play until bankruptcy'}</span></summary>
+    <div class="opts"><span class="muted small">Floor</span>${floors}</div>
+    <div class="opts"><span class="muted small">Cash</span>${([0.5, 1, 2] as const).map((v) => opt('cash', v, `×${v}`, cfg.cash === v)).join('')}</div>
+    <div class="opts"><span class="muted small">Incidents</span>${([0.5, 1, 2] as const).map((v) => opt('incidents', v, `×${v}`, cfg.incidents === v)).join('')}</div>
+    <div class="opts"><span class="muted small">Hackers</span>${opt('cyber', true, 'On', cfg.cyber)}${opt('cyber', false, 'Off', !cfg.cyber)}
+      <span class="muted small">Ramp-up</span>${opt('ramp', true, 'On', cfg.ramp)}${opt('ramp', false, 'Off', !cfg.ramp)}</div>
+    <div class="row actions"><span class="muted small">${e(SANDBOX_FLOORS[cfg.floor].blurb)} Score = days survived, peak cash and attacks blocked.</span>
+      <button class="primary" data-action="sandbox">Play</button></div></details>`;
 }
 
 export function achievementsGrid(unlocked: Record<string, number>): string {

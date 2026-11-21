@@ -1,5 +1,6 @@
 import { CHAPTERS, type Objective } from '../data/chapters';
 import { DAILY_OBJECTIVES } from './daily';
+import { SANDBOX_OBJECTIVES } from './sandbox';
 import { addLog } from './state';
 import { settleDay, settleHour } from './economy';
 import { endShift } from './shifts';
@@ -13,6 +14,7 @@ export function chapterEnd(s: GameState): number {
 
 /** Chapter objectives, or the Daily Challenge's. */
 export function objectivesFor(s: GameState): readonly Objective[] {
+  if (s.sandbox) return SANDBOX_OBJECTIVES;
   return s.dailyId ? DAILY_OBJECTIVES : CHAPTERS[s.chapter].objectives;
 }
 

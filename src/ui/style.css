@@ -498,3 +498,11 @@ body.eink .worm-edges line.hot { stroke: #000; }
 body.eink .attack-card, body.eink .attack-banner, body.eink .event-card, body.eink .mail { border: 2px solid #000; background: #fff; }
 @media (prefers-reduced-motion: reduce) { .stream { animation-duration: 1.9s; } .node.infected { animation: none; } }
 @media (max-width: 420px) { .node { width: 66px; font-size: 0.62rem; } }
+
+/* ---------- v0.7 sandbox card ---------- */
+.sandbox summary { cursor: pointer; list-style: none; }
+.sandbox .opts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.sandbox .opts .small { min-width: 64px; text-align: left; }
+.sandbox .opt { min-height: 44px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2, var(--panel)); color: inherit; }
+.sandbox .opt.on { background: var(--accent, #5ab4ff); color: #04121f; font-weight: 700; }
+body.eink .sandbox .opt.on { background: #000; color: #fff; }

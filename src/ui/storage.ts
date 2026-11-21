@@ -1,6 +1,7 @@
 import { CHAPTER_ORDER } from '../data/chapters';
 import { deserialize, serialize } from '../sim/save';
 import type { ChapterId, DifficultyId, GameState } from '../sim/types';
+import { DEFAULT_SANDBOX, type SandboxConfig } from '../sim/sandbox';
 import type { AutoPauseSetting } from './clock';
 import type { DisplaySetting } from './display';
 
@@ -9,6 +10,7 @@ const PROGRESS_KEY = 'dcm.progress.v1';
 const SETTINGS_KEY = 'dcm.settings.v1';
 const ACHIEVEMENTS_KEY = 'dcm.achievements.v1';
 const DAILY_KEY = 'dcm.daily.v1';
+const SANDBOX_KEY = 'dcm.sandbox.v1';
 
 /** Storage can be missing or throw (private mode, blocked site data): every access is guarded. */
 export interface KeyValueStore {
@@ -49,9 +51,11 @@ export interface Settings {
   difficulty: DifficultyId;
   /** Colour screen or e-ink (Kindle Scribe); auto-detected by default. */
   display: DisplaySetting;
+  /** Last Sandbox setup. */
+  sandbox: SandboxConfig;
 }
 
-export const DEFAULT_SETTINGS: Settings = { autoPause: 'critical', nightSkip: true, sound: true, difficulty: 'sysadmin', display: 'auto' };
+export const DEFAULT_SETTINGS: Settings = { autoPause: 'critical', nightSkip: true, sound: true, difficulty: 'sysadmin', display: 'auto', sandbox: { ...DEFAULT_SANDBOX } };
 
 /** Best stars per chapter and difficulty. */
 export type Progress = Partial<Record<ChapterId, Partial<Record<DifficultyId, number>>>>;
@@ -79,9 +83,10 @@ export class Persistence {
 
   loadSettings(): Settings {
     try {
-      return { ...DEFAULT_SETTINGS, ...(JSON.parse(read(this.store, SETTINGS_KEY) ?? '{}') as Partial<Settings>) };
+      const saved = JSON.parse(read(this.store, SETTINGS_KEY) ?? '{}') as Partial<Settings>;
+      return { ...DEFAULT_SETTINGS, ...saved, sandbox: { ...DEFAULT_SANDBOX, ...saved.sandbox } };
     } catch {
-      return { ...DEFAULT_SETTINGS };
+      return { ...DEFAULT_SETTINGS, sandbox: { ...DEFAULT_SANDBOX } };
     }
   }
 
@@ -132,6 +137,22 @@ export class Persistence {
     return true;
   }
 
+  loadSandboxBest(): { score: number; days: number } | null {
+    try {
+      return JSON.parse(read(this.store, SANDBOX_KEY) ?? 'null') as { score: number; days: number } | null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Returns true when this run is a new high score. */
+  recordSandbox(result: { score: number; days: number }): boolean {
+    const prev = this.loadSandboxBest();
+    if (prev && prev.score >= result.score) return false;
+    write(this.store, SANDBOX_KEY, JSON.stringify(result));
+    return true;
+  }
+
   recordResult(chapter: ChapterId, difficulty: DifficultyId, stars: number): Progress {
     const p = this.loadProgress();
     const entry = (p[chapter] ??= {});
@@ -142,6 +163,9 @@ export class Persistence {
 }
 
 /** A chapter is unlocked when it is the first, or the previous one was won on any difficulty. */
+/** Sandbox opens after Startup Colo, like the events. */
+export const isSandboxUnlocked = (p: Progress): boolean => bestStars(p, 'ch2') > 0;
+
 export function isUnlocked(p: Progress, chapter: ChapterId): boolean {
   if (chapter === 'hack') return bestStars(p, 'ch2') > 0; // events open after Startup Colo
   const i = CHAPTER_ORDER.indexOf(chapter);

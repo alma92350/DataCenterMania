@@ -384,6 +384,8 @@ export interface GameState {
   /** Extra traffic from a successful flood, until floodUntil. */
   floodUntil: number;
   floodStrength: number;
+  /** Sandbox settings (Endless mode). */
+  sandbox?: import('./sandbox').SandboxConfig;
   /** Sandbox: attacks arrive at random. */
   cyberRandom?: boolean;
   /** Sandbox: incident rate grows by this fraction per day. */

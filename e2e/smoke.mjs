@@ -231,6 +231,7 @@ try {
     check(true, 'sleeping fast-forwards the night and shows a recap');
     await page.screenshot({ path: `${outDir}/night-recap.png` });
     await page.click('[data-action="closeModal"]');
+    await page.waitForFunction(() => document.querySelector('#topbar')?.textContent.includes('Tue'), null, { timeout: 4000 }).catch(() => {});
     check((await page.textContent('#topbar')).includes('Tue'), 'the next shift starts on Tuesday morning');
   });
   await session('e-ink (Kindle Scribe)', { viewport: { width: 930, height: 1240 }, deviceScaleFactor: 1, hasTouch: true }, async (page) => {
@@ -380,17 +381,20 @@ try {
     await page.tap('[data-action="attackDefend"]');
     await page.waitForSelector('.worm-net');
     await noteSize('.node');
-    const infected = await page.$$eval('.node.infected', (els) => els.map((e) => ({ x: parseFloat(e.style.left), y: parseFloat(e.style.top) })));
-    const clean = await page.$$eval('.node.clean', (els) => els.map((e, i) => ({ i, x: parseFloat(e.style.left), y: parseFloat(e.style.top) })));
-    const near = clean.sort((p, q) => Math.hypot(p.x - infected[0].x, p.y - infected[0].y) - Math.hypot(q.x - infected[0].x, q.y - infected[0].y)).slice(0, 3);
     await page.screenshot({ path: `${outDir}/hack-worm.png` });
-    for (const n of near) {
-      const target = page.locator('.node.clean').nth(0);
-      const loc = page.locator(`.node[style*="left:${n.x.toFixed(1)}%"]`).first();
-      const c = await center(loc);
-      if (c) await page.touchscreen.tap(c.x, c.y);
+    // cut the spread: each tap isolates the clean machine nearest to an infected one (re-measured every time)
+    for (let k = 0; k < 3; k++) {
+      const spot = await page.evaluate(() => {
+        const mid = (e) => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; };
+        const inf = [...document.querySelectorAll('.node.infected')].map(mid);
+        const clean = [...document.querySelectorAll('.node.clean:not([disabled])')].map(mid);
+        if (!inf.length || !clean.length) return null;
+        clean.sort((p, q) => Math.hypot(p.x - inf[0].x, p.y - inf[0].y) - Math.hypot(q.x - inf[0].x, q.y - inf[0].y));
+        return clean[0];
+      });
+      if (!spot || (await page.isVisible('.mini-result'))) break;
+      await page.touchscreen.tap(spot.x, spot.y);
       await page.waitForTimeout(150);
-      void target;
     }
     await page.screenshot({ path: `${outDir}/hack-worm-after.png` });
     await page.waitForSelector('.mini-result', { timeout: 20000 });
@@ -401,6 +405,26 @@ try {
     // the whole thing stays usable: the game is still running and no UI is stuck
     check(await page.isVisible('#topbar .stat'), 'the game continues after three attacks');
   });
+  await session('sandbox (phone)', { ...devices['Pixel 5'], deviceScaleFactor: 2 }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 1 } }));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern', display: 'color' }));
+    });
+    await page.reload();
+    await page.waitForSelector('.sandbox');
+    check(true, 'the Sandbox card is open on the start screen once Startup Colo is beaten');
+    await page.screenshot({ path: `${outDir}/sandbox-start.png` });
+    await page.tap('.sandbox [data-key="floor"][data-value="small"]');
+    await page.tap('.sandbox [data-key="cyber"][data-value="false"]');
+    check((await page.getAttribute('.sandbox [data-key="cyber"][data-value="false"]', 'aria-pressed')) === 'true', 'sandbox options toggle and stay selected');
+    await page.tap('.sandbox [data-action="sandbox"]');
+    await page.waitForSelector('#topbar .stat');
+    check(await page.isVisible('#tabs'), 'the tab bar is visible in Sandbox');
+    await page.tap('#tabs [data-panel="goals"]');
+    check((await page.textContent('#panel')).includes('Survive a week'), 'the Goals tab shows survival milestones');
+    await page.screenshot({ path: `${outDir}/sandbox-game.png` });
+  });
+
 } finally {
   server?.kill();
 }
