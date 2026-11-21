@@ -140,6 +140,7 @@ export class App {
             this.toast(`⏸ Auto-paused: ${s.attention.text}`, 'alarm', 5000);
           }
           this.sound.alarm(s.attention.severity);
+          if (s.attention.severity >= 3) this.shake();
           s.attention = null;
           break;
         }
@@ -579,6 +580,16 @@ export class App {
     const touch = window.matchMedia('(pointer: coarse)').matches;
     touchFitCamera(this.cam, s.grid.w, s.grid.h, this.canvas.clientWidth, this.canvas.clientHeight, focus, touch ? 30 : 12);
     this.clamp();
+  }
+
+  /** A short screen shake on critical alarms. Off for reduced motion and e-ink. */
+  private shake(): void {
+    if (this.eink || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const stage = $('#stage');
+    stage.classList.remove('shake');
+    void stage.offsetWidth; // restart the animation
+    stage.classList.add('shake');
+    setTimeout(() => stage.classList.remove('shake'), 500);
   }
 
   private openRack(id: string): void {

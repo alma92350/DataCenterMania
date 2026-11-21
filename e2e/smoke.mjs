@@ -124,14 +124,22 @@ try {
   });
   await session('chapter 3', { viewport: { width: 1366, height: 820 }, deviceScaleFactor: 1 }, async (page) => {
     await page.addInitScript(() => {
-      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 2 } }));
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 2 }, ch3: { sysadmin: 2 } }));
     });
     await page.reload();
-    await page.waitForSelector('[data-chapter="ch3"]');
-    check(true, 'chapter 3 is unlocked after chapter 2');
+    await page.waitForSelector('[data-chapter="ch4"]');
+    check(true, 'Launch Week is unlocked after Colocation Floor');
+    // Colocation Floor first: aisles are taught there, and there is no network tab yet
     await page.click('[data-chapter="ch3"]');
     await page.waitForSelector('.tip-card', { timeout: 5000 });
-    check((await page.textContent('.tip-card')).includes('exhaust'), 'mentor explains hot/cold aisles');
+    check((await page.textContent('.tip-card')).includes('exhaust'), 'Colocation Floor: mentor explains hot/cold aisles');
+    check((await page.locator('#tabs [data-panel="network"]').count()) === 0, 'Colocation Floor has no network tab yet (progressive disclosure)');
+    await page.click('[data-action="menu"]');
+    await page.click('[data-action="quit"]');
+    await page.waitForSelector('[data-chapter="ch4"]');
+    await page.click('[data-chapter="ch4"]');
+    await page.waitForSelector('.tip-card', { timeout: 5000 });
+    check((await page.textContent('.tip-card')).toLowerCase().includes('uplink'), 'Launch Week: mentor explains the uplink');
     while (await page.isVisible('.tip-card')) await page.click('[data-action="dismissTip"]');
     await page.click('#tabs [data-panel="network"]');
     check((await page.textContent('#panel')).includes('MetroFiber A'), 'network tab lists the uplink');
@@ -158,6 +166,29 @@ try {
     await page.click('[data-action="speed"][data-speed="1"]');
     await page.click('#tabs [data-panel="team"]');
     check((await page.textContent('#panel')).includes('Network engineer') || (await page.textContent('#panel')).includes('HVAC tech'), 'team tab shows specialist candidates');
+    check((await page.locator('#panel .avatar svg').count()) >= 3, 'team tab shows character portraits');
+    // the Shift Lead: hire, then switch auto-dispatch on
+    await page.click('[data-action="hireLead"]');
+    await page.waitForSelector('[data-action="autoDispatch"]');
+    await page.click('[data-action="autoDispatch"]');
+    await page.waitForFunction(() => document.querySelector('.lead-card')?.textContent?.includes('ON'), null, { timeout: 5000 });
+    check(true, 'a Shift Lead can be hired and auto-dispatch switched on');
+    // sprites must really load as images (strict XML), not just look right inline
+    const broken = await page.evaluate(async () => {
+      const svgs = [...document.querySelectorAll('#panel .avatar svg')].slice(0, 6).map((n) => new XMLSerializer().serializeToString(n));
+      let bad = 0;
+      for (const svg of svgs) {
+        const ok = await new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+        });
+        if (!ok) bad++;
+      }
+      return bad;
+    });
+    check(broken === 0, 'every portrait loads as a strict SVG image');
     await page.keyboard.press('h');
     await page.screenshot({ path: `${outDir}/ch3-heat.png` });
     await page.keyboard.press('h');
@@ -246,6 +277,28 @@ try {
     await page.waitForSelector('.daily-card');
     check((await page.textContent('.daily-card')).includes('Your best today'), 'today’s best result is remembered');
     check((await page.textContent('.achievements summary')).match(/Achievements [1-9]/) !== null, 'achievements were unlocked and shown');
+  });
+  await session('contract names', { viewport: { width: 1366, height: 820 }, deviceScaleFactor: 1 }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 } }));
+    });
+    await page.reload();
+    await page.click('[data-chapter="ch2"]');
+    await page.waitForSelector('#topbar .stat');
+    await page.click('#tabs [data-panel="contracts"]');
+    const names = await page.locator('#panel .contract b').allTextContents();
+    check(names.length >= 2 && new Set(names).size === names.length, `each active contract has its own name (${names.slice(0, 3).join(', ')})`);
+    const labels = await page.evaluate(() => {
+      const c = document.querySelector('#map');
+      const r = c.getBoundingClientRect();
+      return { x: r.x, y: r.y, w: c.clientWidth, h: c.clientHeight };
+    });
+    const scale = Math.min((labels.w - 32) / 22, (labels.h - 32) / 11);
+    await page.mouse.click(labels.x + (labels.w - 22 * scale) / 2 + 3.5 * scale, labels.y + (labels.h - 11 * scale) / 2 + 3.5 * scale);
+    await page.waitForSelector('.modal-card select[data-action="assign"]', { timeout: 5000 });
+    const options = await page.locator('.modal-card select[data-action="assign"]').first().locator('option').allTextContents();
+    const named = options.filter((o) => o.includes(' · '));
+    check(named.length >= 2 && new Set(named).size === named.length, `the assign drop-down lists distinct "Customer · Project" names (${named.slice(0, 2).join(' | ')})`);
   });
 } finally {
   server?.kill();

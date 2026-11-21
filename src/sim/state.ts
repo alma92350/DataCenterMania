@@ -163,6 +163,7 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
     walkins: [],
     projects: [],
     autoDispatch: false,
+    streak: { hours: 0, best: 0, hit: false },
     auditUntil: 0,
     outages: {},
     postMortems: [],

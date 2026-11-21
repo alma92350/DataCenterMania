@@ -544,12 +544,20 @@ export function goalBar(s: GameState): string {
     : '';
   const today = s.today.revenue - s.today.salaries - s.today.rent - s.today.network - s.today.electricity;
   const money$ = `<span class="chip-btn ${today < 0 ? 'bad' : 'ok'}" title="Today so far (credited every hour)">💰 Today ${today >= 0 ? '+' : ''}${money(today)}</span>`;
-  return `${goal}${shift}${money$}`;
+  const streak = s.streak.hours >= 2 ? `<span class="chip-btn ok" title="Hours in a row with every customer within SLA (best ${s.streak.best}h)">🔥 Streak ${s.streak.hours}h</span>` : '';
+  return `${goal}${shift}${streak}${money$}`;
+}
+
+/** A burst of falling pieces for a perfect shift. Pure CSS, deterministic, off for reduced motion and e-ink. */
+export function confetti(): string {
+  const colors = ['#ffd166', '#5ab4ff', '#3ddc84', '#ef4458', '#bb6bd9', '#ff8a3d'];
+  return `<div class="confetti" aria-hidden="true">${Array.from({ length: 30 }, (_, i) =>
+    `<i style="--x:${(i * 37) % 100};--c:${colors[i % colors.length]};--d:${(1.8 + ((i * 7) % 10) / 8).toFixed(2)}s;--del:${(((i * 13) % 10) / 12).toFixed(2)}s;--r:${(i * 53) % 360}deg"></i>`).join('')}</div>`;
 }
 
 export function shiftReportModal(s: GameState, r: ShiftReport): string {
   const over = s.progress.status !== 'playing';
-  return `<div class="modal-card small-card shift-card" role="dialog" aria-modal="true" aria-label="Shift report">
+  return `<div class="modal-card small-card shift-card" role="dialog" aria-modal="true" aria-label="Shift report">${r.stars === 3 ? confetti() : ''}
     <h2>🕙 Shift ${s.shiftReports.indexOf(r) + 1} report</h2>
     <div class="big-stars">${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)}</div>
     <ul class="list goals">

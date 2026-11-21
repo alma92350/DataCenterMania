@@ -59,6 +59,7 @@ export function updateDemand(s: GameState, dt: number): void {
     for (const d of live) d.load = Math.max(IDLE_LOAD, load);
     c.minutesToday += dt;
     trackOutage(s, c, ok);
+    if (!ok) s.streak.hit = true;
     if (ok) c.okMinutesToday += dt;
     else {
       const rackId = contractDevices(s, c.id)[0]?.rackId ?? null;

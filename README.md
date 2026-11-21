@@ -40,11 +40,14 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 
 | Area | Implemented |
 |------|-------------|
-| Chapters | 0 *The Closet* (a 6-minute, one-shift tutorial), 1 *Server Room*, 2 *Startup Colo*, 3 *Colocation Floor*, each with ★/★★/★★★ goals |
+| Chapters | 0 *The Closet* (a 6-minute, one-shift tutorial), 1 *Server Room*, 2 *Startup Colo*, 3 *Colocation Floor* (aisles, HVAC), 4 *Launch Week* (network, fatigue), each with ★/★★/★★★ goals; at most two new systems per chapter (tested) |
 | Shifts (v0.4) | Each game day is a shift with a goal and bonus, a 22:00 report card, and "Sleep until 06:00" with a night recap; progress autosaves at every shift |
 | Live money (v0.4) | Revenue and costs credited every game hour with +$ pops, per-contract margin, HUD goal chip and today's earnings |
 | Calm-time play (v0.4) | Walk-in customer requests (timed favours) and ops projects (cable tidy, labels, firmware) with lasting bonuses |
 | Mastery (v0.5) | Hard ★★★ constraints per chapter, 14 achievements, career title (Intern → CTO), date-seeded Daily Challenge with a modifier and a share line, outage post-mortems with one-tap remedies |
+| Automation (v0.6) | Hire a Shift Lead from Chapter 2: auto-dispatch of routine alarms and requests; idle specialists do preventive work; the bot's workload stays flat from Ch2 to Ch4 |
+| Juice (v0.6) | Speech bubbles, SLA-perfect streak, confetti on a clean shift, screen shake on criticals (off for reduced motion and e-ink) |
+| Art (v0.6) | Hand-drawn SVG portraits for the manager and every hire role, illustrations for every part, cooler and place; pure-greys versions for e-ink; unique project names for every contract |
 | Mobile | Taps survive live refreshes (DOM morphing + press guard), finger-sized map zoom with forgiving taps, landscape side panel, tips always reachable |
 | Display | Colour (desktop/phone) and e-ink (Kindle Scribe): monochrome palette, shapes and patterns for meaning, no animation, throttled redraws |
 | Difficulty | Intern, Sysadmin, Senior Engineer, On-Call Nightmare (unlocked by beating Ch3); multipliers in `src/data/difficulty.ts` |

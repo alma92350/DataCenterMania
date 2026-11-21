@@ -55,6 +55,15 @@ function dailyCosts(s: GameState) {
 
 /** Credits earned revenue and charges running costs, prorated to the share of the day elapsed (PRD §21.3). */
 export function settleHour(s: GameState): void {
+  // SLA-perfect streak (PRD §21.9): counted per game hour while any contract is live
+  if (s.contracts.some((c) => c.status === 'active' && c.liveFrom !== null)) {
+    if (s.streak.hit) s.streak.hours = 0;
+    else {
+      s.streak.hours++;
+      s.streak.best = Math.max(s.streak.best, s.streak.hours);
+    }
+    s.streak.hit = false;
+  }
   const t = s.today;
   let credited = 0;
   for (const [rackId, amount] of Object.entries(s.pendingRevenue)) {
@@ -75,7 +84,7 @@ export function settleHour(s: GameState): void {
   };
   for (const k of ['salaries', 'rent', 'network', 'electricity'] as const) t[k] += Math.max(0, due[k]);
   s.cash += credited - Math.max(0, due.salaries) - Math.max(0, due.rent) - Math.max(0, due.network) - Math.max(0, due.electricity);
-  s.fx = s.fx.filter((f) => s.minute - f.minute < 180);
+  s.fx = s.fx.filter((f) => f.kind === 'say' || s.minute - f.minute < 180);
 }
 
 /**

@@ -4,6 +4,7 @@ import { escalateAlarms } from './alarms';
 import { accrueMinute, settleDay, settleHour, updateOrders } from './economy';
 import { updateShift } from './shifts';
 import { runAutomation } from './automation';
+import { expireBubbles } from './bubbles';
 import { updateWalkins } from './walkins';
 import { runScriptedEvents } from './events';
 import { rollFailures } from './failures';
@@ -32,6 +33,7 @@ export function step(s: GameState): void {
   escalateAlarms(s);
   runAutomation(s);
   updateTechs(s, dt);
+  expireBubbles(s);
   updateFatigue(s, dt);
   updateOrders(s);
   accrueMinute(s);

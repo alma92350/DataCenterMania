@@ -27,6 +27,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'cableWhisperer', icon: '🧶', name: 'Cable Whisperer', description: 'Finish all three ops projects in one chapter.', check: (s) => s.projects.length >= 3 },
   { id: 'customerDarling', icon: '💐', name: 'Customer Darling', description: 'Grant 10 customer requests in one chapter.', check: (s) => (s.stats.walkinsDone ?? 0) >= 10 },
   { id: 'itWasDns', icon: '🧙', name: 'It Was DNS (It Wasn’t)', description: 'Reboot 5 hung servers in one chapter.', check: (s) => (s.stats.reboots ?? 0) >= 5 },
+  { id: 'hotStreak', icon: '🔥', name: 'Hot Streak', description: 'Keep every customer within SLA for 12 hours in a row.', check: (s) => s.streak.best >= 12 },
   { id: 'fullHouse', icon: '👥', name: 'Full House', description: 'Have 5 people on the team at once.', check: (s) => s.progress.maxTechs >= 5 },
   { id: 'lean', icon: '🪶', name: 'Lean and Mean', description: 'Win a chapter with only the starting team.', check: (s) => won(s) && s.chapter !== 'ch0' && s.progress.maxTechs <= (s.chapter === 'ch1' ? 1 : 2) },
   { id: 'onCallLegend', icon: '🔥', name: 'On-Call Legend', description: 'Win any chapter on On-Call Nightmare.', check: (s) => won(s) && s.difficulty === 'nightmare' },

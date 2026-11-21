@@ -1,6 +1,7 @@
 import { chance } from '../core/rng';
 import { AUDIT, JOB_LABEL, JOB_ROLES, JOB_WORK_MIN, MANAGER_SPECIALIST_RATE, PROJECTS, PROJECT_EFFECT, RACK_CAPACITY_U } from '../data/catalog';
 import { completeWalkin } from './walkins';
+import { say } from './bubbles';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
 import { clearAlarms } from './alarms';
@@ -208,6 +209,7 @@ export function updateTechs(s: GameState, dt: number): void {
         if (tech.path.length) continue;
       }
       job.stage = 'working';
+      say(s, tech, job.kind, 'start', job.id);
       if (job.kind === 'rotateRack') {
         const rack = rackById(s, job.rackId);
         if (rack) rack.maintenance = true;
@@ -230,9 +232,11 @@ function finishWork(s: GameState, tech: Tech, job: Job): void {
     job.workTotal = job.workLeft;
     addLog(s, 'fail', `${tech.name} botched the job (${JOB_LABEL[job.kind]}) and has to redo part of it.`);
     showTip(s, 'botched');
+    say(s, tech, job.kind, 'oops', job.id);
     return;
   }
   completeJob(s, job);
+  say(s, tech, job.kind, 'done', job.id);
   addLog(s, 'success', `${tech.name}: ${JOB_LABEL[job.kind]} done.`);
   job.stage = 'done';
   s.jobs = s.jobs.filter((j) => j.id !== job.id);

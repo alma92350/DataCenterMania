@@ -38,7 +38,9 @@
 | Monetisation | **Free.** |
 | Session unit | **Approved and shipped in v0.4:** the **Shift** (one game day) with an end-of-shift report card. Chapters are 1–5 shifts. See §21.1. |
 | E-ink display | **Shipped in v0.4:** a Kindle Scribe / e-ink mode, auto-detected via `update: slow`, `monochrome` and the Kindle UA, or set manually. See §2. |
-| Chapter order | *Proposed:* respect "1–2 new systems per chapter". Network moves to a new Ch4 "Launch Week", and fatigue moves to the Enterprise chapter. See §21.5. |
+| Chapter order | **Shipped in v0.6:** at most two new systems per chapter (enforced by a test). Network and fatigue live in the new Ch4 "Launch Week". See §21.5. |
+| Contracts | **Shipped:** every contract has its own project name, unique per customer ("ByteBank · Payments Gateway"). |
+| Art | **Shipped:** hand-drawn SVG sprites (role portraits, parts, coolers, places) with e-ink greyscale versions; no emoji on the map. |
 | Telemetry | *Proposed:* opt-in only, anonymous, export-as-JSON first. No accounts, no tracking by default. See §21.10. |
 
 ---
@@ -489,7 +491,7 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 |---|---|---|---|
 | **v0.4 "First Hour"** ✅ shipped | Onboarding and pacing | Shifts and report cards, one-shift Ch0, live money, goal chip, ops projects, walk-in requests, **e-ink mode** | Bot-measured: Ch0 4.7 sim-min (≈6–7 with tips); quiet daytime 58–65% (was 80–89%); longest quiet 53–112 s (was 4–5 min). Human playtest still to do. |
 | **v0.5 "Mastery"** ✅ shipped | Replay reasons | Hard ★★★ constraints, 14 achievements, career title, seeded Daily Challenge (4 modifiers) with share line, outage post-mortems with one-tap remedies; **mobile responsiveness fixes** | Default bot ★★★ rate 6% (1/16 runs); guarded in CI at ≤ 20% |
-| **v0.6 "Launch Week"** | Re-sequence and automation | Ch3/Ch4 split, auto-dispatch from Ch2, proactive specialists, juice pass | ≤ 2 new systems per chapter; actions/min flat from Ch2 to Ch4 |
+| **v0.6 "Launch Week"** ✅ shipped | Re-sequence and automation | Ch3/Ch4 split, Shift Lead auto-dispatch from Ch2, proactive specialists, juice pass (speech bubbles, SLA streak, confetti, screen shake), contract names, new artwork | ≤ 2 new systems per chapter ✓ (tested); with a Shift Lead the bot's workload is 1.18 / 1.66 / 1.31 actions/min in Ch2 / Ch3 / Ch4 (≈ 4.5 by hand) ✓ |
 | **v0.7 "Hackers"** | Differentiator | Hacker Weekend event (2 villains, 3 micro-games), sandbox/endless mode | Event playable in ≤ 10 min |
 | **v1.0** | Enterprise and polish | UPS/generator/shifts chapter (fatigue moves here), accessibility audit, FR localisation | §19 KPIs met in a 20-player test |
 
@@ -578,19 +580,21 @@ The main issues are dead air, chapters too long for a session, a thin tutorial, 
 - **Walk-in requests:** timed customer favours for small rewards ("Reboot ByteBank's box within 20 min: +$300").
 - **Contract negotiation:** when an offer arrives, choose one of 3 cards trading price, SLA and duration.
 
-### 21.5 Chapter re-sequencing (respect pillar #4), *proposed*
+### 21.5 Chapter re-sequencing (respect pillar #4), shipped in v0.6
 
-| New # | Chapter | New systems |
+| # | Chapter | New systems |
 |---|---|---|
 | 0 | The Closet | Inspect, dispatch, install (tutorial) |
-| 1 | Server Room | Hiring, contracts |
-| 2 | Startup Colo | Power budgets, building racks/coolers, **auto-dispatch toggle** |
-| 3 | Colocation Floor | Hot/cold aisles, CRAC maintenance and HVAC role |
-| 4 | **Launch Week** *(new)* | Switches, uplinks and bandwidth, fiber cuts, network role |
-| 5 | Enterprise DC | UPS/generator/redundancy, electrician, **shifts, fatigue and morale** |
-| 6 | Cloud Region | Cyber villains, SOC, runbooks |
-| 7 | AI Wing | GPU racks, liquid cooling, demand response |
+| 1 | Server Room | Hiring, contracts (with customer requests) |
+| 2 | Startup Colo | Power budgets, building racks/coolers; **Shift Lead / auto-dispatch** (part of the team system) |
+| 3 | Colocation Floor | Hot/cold aisles, CRAC filter maintenance and the HVAC specialist |
+| 4 | **Launch Week** | Switches, uplinks, bandwidth and fiber cuts (network engineer); **fatigue and morale** |
+| 5 | Enterprise DC *(planned)* | UPS/generator/redundancy, electrician, day/night shifts |
+| 6 | Cloud Region *(planned)* | Cyber villains, SOC, runbooks |
+| 7 | AI Wing *(planned)* | GPU racks, liquid cooling, demand response |
 
+- **Deviation from the v0.2 plan:** fatigue and morale ship in Launch Week (a crunch week is when tired staff matter) instead of waiting for the Enterprise chapter, which is not built yet. The Enterprise chapter keeps day/night shift rotation.
+- A test counts the systems each chapter introduces (feature flags mapped to systems) and fails above two, or if a chapter drops one.
 - Tips fire at **teaching moments** (the first time a system matters), never as a timed burst.
 
 ### 21.6 Automation earlier
@@ -640,6 +644,17 @@ Player report: "UI not very responsive on mobile". The probe (`e2e/perf-probe.mj
 - ★★★ per chapter: Ch0 below 35°C; Ch1 lean team and a profit; Ch2 no rack above 28°C; Ch3 perfect airflow and zero critical alarms.
 - Daily Challenge: chapter, modifier (Heatwave, Gremlins, Shoestring, Gone Viral) and seed derive from the local date. One shift, its own ★ goals, score = stars, then uptime, then profit. Best result per day is kept locally. Dailies do not count as chapter wins for achievements.
 - Post-mortems trigger after ≥ 10 game minutes of SLA failure for a customer. The cause is inferred from a 60-entry alarm history. They show as a card on the Alarms tab and in the Goals → Incident history list.
+
+---
+
+### 21.15 v0.6 results
+- **Workload.** `applyCommand` counts successful player actions (Shift Lead work is excluded). Measured by the bot: by hand ≈ 4.5 actions/min in every chapter; delegating to a Shift Lead gives 1.18 (Ch2), 1.66 (Ch3), 1.31 (Ch4). CI guards that delegation keeps Ch3 and Ch4 within 1.6× of Ch2, and that it cuts workload by more than half.
+- **Shift Lead.** Hired from Chapter 2 for a daily salary; with auto-dispatch on, alarms wait 8 game minutes for the player, then the best specialist is sent (never the manager or the lead). Idle technicians also get open customer requests.
+- **Proactive specialists.** Idle HVAC techs change wearing filters (needs a spare); idle network engineers run cable audits that cut switch/fiber risk by 60% for a day. A "problems prevented" badge appears in the Team tab and the shift report.
+- **Juice.** Speech bubbles over technicians (deterministic lines, one per person), an SLA-perfect-hours streak chip and the Hot Streak achievement, confetti on a three-star shift, and screen shake on critical alarms. Confetti and shake are off for reduced motion and on e-ink.
+- **3★ goals.** Ch3: fix the airflow within 10 hours and no critical alarm. Ch4: a second uplink route and zero critical alarms. The bot's ★★★ rate stays ≤ 20% (CI).
+- **Performance.** Sprites are pre-rendered to bitmaps: re-drawing SVG-backed images each frame dropped a throttled phone to 53–58 fps; with bitmaps it is a steady 60 fps (p95 16.8 ms).
+- **Known gap.** The planned "contract negotiation" cards (§21.4) and the 50% quiet-time target are still open; quiet daytime remains 52–65%.
 
 ---
 

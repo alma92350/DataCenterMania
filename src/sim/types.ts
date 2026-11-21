@@ -261,7 +261,10 @@ export interface ShiftReport {
 /** Short-lived visual effects emitted by the simulation (money pops). */
 export interface Fx {
   id: number;
-  kind: 'money' | 'miss' | 'bonus';
+  kind: 'money' | 'miss' | 'bonus' | 'say';
+  /** Speech bubbles: who says what. */
+  techId?: string;
+  text?: string;
   rackId: string | null;
   amount: number;
   minute: number;
@@ -350,6 +353,8 @@ export interface GameState {
   };
   /** The Shift Lead sends specialists to alarms automatically. */
   autoDispatch: boolean;
+  /** Hours in a row in which every live contract met its SLA. */
+  streak: { hours: number; best: number; hit: boolean };
   /** Cable audit protection lasts until this minute. */
   auditUntil: number;
   /** Set when this game is a Daily Challenge (e.g. '2026-11-20'). */

@@ -4,6 +4,7 @@ import { tileAt } from '../sim/grid';
 import type { Alarm, Device, GameState, Rack, Severity, Tech, TileKind } from '../sim/types';
 import { worldToScreen, type Camera } from './camera';
 import { avatarSprite, drawSprite, glyphSprite, partSprite, placeSprite } from './sprites';
+import { BUBBLE_LIFE } from '../sim/bubbles';
 
 export type Overlay = 'none' | 'heat' | 'power';
 
@@ -274,6 +275,7 @@ function drawTech(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, t: T
   ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
   ctx.stroke();
 
+  drawBubble(ctx, s, t, c.x, c.y - radius - z * 0.12, z);
   const job = s.jobs.find((j) => j.id === t.jobId);
   if (job?.stage === 'working') {
     const done = Math.max(0, Math.min(1, 1 - job.workLeft / Math.max(1, job.workTotal)));
@@ -352,6 +354,7 @@ const FX_LIFE = 45; // game minutes
 function drawFx(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera): void {
   const z = cam.scale;
   for (const f of s.fx) {
+    if (f.kind === 'say') continue;
     const age = s.minute - f.minute;
     if (age < 0 || age > FX_LIFE) continue;
     const rack = f.rackId ? s.racks.find((r) => r.id === f.rackId) : null;
@@ -372,4 +375,39 @@ function drawFx(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera): void 
     ctx.fillText(text, base.x, y);
     ctx.globalAlpha = 1;
   }
+}
+
+/** A speech bubble above a technician (PRD §21.9). Static and unfaded on e-ink. */
+function drawBubble(ctx: CanvasRenderingContext2D, s: GameState, t: Tech, x: number, y: number, z: number): void {
+  if (z < 22) return;
+  const f = s.fx.find((q) => q.kind === 'say' && q.techId === t.id);
+  if (!f?.text) return;
+  const age = s.minute - f.minute;
+  if (age < 0 || age > BUBBLE_LIFE) return;
+  const fade = EINK ? 1 : age > BUBBLE_LIFE * 0.75 ? 1 - (age - BUBBLE_LIFE * 0.75) / (BUBBLE_LIFE * 0.25) : 1;
+  const size = Math.max(11, Math.min(15, z * 0.3));
+  ctx.font = `600 ${size}px system-ui, sans-serif`;
+  const w = Math.min(z * 5, ctx.measureText(f.text).width + 14);
+  const h = size + 10;
+  const bx = x - w / 2;
+  const by = y - h - 6;
+  ctx.globalAlpha = fade;
+  ctx.fillStyle = EINK ? '#ffffff' : '#f4f7fb';
+  ctx.strokeStyle = EINK ? '#000000' : P.ink;
+  ctx.lineWidth = 1.6;
+  roundRect(ctx, bx, by, w, h, 7);
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - 5, by + h);
+  ctx.lineTo(x, by + h + 6);
+  ctx.lineTo(x + 5, by + h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = EINK ? '#000000' : P.ink;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(f.text, x, by + h / 2 + 0.5, w - 8);
+  ctx.globalAlpha = 1;
 }

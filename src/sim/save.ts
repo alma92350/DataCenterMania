@@ -67,6 +67,7 @@ function migrateV3(d: AnyRecord): void {
 function migrateV4(d: AnyRecord): void {
   assignMissingNames(d.contracts as { customer: string; name?: string }[]);
   d.autoDispatch ??= false;
+  d.streak ??= { hours: 0, best: 0, hit: false };
   d.auditUntil ??= 0;
   d.version = 5;
 }

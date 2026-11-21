@@ -409,3 +409,24 @@ body.eink .avatar { border-color: #000 !important; }
 .lead-card { display: flex; align-items: center; gap: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
 .lead-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 body.eink .lead-card { border: 2px solid #000; background: #fff; }
+
+/* ---------- juice: confetti and screen shake ---------- */
+.shift-card { position: relative; overflow: hidden; }
+.confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.confetti i {
+  position: absolute; top: -14px; left: calc(var(--x) * 1%); width: 8px; height: 13px; background: var(--c); border-radius: 2px;
+  transform: rotate(var(--r)); opacity: 0; animation: confetti-fall var(--d) ease-in var(--del) 1 forwards;
+}
+@keyframes confetti-fall {
+  0% { opacity: 1; transform: translateY(0) rotate(var(--r)); }
+  100% { opacity: 0; transform: translateY(520px) rotate(calc(var(--r) + 540deg)); }
+}
+#stage.shake { animation: shake 0.45s cubic-bezier(.36, .07, .19, .97) both; }
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(3px, 1px, 0); }
+  30%, 50%, 70% { transform: translate3d(-5px, -1px, 0); }
+  40%, 60% { transform: translate3d(5px, 1px, 0); }
+}
+body.eink .confetti, body.eink #stage.shake { display: none; animation: none; }
+@media (prefers-reduced-motion: reduce) { .confetti { display: none; } }
