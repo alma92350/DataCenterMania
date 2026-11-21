@@ -15,18 +15,19 @@ const SYSTEM_OF: Record<FeatureFlag, string | null> = {
   shop: 'shop', hire: 'team', projects: 'team', autodispatch: 'team',
   contracts: 'contracts', walkins: 'contracts',
   power: 'power', buildRack: 'expansion', coolers: 'expansion',
-  aisles: 'aisles', maintenance: 'maintenance', network: 'network', fatigue: 'fatigue', cyber: 'cyber',
+  aisles: 'aisles', maintenance: 'maintenance', network: 'network', fatigue: 'fatigue', cyber: 'cyber', backup: 'backup',
   roles: null, remote: null,
 };
 
 describe('chapter structure (PRD §21.5)', () => {
-  it('order is Closet, Server Room, Startup Colo, Colocation Floor, Launch Week', () => {
-    expect(CHAPTER_ORDER).toEqual(['ch0', 'ch1', 'ch2', 'ch3', 'ch4']);
-    expect(CHAPTER_ORDER.map((id) => CHAPTERS[id].number)).toEqual([0, 1, 2, 3, 4]);
+  it('order is Closet, Server Room, Startup Colo, Colocation Floor, Launch Week, Enterprise DC', () => {
+    expect(CHAPTER_ORDER).toEqual(['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5']);
+    expect(CHAPTER_ORDER.map((id) => CHAPTERS[id].number)).toEqual([0, 1, 2, 3, 4, 5]);
     expect(CHAPTERS.ch3.title).toBe('Colocation Floor');
     expect(CHAPTERS.ch4.title).toBe('Launch Week');
     for (let i = 0; i < CHAPTER_ORDER.length - 1; i++) expect(CHAPTERS[CHAPTER_ORDER[i]!].next).toBe(CHAPTER_ORDER[i + 1]);
-    expect(CHAPTERS.ch4.next).toBeNull();
+    expect(CHAPTERS.ch4.next).toBe('ch5');
+    expect(CHAPTERS.ch5.next).toBeNull();
   });
 
   it('each chapter adds at most two new systems, and never drops one', () => {

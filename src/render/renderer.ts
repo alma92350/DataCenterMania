@@ -117,6 +117,13 @@ export function drawFrame(ctx: CanvasRenderingContext2D, s: GameState, cam: Came
   for (const t of s.techs) drawTech(ctx, s, cam, t);
   drawAlarmPins(ctx, s, cam, view.time);
   drawFx(ctx, s, cam);
+  if (s.backup?.source === 'none') {
+    ctx.fillStyle = EINK ? 'rgba(0,0,0,0.55)' : 'rgba(2,4,12,0.72)';
+    ctx.fillRect(0, 0, width, height);
+  } else if (s.backup && s.backup.source === 'ups' && Math.floor(view.time / 600) % 2 === 0) {
+    ctx.fillStyle = EINK ? 'rgba(0,0,0,0.08)' : 'rgba(255,170,40,0.07)';
+    ctx.fillRect(0, 0, width, height);
+  }
   if (view.buildPreview) {
     const p = worldToScreen(cam, view.buildPreview.x, view.buildPreview.y);
     ctx.fillStyle = EINK ? (view.buildPreview.valid ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.6)') : view.buildPreview.valid ? 'rgba(61,220,132,0.35)' : 'rgba(255,59,92,0.35)';

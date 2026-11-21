@@ -22,7 +22,8 @@ export type ScriptedAction =
   | { type: 'failures'; enabled: boolean }
   | { type: 'filter'; cooler: number; health: number }
   | { type: 'cutUplink'; uplink: number; text?: string }
-  | { type: 'attack'; kind: AttackKind; villain?: Villain };
+  | { type: 'attack'; kind: AttackKind; villain?: Villain }
+  | { type: 'outage'; minutes: number; text?: string };
 
 export interface ScriptedEvent {
   id: string;
@@ -68,6 +69,8 @@ export interface ChapterDef {
   inventory: Partial<Record<PartId, number>>;
   hwTechs: number;
   failuresEnabled: boolean;
+  /** Starting backup power: UPS units, their health and the generator. */
+  backup?: { ups: number; health: number; generator: 'none' | 'idle' };
   dailyOffers: boolean;
   events: ScriptedEvent[];
   objectives: [Objective, Objective, Objective]; // ★ pass, ★★ pro, ★★★ legend
@@ -112,6 +115,13 @@ const COLO_CONTRACTS: ChapterDef['contracts'] = [
   { seed: { customer: 'Law & Order Mail', description: 'Email for a law firm.', units: 3, slaPct: 98, revenuePerDay: 750, penaltyPerBreach: 400, durationDays: 10, profile: 'office' }, active: true },
   { seed: { customer: 'Nightly News', description: 'News site, busy in the evening.', units: 4, slaPct: 98, revenuePerDay: 1250, penaltyPerBreach: 700, durationDays: 10, profile: 'evening' }, active: true },
   { seed: { ...BAKERY, units: 2, revenuePerDay: 350, durationDays: 10 }, active: true },
+];
+
+const LAUNCH_CONTRACTS: { seed: ContractSeed; active: boolean }[] = [
+  { seed: { customer: 'ByteBank', description: 'Fintech. Strict SLA, pays a lot.', units: 4, slaPct: 99.5, revenuePerDay: 1800, penaltyPerBreach: 1100, durationDays: 10, profile: 'office', bandwidthPerUnit: 0.3 }, active: true },
+  { seed: { customer: 'Law & Order Mail', description: 'Email for a law firm.', units: 3, slaPct: 98, revenuePerDay: 750, penaltyPerBreach: 400, durationDays: 10, profile: 'office', bandwidthPerUnit: 0.2 }, active: true },
+  { seed: { customer: 'Nightly News', description: 'News site, busy in the evening.', units: 4, slaPct: 98, revenuePerDay: 1250, penaltyPerBreach: 700, durationDays: 10, profile: 'evening', bandwidthPerUnit: 0.6 }, active: true },
+  { seed: { ...BAKERY, units: 2, revenuePerDay: 350, durationDays: 10, bandwidthPerUnit: 0.1 }, active: true },
 ];
 
 export const CHAPTERS: Record<ChapterId, ChapterDef> = {
@@ -325,12 +335,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     uplinks: [{ name: 'MetroFiber A', capacityGbps: 8, costPerDay: 150 }],
     startingRoles: ['hw'],
     devices: COLO_DEVICES,
-    contracts: [
-      { seed: { customer: 'ByteBank', description: 'Fintech. Strict SLA, pays a lot.', units: 4, slaPct: 99.5, revenuePerDay: 1800, penaltyPerBreach: 1100, durationDays: 10, profile: 'office', bandwidthPerUnit: 0.3 }, active: true },
-      { seed: { customer: 'Law & Order Mail', description: 'Email for a law firm.', units: 3, slaPct: 98, revenuePerDay: 750, penaltyPerBreach: 400, durationDays: 10, profile: 'office', bandwidthPerUnit: 0.2 }, active: true },
-      { seed: { customer: 'Nightly News', description: 'News site, busy in the evening.', units: 4, slaPct: 98, revenuePerDay: 1250, penaltyPerBreach: 700, durationDays: 10, profile: 'evening', bandwidthPerUnit: 0.6 }, active: true },
-      { seed: { ...BAKERY, units: 2, revenuePerDay: 350, durationDays: 10, bandwidthPerUnit: 0.1 }, active: true },
-    ],
+    contracts: LAUNCH_CONTRACTS,
     inventory: { disk: 2, psu: 1, server1u: 2, filter: 1, switch: 1 },
     hwTechs: 1,
     failuresEnabled: true,
@@ -349,6 +354,42 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       { label: 'SLA uptime ≥ 98% and $10,000 profit (scaled by difficulty)', check: (s) => overallUptimePct(s) >= 98 && s.cash - s.progress.startCash >= profitGoal(s, 10000), progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 98% · profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 10000))}` },
       { label: 'SLA uptime ≥ 99.8%', check: (s) => overallUptimePct(s) >= 99.8 },
       { label: 'A second uplink route and not a single critical alarm all week', check: (s) => s.uplinks.length >= 2 && s.stats.criticals === 0 },
+    ],
+    next: 'ch5',
+  },
+  ch5: {
+    id: 'ch5', number: 5, title: 'Enterprise DC', subtitle: 'UPS, generators and a very long storm',
+    intro: 'A real enterprise hall needs power that never blinks. You have one tired UPS and a generator nobody has ever started. Test it, hire an electrician, and be ready before the storm hits.',
+    map: COLO_MAP,
+    startMinute: at(0, 8),
+    endMinute: at(3, 22),
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue', 'backup'],
+    startCash: 18000,
+    ambient: 24,
+    rackPowerBudgetW: 3000,
+    mapCooler: 'wallAc',
+    rackFacing: ['S', 'S', 'S', 'S', 'S', 'N', 'N', 'N', 'N', 'N', 'S', 'S', 'S', 'S', 'S'],
+    uplinks: [{ name: 'MetroFiber A', capacityGbps: 8, costPerDay: 150 }, { name: 'SkyLink Fiber B (separate route)', capacityGbps: 15, costPerDay: 220 }],
+    startingRoles: ['hw'],
+    devices: COLO_DEVICES,
+    contracts: LAUNCH_CONTRACTS,
+    inventory: { disk: 2, psu: 1, server1u: 2, filter: 1, switch: 1 },
+    hwTechs: 1,
+    failuresEnabled: true,
+    dailyOffers: true,
+    incidentMult: 0.8,
+    backup: { ups: 1, health: 0.7, generator: 'idle' },
+    events: [
+      { id: 'backupTip', at: at(0, 8, 5), actions: [{ type: 'tip', key: 'backup' }] },
+      { id: 'elecTip', at: at(0, 9), actions: [{ type: 'tip', key: 'electrician' }] },
+      { id: 'drill', at: at(1, 10), actions: [{ type: 'outage', minutes: 50, text: '⚡ 10:00: the utility drops out for a while (a transformer upgrade nobody warned you about). A fine drill for your backup power…' }] },
+      { id: 'stormWarning', at: at(2, 9), actions: [{ type: 'say', text: 'Weather service: a severe storm hits tonight. Long power cuts are likely. Is your generator tested?' }] },
+      { id: 'storm', at: at(2, 18, 30), actions: [{ type: 'outage', minutes: 300, text: '⛈️ 18:30: the storm took down the substation! Utility power is out for hours.' }] },
+    ],
+    objectives: [
+      { label: 'SLA uptime ≥ 97% and $2,000 profit (scaled by difficulty)', check: (s) => overallUptimePct(s) >= 97 && s.cash - s.progress.startCash >= profitGoal(s, 2000), progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 97% · profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 2000))}` },
+      { label: 'SLA uptime ≥ 99.8% and $6,500 profit', check: (s) => overallUptimePct(s) >= 99.8 && s.cash - s.progress.startCash >= profitGoal(s, 6500) },
+      { label: 'No blackout, a tested generator, a second UPS and $10,000 profit', check: (s) => (s.stats.blackoutMin ?? 0) === 0 && s.cash - s.progress.startCash >= profitGoal(s, 10000) && !!s.backup && s.backup.testedAt !== null && s.backup.upsUnits >= 2, progress: (s) => `Blackout ${s.stats.blackoutMin ?? 0} min` },
     ],
     next: null,
   },
@@ -393,6 +434,6 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
 };
 
 /** The campaign, in order. Events (like the Hacker Weekend) are not part of it. */
-export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4'];
+export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5'];
 
 export const EVENT_ORDER: ChapterId[] = ['hack'];

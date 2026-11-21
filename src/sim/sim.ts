@@ -11,6 +11,7 @@ import { runScriptedEvents } from './events';
 import { rollFailures } from './failures';
 import { updateTechs } from './jobs';
 import { checkEnd, checkLose } from './objectives';
+import { updateBackup } from './backup';
 import { facilityPowerW, updatePower } from './power';
 import { updateThermal } from './thermal';
 import { updateCoolers } from './maintenance';
@@ -28,6 +29,7 @@ export function step(s: GameState): void {
   updateWalkins(s, dt);
   updateNetwork(s, dt);
   updateDemand(s, dt);
+  updateBackup(s);
   updatePower(s);
   updateCoolers(s, dt);
   updateThermal(s, dt);

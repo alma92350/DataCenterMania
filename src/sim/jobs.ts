@@ -9,6 +9,7 @@ import { clearAlarms } from './alarms';
 import { accessTile, findPath, isWalkable, nearestTile } from './grid';
 import { mistakeFactor, staminaFactor } from './fatigue';
 import { restoreUplink } from './network';
+import { replaceBatteries, startGenerator, testGenerator } from './backup';
 import { addLog, homeSpot, makeCooler, makeRack, newId, showTip } from './state';
 import { blockedTiles, deviceById, isIdle, rackById, techById, techQueueLength } from './selectors';
 import type { GameState, Job, JobKind, PartId, ServerModelId, Tech, Vec } from './types';
@@ -64,7 +65,7 @@ export function bestTech(s: GameState, site: Vec, kind: JobKind = 'reboot'): Tec
   return [...pool].sort((a, b) => score(a) - score(b))[0]!;
 }
 
-const SPECIALIST: Partial<Record<JobKind, true>> = { serviceCooler: true, repairCooler: true, replaceSwitch: true, repairUplink: true };
+const SPECIALIST: Partial<Record<JobKind, true>> = { serviceCooler: true, repairCooler: true, replaceSwitch: true, repairUplink: true, startGenerator: true, testGenerator: true, replaceBattery: true };
 
 export function assignJob(s: GameState, job: Job, techId: string | 'best'): Tech {
   const tech = techId === 'best' ? bestTech(s, job.site, job.kind) : techById(s, techId);
@@ -89,7 +90,7 @@ function siteAccess(s: GameState, job: Job): Vec | null {
     const front = { x: rack.pos.x, y: rack.pos.y + (rack.facing === 'S' ? 1 : -1) };
     if (isWalkable(s.grid, blocked, front.x, front.y)) return front;
   }
-  if (job.kind === 'repairUplink' && isWalkable(s.grid, blocked, job.site.x, job.site.y)) return job.site;
+  if ((job.kind === 'repairUplink' || job.kind === 'startGenerator' || job.kind === 'testGenerator' || job.kind === 'replaceBattery') && isWalkable(s.grid, blocked, job.site.x, job.site.y)) return job.site;
   return accessTile(s.grid, blocked, job.site);
 }
 
@@ -253,7 +254,7 @@ function finishWork(s: GameState, tech: Tech, job: Job): void {
   else routeTo(s, tech, home);
 }
 
-const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker', 'replaceSwitch', 'repairCooler', 'repairUplink', 'reimage']);
+const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker', 'replaceSwitch', 'repairCooler', 'repairUplink', 'reimage', 'startGenerator', 'replaceBattery']);
 
 /** Applies a finished job's effect on the world. */
 export function completeJob(s: GameState, job: Job): void {
@@ -339,6 +340,15 @@ export function completeJob(s: GameState, job: Job): void {
       if (u && !u.up) restoreUplink(s, u, false);
       break;
     }
+    case 'startGenerator':
+      startGenerator(s);
+      break;
+    case 'testGenerator':
+      testGenerator(s);
+      break;
+    case 'replaceBattery':
+      replaceBatteries(s);
+      break;
     case 'project':
       if (job.projectId && !s.projects.includes(job.projectId)) {
         s.projects.push(job.projectId);

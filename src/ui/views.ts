@@ -1,4 +1,4 @@
-import { CONTRACT_GRACE_MIN, COOLERS, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
+import { BACKUP, CONTRACT_GRACE_MIN, COOLERS, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
 import { CHAPTERS, CHAPTER_ORDER } from '../data/chapters';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
@@ -21,6 +21,7 @@ import type { Alarm, Contract, Device, DifficultyId, GameState, LogEntry, PartId
 import { SEVERITY_LABEL } from '../sim/types';
 import { countdown, escapeHtml as e, money, stars } from './format';
 import { bestStars, isDifficultyUnlocked, isSandboxUnlocked, isUnlocked, type Progress, type Settings } from './storage';
+import { generatorTested, upsCapacityKwh, upsRuntimeMin } from '../sim/backup';
 import { SANDBOX_FLOORS, sandboxDays, sandboxScore, type SandboxConfig, type SandboxFloor } from '../sim/sandbox';
 import { ACHIEVEMENTS, careerTitle } from '../sim/achievements';
 import { DAILY_MODIFIERS, dailySpec, type DailySpec } from '../sim/daily';
@@ -72,8 +73,10 @@ export function tabs(s: GameState, active: PanelId): string {
   return visiblePanels(s)
     .map((p) => {
       const badge = p === 'alarms' ? s.alarms.filter((a) => a.kind !== 'powerHigh').length + s.walkins.filter((w) => w.status === 'open').length : p === 'contracts' ? offeredContracts(s).length : 0;
+      const meta = p === 'network' && s.backup ? { icon: '🔌', label: 'Infra' } : PANEL_META[p];
+      const alert = p === 'network' && s.backup && (!s.backup.grid || s.alarms.some((a) => a.kind === 'generator' || a.kind === 'battery'));
       return `<button data-action="panel" data-panel="${p}" class="${p === active ? 'on' : ''}" aria-pressed="${p === active}">
-        <span class="ti">${PANEL_META[p].icon}</span><span class="tl">${PANEL_META[p].label}</span>${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
+        <span class="ti">${meta.icon}</span><span class="tl">${meta.label}</span>${alert ? '<span class="badge">!</span>' : ''}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
     })
     .join('');
 }
@@ -222,12 +225,56 @@ export function contractsPanel(s: GameState): string {
       : '<div class="empty">No offers right now.</div>'}`;
 }
 
+export function powerChip(s: GameState): string {
+  const b = s.backup;
+  if (!b || b.grid && b.source === 'grid') return '';
+  switch (b.source) {
+    case 'ups': {
+      const min = Math.floor(upsRuntimeMin(s));
+      return `<button class="chip-btn ${min < 20 ? 'bad' : 'warn'}" data-action="panel" data-panel="network">🔋 Grid down · battery ${min} min</button>`;
+    }
+    case 'generator':
+      return `<button class="chip-btn ok" data-action="panel" data-panel="network">🛢️ Generator running${b.gridBackAt ? ` · grid back ~${formatClock(b.gridBackAt)}` : ''}</button>`;
+    default:
+      return `<button class="chip-btn bad" data-action="panel" data-panel="network">🌑 BLACKOUT</button>`;
+  }
+}
+
+export function backupPanel(s: GameState): string {
+  const b = s.backup;
+  if (!b) return '';
+  const cap = upsCapacityKwh(b);
+  const pct = cap > 0 ? Math.min(100, (b.upsKwh / cap) * 100) : 0;
+  const src = { grid: ['ok', 'Utility grid'], ups: ['warn', 'On battery'], generator: ['ok', 'On generator'], none: ['bad', 'BLACKOUT'] }[b.source];
+  const tested = generatorTested(s);
+  const busy = (kind: string) => s.jobs.some((j) => j.kind === kind);
+  const gen = { none: ['muted', 'None'], idle: [tested ? 'ok' : 'warn', tested ? 'Standby · tested' : 'Standby · UNTESTED'], running: ['ok', 'Running'], failed: ['bad', 'FAILED'] }[b.generator];
+  const need = (n: number) => (s.cash < n ? 'disabled' : '');
+  return `<h3>Backup power</h3>
+    <div class="report"><span>Racks run on</span><b class="${src[0]}">${src[1]}</b>
+      ${!b.grid && b.gridBackAt ? `<span>Grid back</span><b>~${formatClock(b.gridBackAt)}</b>` : ''}
+      ${b.source === 'ups' ? `<span>Battery left</span><b>${Math.floor(upsRuntimeMin(s))} min</b>` : ''}</div>
+    <div class="bar big"><div style="width:${pct}%" class="${pct < 25 ? 'bad' : ''}"></div></div>
+    <ul class="list">
+      <li><div class="row"><b>🔋 UPS × ${b.upsUnits}</b><span class="chip ${b.health < BACKUP.batteryWarnBelow ? 'bad' : 'ok'}">Health ${Math.round(b.health * 100)}%</span></div>
+        <div class="row meta">${b.upsKwh.toFixed(1)} / ${cap.toFixed(1)} kWh · bridges the gap until the generator starts</div>
+        <div class="row actions">${busy('replaceBattery') ? '<span class="busy">🔧 Replacing…</span>' : b.health < 0.95 ? `<button class="primary" data-action="dispatchPower" data-job="replaceBattery" ${need(BACKUP.batteryJobCost)}>Replace batteries ${money(BACKUP.batteryJobCost)}</button>` : ''}
+          ${b.upsUnits < BACKUP.maxUps ? `<button data-action="buyUps" ${need(BACKUP.upsPrice)}>+ UPS unit ${money(BACKUP.upsPrice)}</button>` : ''}</div></li>
+      <li><div class="row"><b>🛢️ Generator</b><span class="chip ${gen[0]}">${gen[1]}</span></div>
+        <div class="row meta">${b.generator === 'none' ? 'No generator: when the batteries run dry, the lights go out.' : `Starts ${BACKUP.genStartMin} min into an outage. ${tested ? 'Test valid until ' + formatClock((b.testedAt ?? 0) + BACKUP.genTestValidMin) + '.' : 'An untested generator often refuses to start.'}`}</div>
+        <div class="row actions">${b.generator === 'failed' ? (busy('startGenerator') ? '<span class="busy">🔧 Starting…</span>' : '<button class="primary" data-action="dispatchPower" data-job="startGenerator">Start generator</button>')
+          : b.generator === 'idle' && b.grid ? (busy('testGenerator') ? '<span class="busy">🔧 Testing…</span>' : `<button class="primary" data-action="dispatchPower" data-job="testGenerator" ${need(BACKUP.genTestCost)}>Test generator ${money(BACKUP.genTestCost)}</button>`)
+          : b.generator === 'none' ? `<button class="primary" data-action="buyGenerator" ${need(BACKUP.generatorPrice)}>Buy generator ${money(BACKUP.generatorPrice)}</button>` : ''}</div></li>
+    </ul>
+    <p class="muted small">Only an <b>electrician</b> works at full speed on power jobs. Hire one in the Team tab.</p>`;
+}
+
 export function networkPanel(s: GameState): string {
   const cap = bandwidthCapacity(s);
   const used = s.bandwidthUsed;
   const pct = cap > 0 ? (used / cap) * 100 : 100;
   const failed = s.racks.filter((r) => r.switchFailed);
-  return `
+  return `${backupPanel(s)}
     <h3>Uplink traffic</h3>
     <div class="report"><span>Using</span><b class="${used > cap ? 'bad' : pct > 90 ? 'warn' : ''}">${used.toFixed(1)} / ${cap} Gbps</b></div>
     <div class="bar big"><div style="width:${Math.min(100, pct)}%" class="${pct > 90 ? 'bad' : ''}"></div></div>
@@ -447,7 +494,6 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
         <span class="num">${ch.number}</span><span class="ct"><b>${e(ch.title)}</b><span class="small">${e(ch.subtitle)}</span></span>
         <span class="best">${open ? `${'★'.repeat(best)}${'☆'.repeat(3 - best)}` : '🔒'}</span></button>`;
     }).join('')}
-      <div class="chapter locked"><span class="num">5</span><span class="ct"><b>Enterprise DC</b><span class="small">UPS, generators and shifts: coming soon</span></span><span class="best">🔒</span></div>
     </div>
     ${extras ? achievementsGrid(extras.achievements) : ''}
     ${settingsForm(settings)}
@@ -570,7 +616,7 @@ export function goalBar(s: GameState): string {
   const today = s.today.revenue - s.today.salaries - s.today.rent - s.today.network - s.today.electricity;
   const money$ = `<span class="chip-btn ${today < 0 ? 'bad' : 'ok'}" title="Today so far (credited every hour)">💰 Today ${today >= 0 ? '+' : ''}${money(today)}</span>`;
   const streak = s.streak.hours >= 2 ? `<span class="chip-btn ok" title="Hours in a row with every customer within SLA (best ${s.streak.best}h)">🔥 Streak ${s.streak.hours}h</span>` : '';
-  return `${cyberChips(s)}${goal}${shift}${streak}${money$}`;
+  return `${cyberChips(s)}${powerChip(s)}${goal}${shift}${streak}${money$}`;
 }
 
 /** A burst of falling pieces for a perfect shift. Pure CSS, deterministic, off for reduced motion and e-ink. */

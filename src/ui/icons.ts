@@ -294,6 +294,12 @@ function outfit(role: PersonRole, c: Pal): Outfit {
         hat: () => `<path d="M18 24 Q18 8 32 8 Q46 8 46 24 Q40 18 32 18 Q24 18 18 24 Z" fill="${c.g4}" ${S(c, 1.8)}/><circle cx="32" cy="6" r="3" fill="${c.g4}" ${S(c, 1.4)}/>
 <path d="M18 25 q0 -17 14 -17 q14 0 14 17" stroke="${c.g3}" stroke-width="2.4"/><rect x="14.5" y="24" width="5" height="9" rx="2.4" fill="${c.g3}" ${S(c, 1.4)}/><rect x="44.5" y="24" width="5" height="9" rx="2.4" fill="${c.g3}" ${S(c, 1.4)}/><path d="M19 32 Q22 40 28 39" ${S(c, 1.8)}/><circle cx="29.5" cy="39" r="1.8" fill="${c.red}" ${S(c, 1)}/>`,
       };
+    case 'elec':
+      return {
+        bg: c.sky, body: c.amber,
+        details: () => `<path d="M33.5 45 L28 54 H32 L30.5 63 L38 52 H33.6 Z" fill="${c.yellow}" ${S(c, 1.2)}/><path d="M20 64 V52 M44 64 V52" stroke="${c.g4}" stroke-width="3"/>`,
+        hat: () => `<path d="M19 22 Q19 6 32 6 Q45 6 45 22 Z" fill="${c.red}" ${S(c, 1.8)}/><path d="M16 23 Q32 18 48 23 L47 26 Q32 22 17 26 Z" fill="${c.red}" ${S(c, 1.8)}/><path d="M33 8 L29 15 H33 L31 21 L37 13 H33.4 Z" fill="${c.yellow}" ${S(c, 1)}/>`,
+      };
     case 'lead':
       return {
         bg: c.sky, body: c.green,

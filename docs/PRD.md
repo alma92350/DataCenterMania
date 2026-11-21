@@ -493,7 +493,8 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 | **v0.5 "Mastery"** ✅ shipped | Replay reasons | Hard ★★★ constraints, 14 achievements, career title, seeded Daily Challenge (4 modifiers) with share line, outage post-mortems with one-tap remedies; **mobile responsiveness fixes** | Default bot ★★★ rate 6% (1/16 runs); guarded in CI at ≤ 20% |
 | **v0.6 "Launch Week"** ✅ shipped | Re-sequence and automation | Ch3/Ch4 split, Shift Lead auto-dispatch from Ch2, proactive specialists, juice pass (speech bubbles, SLA streak, confetti, screen shake), contract names, new artwork | ≤ 2 new systems per chapter ✓ (tested); with a Shift Lead the bot's workload is 1.18 / 1.66 / 1.31 actions/min in Ch2 / Ch3 / Ch4 (≈ 4.5 by hand) ✓ |
 | **v0.7 "Hackers"** ✅ shipped | Differentiator | Hacker Weekend event (2 villains, 3 micro-games), sandbox/endless mode | Event playable in ≤ 10 min ✓ (tested); micro-games pass phone touch tests (controls ≥ 44 px) ✓ |
-| **v1.0** | Enterprise and polish | UPS/generator/shifts chapter (fatigue moves here), accessibility audit, FR localisation | §19 KPIs met in a 20-player test |
+| **v0.8 "Enterprise DC"** ✅ shipped | Power resilience | Chapter 5: utility outages, UPS batteries, generator (start/test), Electrician role, blackout consequences, Infra tab | One new system (backup power); bot guardrails hold; negligent play suffers blackout, prepared play survives the storm ✓ (tested) |
+| **v1.0** | Polish | Accessibility audit, FR localisation, more chapters | §19 KPIs met in a 20-player test |
 
 ### MVP (vertical slice): Chapters 0–2 (shipped)
 - Floor map, rack view, 1–3 HW techs, dispatch, pathfinding, inventory and deliveries
@@ -665,6 +666,15 @@ Player report: "UI not very responsive on mobile". The probe (`e2e/perf-probe.mj
 - **Guardrails**: event ≤ 10 min for the bot; the auto-defend bot wins but never earns 3★; perfect play does. Micro-game controls are ≥ 44 px (phone e2e). Attacks never trigger the generic auto-pause.
 - **Sandbox / Endless** (unlocked by Startup Colo): choose floor (small / colo / big hall), starting cash ×0.5/1/2, incident rate ×0.5/1/2, random hackers on/off and a daily +8% ramp-up. No end date: the game ends on bankruptcy or zero reputation. Score = days × 1000 + peak cash / 20 + attacks blocked × 100; the high score is stored per browser.
 - **Fix**: the app height is now measured in JS (`--app-h`) so the bottom tab bar stays on screen in phone browsers without `dvh` support.
+
+### 21.17 v0.8 results
+
+- **Chapter 5 "Enterprise DC"** (unlocked by Launch Week): one tired UPS, a generator nobody has ever started, and a storm on Wednesday evening (a short drill outage on Tuesday morning teaches the lesson first).
+- **Backup power system**: the grid can fail; racks then run on UPS batteries (energy drains with facility load), the generator starts after 3 minutes, but an untested one fails about 65% of the time and needs an electrician to start it by hand. Batteries wear (6%/day) and need replacing ($700). Empty batteries with no generator mean a **blackout**: every server is down, the screen goes dark and reputation falls.
+- **Electrician** (new hire role): the only specialist at full speed for generator test/start and battery replacement (also resets breakers). Tests are valid for two days and cost $150 of diesel.
+- **UI**: the Network tab becomes **Infra** with the backup card (source, battery bar, health, generator state, one-tap actions); a HUD chip shows battery minutes, generator or blackout.
+- **Goals**: ★ uptime ≥ 97% and $2,000 profit; ★★ ≥ 99.8% and $6,500; ★★★ no blackout minute, a tested generator, a second UPS and $10,000 profit. Career titles rescaled for six chapters (Architect at 18 stars).
+- **Guardrails**: Ch5 joins the engagement tests (shift length, quiet time). Random outages (about 0.12 per day) also strike in Ch5.
 
 ## Appendix A: Example "first 5 minutes"
 

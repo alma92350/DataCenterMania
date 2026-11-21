@@ -450,6 +450,15 @@ export class App {
         this.modal = { kind: 'cooler', id: d.cooler! };
         this.renderUi(true);
         return;
+      case 'dispatchPower':
+        this.run({ type: 'dispatch', job: d.job as 'testGenerator', techId: 'best' });
+        return;
+      case 'buyUps':
+        this.run({ type: 'buyUps' });
+        return;
+      case 'buyGenerator':
+        this.run({ type: 'buyGenerator' });
+        return;
       case 'buyUplink':
         this.run({ type: 'buyUplink' });
         return;

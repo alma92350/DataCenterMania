@@ -22,6 +22,10 @@ export const TIPS: Record<string, string> = {
   fatigue: 'People get tired. Tired techs work slower and botch more, and exhausted ones take a break in the staff room. A better coffee machine helps morale.',
   maintenance: 'Cooler filters clog over time. A dirty CRAC loses capacity and can break down. Send an HVAC tech to change the filter.',
   network: 'All traffic leaves through your ISP uplinks. If customers need more bandwidth than you have, everybody suffers. A second uplink on a separate route also protects you from fiber cuts.',
+  backup: 'Power matters now. The UPS (batteries) bridges a power cut, and the generator takes over a few minutes later. But a generator nobody has tested often refuses to start. Open the Network tab and look at Backup power.',
+  electrician: 'Hire an electrician from the Team tab: only they can test the generator, restart it and change worn UPS batteries.',
+  gridDown: 'The utility power is out! Watch the battery minutes in the top bar. If the generator does not take over in time, every server goes dark.',
+  generatorFail: 'The generator did not start! Send your electrician (or you, slowly) to start it before the batteries run out.',
   uplinkCut: 'A backhoe just cut your fiber! Until it is spliced, only your other uplinks carry traffic. A network engineer can fix it faster than the ISP.',
   switchDown: 'A top-of-rack switch died: every server in that rack is offline. Network engineers carry spare switches. Make sure you have some in stock.',
   autodispatch: 'Busy? Hire a Shift Lead in the Team tab. They send the best specialist to routine alarms and customer requests so you can focus on the big decisions. It costs a daily salary: you are buying back your attention.',
@@ -51,7 +55,7 @@ export const TRAITS: TraitDef[] = [
 
 /** Specialists you can hire: each arrives with the system it looks after (PRD §21.5). */
 export function availableRoles(features: readonly string[]): TechRole[] {
-  return ['hw', ...(features.includes('maintenance') ? (['hvac'] as const) : []), ...(features.includes('network') ? (['net'] as const) : [])];
+  return ['hw', ...(features.includes('maintenance') ? (['hvac'] as const) : []), ...(features.includes('network') ? (['net'] as const) : []), ...(features.includes('backup') ? (['elec'] as const) : [])];
 }
 
 export const traitOf = (id: string | null): TraitDef | undefined => TRAITS.find((t) => t.id === id);

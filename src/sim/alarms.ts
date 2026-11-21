@@ -20,6 +20,9 @@ export const ALARM_TEXT: Record<AlarmKind, string> = {
   uplink: 'Fiber uplink cut',
   bandwidth: 'Uplink bandwidth exhausted',
   malware: 'Malware outbreak (servers quarantined)',
+  gridDown: 'Utility power is out',
+  generator: 'Generator failed to start',
+  battery: 'UPS batteries are worn out',
 };
 
 export interface AlarmTarget {

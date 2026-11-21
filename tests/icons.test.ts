@@ -95,7 +95,7 @@ describe('part sprites', () => {
 });
 
 describe('people sprites', () => {
-  const roles = ['manager', 'hw', 'hvac', 'net', 'lead'] as const;
+  const roles = ['manager', 'hw', 'hvac', 'net', 'lead', 'elec'] as const;
 
   it('every role is drawn, balanced, and looks different', () => {
     const drawings = roles.map((r) => avatarSvg(r, 'same-seed'));

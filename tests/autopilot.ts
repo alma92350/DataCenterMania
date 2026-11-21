@@ -1,13 +1,13 @@
 import { applyCommand, suggestedCoolerJob, suggestedJob } from '../src/sim/commands';
 import { hourOf } from '../src/core/time';
 import { firstFreeSlot, activeContracts, contractAssignedUnits } from '../src/sim/selectors';
-import { PARTS, PROJECTS } from '../src/data/catalog';
+import { BACKUP, PARTS, PROJECTS } from '../src/data/catalog';
 import type { GameState } from '../src/sim/types';
 
 /** A simple bot standing in for a competent player: fix every alarm, keep spares, fill contracts. */
 export type Defend = 'auto' | 'perfect' | 'ignore';
 
-export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend } = {}): void {
+export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent' } = {}): void {
   // cyber attacks: skip the micro-game (half strength), play it perfectly, or never answer
   if (s.cyber.attack && opts.defend !== 'ignore') {
     if (opts.defend === 'perfect') applyCommand(s, { type: 'resolveAttack', score: 1, mode: 'played', infected: [] });
@@ -43,10 +43,18 @@ export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend 
     applyCommand(s, { type: 'hire', candidateId: s.candidates[0].id });
   }
   if (s.features.includes('roles')) {
-    for (const role of ['hvac', 'net'] as const) {
+    for (const role of ['hvac', 'net', 'elec'] as const) {
       const cand = s.candidates.find((c) => c.role === role);
       if (!s.techs.some((t) => t.role === role) && cand) applyCommand(s, { type: 'hire', candidateId: cand.id });
     }
+  }
+  // backup power: test the generator while the grid is up, change worn batteries, add a second UPS
+  if (s.backup && opts.power !== 'negligent') {
+    const b = s.backup;
+    const tested = b.testedAt !== null && s.minute - b.testedAt < BACKUP.genTestValidMin - 360;
+    if (b.grid && b.generator === 'idle' && !tested && !s.jobs.some((j) => j.kind === 'testGenerator')) applyCommand(s, { type: 'dispatch', job: 'testGenerator', techId: 'best' });
+    if (b.grid && b.health < 0.6) applyCommand(s, { type: 'dispatch', job: 'replaceBattery', techId: 'best' });
+    if (b.upsUnits < 2 && s.cash > 9000) applyCommand(s, { type: 'buyUps' });
   }
   if (s.features.includes('fatigue') && s.coffeeLevel === 0 && s.cash > 9000 && !s.orders.some((o) => o.part === 'coffee')) {
     applyCommand(s, { type: 'order', part: 'coffee', qty: 1 });

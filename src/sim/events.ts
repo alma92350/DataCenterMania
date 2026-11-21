@@ -1,6 +1,7 @@
 import { CHAPTERS, type ScriptedAction } from '../data/chapters';
 import { applyFault } from './failures';
 import { cutUplink } from './network';
+import { startOutage } from './backup';
 import { launchAttack } from './cyber';
 import { addLog, makeContract, showTip } from './state';
 import type { GameState } from './types';
@@ -35,6 +36,9 @@ function run(s: GameState, a: ScriptedAction): void {
       if (c) c.health = Math.min(c.health, a.health);
       break;
     }
+    case 'outage':
+      startOutage(s, a.minutes, a.text);
+      break;
     case 'attack':
       launchAttack(s, a.kind, a.villain);
       break;

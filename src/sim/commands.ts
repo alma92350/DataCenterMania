@@ -1,8 +1,9 @@
 import { contractLabel } from './naming';
-import { CONTRACT_GRACE_MIN, EXTRA_UPLINK, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
+import { BACKUP, CONTRACT_GRACE_MIN, EXTRA_UPLINK, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
 import { dayOf } from '../core/time';
 import { deliveryTime } from './economy';
 import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
+import { upsCapacityKwh } from './backup';
 import { resolveAttack } from './cyber';
 import { isWalkable, nearestTile, tileAt } from './grid';
 import { addLog, homeSpot, homeTile, makeCandidate, newId, showTip, techFromCandidate } from './state';
@@ -29,12 +30,14 @@ export type Command =
   | { type: 'serviceCooler'; coolerId: string; techId: TechChoice }
   | { type: 'repairCooler'; coolerId: string; techId: TechChoice }
   | { type: 'buyUplink' }
+  | { type: 'buyUps' }
+  | { type: 'buyGenerator' }
   | { type: 'hireLead' }
   | { type: 'resolveAttack'; score: number; mode: 'played' | 'auto'; infected?: number[] }
   | { type: 'setAutoDispatch'; on: boolean }
   | { type: 'startProject'; project: ProjectId; techId?: TechChoice };
 
-export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor' | 'reimage'>;
+export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor' | 'reimage' | 'startGenerator' | 'testGenerator' | 'replaceBattery'>;
 
 export type CommandResult = { ok: true } | { ok: false; error: string };
 
@@ -58,6 +61,10 @@ export function suggestedJob(kind: AlarmKind): DispatchJob | null {
       return 'reboot';
     case 'breaker':
       return 'resetBreaker';
+    case 'generator':
+      return 'startGenerator';
+    case 'battery':
+      return 'replaceBattery';
     default:
       return null;
   }
@@ -153,6 +160,26 @@ function exec(s: GameState, cmd: Command): CommandResult {
         if (s.jobs.some((j) => j.kind === 'repairUplink' && j.uplinkId === u.id)) return fail('Someone is already on it.');
         const site = nearestTile(s.grid, 'dock', homeTile(s)) ?? homeTile(s);
         return dispatchJob(s, { kind: 'repairUplink', uplinkId: u.id, part: null, site }, cmd.techId);
+      }
+      if (cmd.job === 'startGenerator' || cmd.job === 'testGenerator' || cmd.job === 'replaceBattery') {
+        const b = s.backup;
+        if (!b) return fail('This site has no backup power system.');
+        const site = nearestTile(s.grid, 'dock', homeTile(s)) ?? homeTile(s);
+        if (s.jobs.some((j) => j.kind === cmd.job)) return fail('Someone is already on it.');
+        if (cmd.job === 'startGenerator') {
+          if (b.generator !== 'failed') return fail('The generator is fine.');
+        } else if (cmd.job === 'testGenerator') {
+          if (b.generator === 'none') return fail('You have no generator yet.');
+          if (!b.grid) return fail('Not during an outage: it is already needed.');
+          if (s.cash < BACKUP.genTestCost) return fail('Not enough cash for the diesel.');
+          s.cash -= BACKUP.genTestCost;
+        } else {
+          if (b.upsUnits < 1) return fail('You have no UPS yet.');
+          if (b.health >= 0.95) return fail('The batteries are still good.');
+          if (s.cash < BACKUP.batteryJobCost) return fail('Not enough cash for the batteries.');
+          s.cash -= BACKUP.batteryJobCost;
+        }
+        return dispatchJob(s, { kind: cmd.job, part: null, site }, cmd.techId);
       }
       if (cmd.job === 'resetBreaker') {
         const rack = rackById(s, cmd.rackId ?? null);
@@ -329,6 +356,27 @@ function exec(s: GameState, cmd: Command): CommandResult {
       s.cash -= EXTRA_UPLINK.setupCost;
       s.uplinks.push({ id: newId(s, 'u'), name: EXTRA_UPLINK.name, capacityGbps: EXTRA_UPLINK.capacityGbps, costPerDay: EXTRA_UPLINK.costPerDay, up: true, repairAt: null });
       addLog(s, 'success', `${EXTRA_UPLINK.name} is live: +${EXTRA_UPLINK.capacityGbps} Gbps on a separate route.`);
+      return ok();
+    }
+    case 'buyUps': {
+      const b = s.backup;
+      if (!b) return fail('This site has no backup power system.');
+      if (b.upsUnits >= BACKUP.maxUps) return fail('The UPS room is full.');
+      if (s.cash < BACKUP.upsPrice) return fail('Not enough cash.');
+      s.cash -= BACKUP.upsPrice;
+      b.upsUnits++;
+      b.upsKwh = Math.min(upsCapacityKwh(b), b.upsKwh + BACKUP.upsKwhPerUnit);
+      addLog(s, 'success', `Another UPS unit is online: ${b.upsUnits} now, ${Math.round(upsCapacityKwh(b))} kWh of battery.`);
+      return ok();
+    }
+    case 'buyGenerator': {
+      const b = s.backup;
+      if (!b) return fail('This site has no backup power system.');
+      if (b.generator !== 'none') return fail('You already have a generator.');
+      if (s.cash < BACKUP.generatorPrice) return fail('Not enough cash.');
+      s.cash -= BACKUP.generatorPrice;
+      b.generator = 'idle';
+      addLog(s, 'success', 'A diesel generator is installed in the yard. Have an electrician test it!');
       return ok();
     }
     case 'ackAlarm': {

@@ -62,6 +62,9 @@ export const JOB_WORK_MIN: Record<JobKind, number> = {
   favor: 15,
   audit: 45,
   reimage: 45,
+  startGenerator: 10,
+  testGenerator: 60,
+  replaceBattery: 40,
 };
 
 export const JOB_LABEL: Record<JobKind, string> = {
@@ -82,6 +85,9 @@ export const JOB_LABEL: Record<JobKind, string> = {
   favor: 'Customer favour',
   audit: 'Cable audit',
   reimage: 'Clean & re-image',
+  startGenerator: 'Start generator',
+  testGenerator: 'Test generator',
+  replaceBattery: 'Replace UPS batteries',
 };
 
 /**
@@ -89,13 +95,14 @@ export const JOB_LABEL: Record<JobKind, string> = {
  * but works slower outside basic hardware jobs.
  */
 export const JOB_ROLES: Record<JobKind, TechRole[]> = {
-  reboot: ['hw'], resetBreaker: ['hw'], swapDisk: ['hw'], replacePsu: ['hw'], install: ['hw'], remove: ['hw'],
+  reboot: ['hw'], resetBreaker: ['hw', 'elec'], swapDisk: ['hw'], replacePsu: ['hw'], install: ['hw'], remove: ['hw'],
   buildRack: ['hw'], rotateRack: ['hw'], placeCooler: ['hw', 'hvac'],
   serviceCooler: ['hvac'], repairCooler: ['hvac'], replaceSwitch: ['net'], repairUplink: ['net'],
   project: ['hw', 'net'], favor: ['hw', 'hvac', 'net'], audit: ['net'], reimage: ['hw', 'net'],
+  startGenerator: ['elec'], testGenerator: ['elec'], replaceBattery: ['elec'],
 };
 
-export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer', lead: 'Shift Lead' };
+export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer', lead: 'Shift Lead', elec: 'Electrician' };
 /** Manager work-speed factor on specialist (non-hardware) jobs. */
 export const MANAGER_SPECIALIST_RATE = 0.5;
 
@@ -168,3 +175,11 @@ export const PROACTIVE = { everyMin: 30, filterBelow: 0.8 } as const;
 
 /** A cable audit cuts switch failures and fiber trouble for a day. */
 export const AUDIT = { riskMult: 0.4, durationMin: 1440, renewBeforeMin: 120 } as const;
+
+/** Backup power (PRD §10, v0.8): UPS bridges the gap, the generator takes over, and must have been tested. */
+export const BACKUP = {
+  upsKwhPerUnit: 8, upsPrice: 3500, maxUps: 3, rechargeKwhPerMin: 0.12,
+  batteryWearPerDay: 0.06, batteryWarnBelow: 0.6, batteryJobCost: 700, minHealthCapacity: 0.25,
+  generatorPrice: 9000, genStartMin: 3, genTestCost: 150, genTestValidMin: 2 * 1440, untestedStartChance: 0.35,
+  randomOutagePerDay: 0.12, outageMin: [45, 150],
+} as const;

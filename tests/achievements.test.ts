@@ -54,9 +54,9 @@ describe('achievements', () => {
   it('nightmare and architect need the right conditions', () => {
     expect(earnedAchievements(won('ch2', 1, 'nightmare'), {})).toContain('onCallLegend');
     expect(earnedAchievements(won('ch2'), {})).not.toContain('onCallLegend');
-    const all3 = { ch0: { sysadmin: 3 }, ch1: { senior: 3 }, ch2: { sysadmin: 3 }, ch3: { intern: 3 }, ch4: { sysadmin: 3 } };
-    expect(earnedAchievements(won('ch4', 3), all3)).toContain('architect');
-    expect(earnedAchievements(won('ch4', 3), { ...all3, ch4: undefined })).not.toContain('architect');
+    const all3 = { ch0: { sysadmin: 3 }, ch1: { senior: 3 }, ch2: { sysadmin: 3 }, ch3: { intern: 3 }, ch4: { sysadmin: 3 }, ch5: { sysadmin: 3 } };
+    expect(earnedAchievements(won('ch5', 3), all3)).toContain('architect');
+    expect(earnedAchievements(won('ch5', 3), { ...all3, ch5: undefined })).not.toContain('architect');
   });
 
   it('cyber achievements need played (not auto-defended) results', () => {
@@ -92,7 +92,7 @@ describe('career title', () => {
     expect(careerTitle({}).title).toBe('Intern');
     expect(careerTitle({ ch0: { sysadmin: 3 } }).title).toBe('Junior Sysadmin');
     expect(careerTitle({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 } }).title).toBe('Sysadmin');
-    const fifteen = { ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 }, ch3: { sysadmin: 3 }, ch4: { sysadmin: 3 } };
+    const fifteen = { ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 }, ch3: { sysadmin: 3 }, ch4: { sysadmin: 3 }, ch5: { sysadmin: 3 } };
     expect(careerTitle(fifteen).title).toBe('Architect');
     expect(careerTitle({ ...fifteen, ch3: { sysadmin: 3, nightmare: 1 } }).title).toBe('CTO');
     expect(careerTitle({}).next).toBe('Junior Sysadmin');

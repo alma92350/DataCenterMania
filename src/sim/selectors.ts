@@ -13,7 +13,7 @@ const BLOCKING_FAULTS = new Set(['psu', 'hung', 'dataloss', 'malware']);
 
 /** Is the device serving traffic right now? */
 export function deviceUp(s: GameState, d: Device): boolean {
-  if (!d.poweredOn || d.thermalShutdown) return false;
+  if (!d.poweredOn || d.thermalShutdown || s.backup?.source === 'none') return false;
   if (d.faults.some((f) => BLOCKING_FAULTS.has(f))) return false;
   const rack = rackById(s, d.rackId);
   return !!rack && !rack.tripped && !rack.switchFailed && !rack.maintenance;

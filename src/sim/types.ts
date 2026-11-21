@@ -21,11 +21,11 @@ export interface Grid {
 }
 
 export type DifficultyId = 'intern' | 'sysadmin' | 'senior' | 'nightmare';
-export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'hack';
+export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'hack';
 export type FeatureFlag =
   | 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote'
   | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance'
-  | 'projects' | 'walkins' | 'autodispatch' | 'cyber';
+  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup';
 
 export type PartId =
   | 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc'
@@ -78,7 +78,24 @@ export interface Cooler {
   broken: boolean;
 }
 
-export type TechRole = 'manager' | 'hw' | 'hvac' | 'net' | 'lead';
+/** Where the racks get their power right now. */
+export type PowerSource = 'grid' | 'ups' | 'generator' | 'none';
+
+export interface Backup {
+  grid: boolean;
+  /** When the utility comes back (null while the grid is up). */
+  gridBackAt: number | null;
+  outageStart: number | null;
+  source: PowerSource;
+  upsUnits: number;
+  /** Stored energy in kWh and battery condition 0..1. */
+  upsKwh: number;
+  health: number;
+  generator: 'none' | 'idle' | 'running' | 'failed';
+  testedAt: number | null;
+}
+
+export type TechRole = 'manager' | 'hw' | 'hvac' | 'net' | 'lead' | 'elec';
 
 export interface Tech {
   id: string;
@@ -113,6 +130,7 @@ export interface Candidate {
 
 export type JobKind =
   | 'swapDisk'
+  | 'startGenerator' | 'testGenerator' | 'replaceBattery'
   | 'replacePsu'
   | 'reboot'
   | 'resetBreaker'
@@ -160,7 +178,7 @@ export interface Job {
 
 export type AlarmKind =
   | 'disk' | 'dataloss' | 'psu' | 'hung' | 'overheat' | 'breaker' | 'powerHigh'
-  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth' | 'malware';
+  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth' | 'malware' | 'gridDown' | 'generator' | 'battery';
 
 export interface Alarm {
   id: string;
@@ -377,7 +395,12 @@ export interface GameState {
     /** Problems caught early by idle specialists. */
     prevented?: number;
     autoDispatched?: number;
+    /** Game minutes with no power at all (grid down, battery empty, generator off). */
+    blackoutMin?: number;
+    outages?: number;
   };
+  /** UPS, generator and the utility feed (Chapter 5). */
+  backup?: Backup;
   /** The Shift Lead sends specialists to alarms automatically. */
   autoDispatch: boolean;
   cyber: CyberState;

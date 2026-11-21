@@ -425,6 +425,31 @@ try {
     await page.screenshot({ path: `${outDir}/sandbox-game.png` });
   });
 
+  await session('enterprise power (phone)', { ...devices['Pixel 5'], deviceScaleFactor: 2 }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 }, ch3: { sysadmin: 3 }, ch4: { sysadmin: 1 } }));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: false, sound: false, difficulty: 'intern', display: 'color' }));
+    });
+    await page.reload();
+    await page.waitForSelector('[data-chapter="ch5"]');
+    check(true, 'Chapter 5: Enterprise DC unlocks after Launch Week');
+    await page.tap('[data-chapter="ch5"]');
+    await page.waitForSelector('#topbar .stat');
+    while (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+    check((await page.textContent('#tabs')).includes('Infra'), 'the Network tab becomes Infra');
+    await page.tap('#tabs [data-panel="network"]');
+    await page.waitForSelector('[data-job="testGenerator"]');
+    check((await page.textContent('#panel')).includes('UNTESTED'), 'the Infra tab shows an untested generator');
+    await page.screenshot({ path: `${outDir}/power-panel.png` });
+    await page.tap('[data-job="testGenerator"]');
+    await page.waitForSelector('text=Testing…', { timeout: 4000 });
+    check(true, 'tapping Test generator sends someone (the manager, until you hire an electrician)');
+    await page.tap('#tabs [data-panel="team"]');
+    await page.waitForTimeout(300);
+    check((await page.textContent('#panel')).includes('Electrician'), 'an electrician is available to hire');
+    check(await page.isVisible('#tabs'), 'the tab bar stays visible');
+  });
+
 } finally {
   server?.kill();
 }
