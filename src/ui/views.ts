@@ -4,6 +4,7 @@ import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
 import { MINUTES_PER_DAY, formatClock, dayOf, type Speed } from '../core/time';
 import { alarmLabel } from '../sim/alarms';
+import { contractLabel } from '../sim/naming';
 import { suggestedCoolerJob, suggestedJob } from '../sim/commands';
 import { bandwidthCapacity } from '../sim/network';
 import { demandFactor } from '../sim/demand';
@@ -181,7 +182,8 @@ function contractRow(s: GameState, c: Contract): string {
   const bar = Math.min(100, (live / Math.max(1, c.units)) * 100);
   const needPct = Math.min(100, (need / Math.max(1, c.units)) * 100);
   return `<li class="contract">
-    <div class="row"><b>${e(c.customer)}</b><span class="muted">${money(c.revenuePerDay)}/day · ${daysLeft}d left</span></div>
+    <div class="row"><b>${e(c.name)}</b><span class="muted">${money(c.revenuePerDay)}/day · ${daysLeft}d left</span></div>
+    <div class="row meta"><span class="cust">🏢 ${e(c.customer)}</span></div>
     <div class="row meta">${e(c.description)}</div>
     <div class="cap" title="Live capacity vs demand"><div class="cap-live" style="width:${bar}%"></div><div class="cap-need" style="left:${needPct}%"></div></div>
     <div class="row meta"><span>Servers: ${live}/${assigned} live units, needs ${c.units} (demand now ${need.toFixed(1)})</span><span class="${contractMarginPerDay(s, c) < 0 ? 'bad' : 'ok'}" title="Revenue minus server power and rack rent">Margin ${money(contractMarginPerDay(s, c))}/day</span></div>
@@ -202,7 +204,8 @@ export function contractsPanel(s: GameState): string {
     ${offers.length
       ? `<ul class="list">${offers
           .map((c) => `<li class="contract offer">
-            <div class="row"><b>${e(c.customer)}</b><span class="muted">${money(c.revenuePerDay)}/day</span></div>
+            <div class="row"><b>${e(c.name)}</b><span class="muted">${money(c.revenuePerDay)}/day</span></div>
+            <div class="row meta"><span class="cust">🏢 ${e(c.customer)}</span></div>
             <div class="row meta">${e(c.description)}</div>
             <div class="row meta">Needs ${c.units} units · SLA ${c.slaPct}% · ${c.durationDays} days · penalty ${money(c.penaltyPerBreach)}/breach · demand: ${e(c.profile)}</div>
             <div class="row actions"><span class="muted">Offer expires in ${Math.max(0, c.expiresDay - dayOf(s.minute))}d</span>
@@ -331,11 +334,11 @@ function deviceRow(s: GameState, d: Device): string {
     .map((j) => `<button class="primary" data-action="dispatchDevice" data-job="${j}" data-device="${e(d.id)}">${e(JOB_LABEL[j])}</button>`)
     .join('');
   const contractOptions = `<option value="">— unassigned —</option>${activeContracts(s)
-    .map((c) => `<option value="${e(c.id)}" ${c.id === d.contractId ? 'selected' : ''}>${e(c.customer)}</option>`)
+    .map((c) => `<option value="${e(c.id)}" ${c.id === d.contractId ? 'selected' : ''}>${e(contractLabel(c))}</option>`)
     .join('')}`;
   return `<li class="slot dev ${cls}" style="--u:${m.u}">
     <div class="row"><span class="u">U${d.slot + 1}${m.u > 1 ? `-${d.slot + m.u}` : ''}</span><b>${e(m.name)}</b><span class="chip ${cls}">${status}</span></div>
-    <div class="row meta">${d.faults.map((f) => `⚠ ${e(f)}`).join(' ')} ${up ? `Load ${(d.load * 100).toFixed(0)}%` : ''} ${contract ? `· for ${e(contract.customer)}` : ''}</div>
+    <div class="row meta">${d.faults.map((f) => `⚠ ${e(f)}`).join(' ')} ${up ? `Load ${(d.load * 100).toFixed(0)}%` : ''} ${contract ? `· for ${e(contractLabel(contract))}` : ''}</div>
     <div class="row actions">
       ${job ? `<span class="busy">🔧 ${e(JOB_LABEL[job.kind])}…</span>` : fixes}
       <select data-action="assign" data-device="${e(d.id)}" aria-label="Customer">${contractOptions}</select>
@@ -350,7 +353,7 @@ export function rackModal(s: GameState, rackId: string): string {
   const powerPct = (rack.loadW / rack.powerBudgetW) * 100;
   const layout = rackLayout(s, rack);
   const stock = (['server1u', 'server2u'] as const).filter((m) => s.inventory[m] > 0);
-  const contractOptions = `<option value="">— unassigned —</option>${activeContracts(s).map((c) => `<option value="${e(c.id)}">${e(c.customer)}</option>`).join('')}`;
+  const contractOptions = `<option value="">— unassigned —</option>${activeContracts(s).map((c) => `<option value="${e(c.id)}">${e(contractLabel(c))}</option>`).join('')}`;
   const tempCls = rack.temp >= THERMAL.major ? 'bad' : rack.temp >= THERMAL.warn ? 'warn' : 'ok';
   const breakerJob = s.jobs.find((j) => j.kind === 'resetBreaker' && j.rackId === rack.id);
   return `<div class="modal-card" role="dialog" aria-modal="true" aria-label="${e(rackName(s, rack))}">

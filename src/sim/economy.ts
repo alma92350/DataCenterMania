@@ -1,3 +1,4 @@
+import { contractLabel } from './naming';
 import { pick, randInt } from '../core/rng';
 import { MINUTES_PER_DAY, dayOf, minuteOfDay } from '../core/time';
 import { BASE_PUE, ELECTRICITY_PER_KWH, MORALE, PARTS, RACK_RENT_PER_DAY } from '../data/catalog';
@@ -97,7 +98,7 @@ export function settleDay(s: GameState, final = false): DayReport {
       c.breaches++;
       report.penalties += Math.round(c.penaltyPerBreach * diff.slaPenalty);
       s.reputation = Math.max(0, s.reputation - 0.3);
-      addLog(s, 'fail', `SLA breached for ${c.customer}: ${uptime.toFixed(1)}% < ${c.slaPct}%.`);
+      addLog(s, 'fail', `SLA breached for ${contractLabel(c)}: ${uptime.toFixed(1)}% < ${c.slaPct}%.`);
     }
     c.totalMinutes += c.minutesToday;
     c.totalOkMinutes += c.okMinutesToday;
@@ -118,7 +119,7 @@ export function settleDay(s: GameState, final = false): DayReport {
       c.status = 'ended';
       for (const d of s.devices) if (d.contractId === c.id) d.contractId = null;
       if (c.breaches === 0) s.reputation = Math.min(5, s.reputation + 0.1);
-      addLog(s, 'info', `Contract with ${c.customer} ended.`);
+      addLog(s, 'info', `Contract ${contractLabel(c)} ended.`);
     }
   }
   s.contracts = s.contracts.filter((c) => !(c.status === 'offered' && today >= c.expiresDay));

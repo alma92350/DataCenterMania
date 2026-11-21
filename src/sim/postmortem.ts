@@ -1,3 +1,4 @@
+import { contractLabel } from './naming';
 import { countdown } from './postmortem-format';
 import { addLog, newId } from './state';
 import type { AlarmKind, Contract, GameState, PartId, ProjectId } from './types';
@@ -75,12 +76,12 @@ export function trackOutage(s: GameState, c: Contract, ok: boolean): void {
   const kind = inferKind(s, c, open);
   const lesson = LESSONS[kind] ?? LESSONS.capacity!;
   const pm: PostMortem = {
-    id: newId(s, 'pm'), customer: c.customer, from: open, to: s.minute, minutes, kind,
+    id: newId(s, 'pm'), customer: contractLabel(c), from: open, to: s.minute, minutes, kind,
     cause: lesson.cause, prevent: lesson.prevent, remedy: lesson.remedy ?? null,
   };
   s.postMortems ??= [];
   s.postMortems.push(pm);
   if (s.postMortems.length > 10) s.postMortems.splice(0, s.postMortems.length - 10);
   s.pendingPostMortem = pm;
-  addLog(s, 'info', `📋 Post-mortem: ${c.customer} was down for ${countdown(minutes)}. ${lesson.cause}`);
+  addLog(s, 'info', `📋 Post-mortem: ${contractLabel(c)} was down for ${countdown(minutes)}. ${lesson.cause}`);
 }

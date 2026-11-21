@@ -11,7 +11,7 @@ const money = (n: number) => `${n < 0 ? '-' : ''}$${Math.round(Math.abs(n)).toLo
 export type ContractSeed = Pick<
   Contract,
   'customer' | 'description' | 'units' | 'slaPct' | 'revenuePerDay' | 'penaltyPerBreach' | 'durationDays' | 'profile'
-> & Partial<Pick<Contract, 'bandwidthPerUnit'>>;
+> & Partial<Pick<Contract, 'bandwidthPerUnit' | 'name'>>;
 
 export type ScriptedAction =
   | { type: 'say'; text: string }
@@ -70,7 +70,7 @@ export interface ChapterDef {
 }
 
 const BAKERY: ContractSeed = {
-  customer: "Grandma's Bakery", description: 'Website and till system. Busy in office hours.',
+  customer: "Grandma's Bakery", name: 'Till System', description: 'Website and till system. Busy in office hours.',
   units: 2, slaPct: 95, revenuePerDay: 240, penaltyPerBreach: 150, durationDays: 30, profile: 'office',
 };
 
@@ -111,7 +111,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       {
         id: 'bakeryOnline', at: at(4, 9, 40), actions: [
           { type: 'say', text: 'Grandma wants an online shop! Sign the new contract (Clients tab), then install the server from your stock for it.' },
-          { type: 'offer', contract: { customer: "Grandma's Bakery", description: 'Online cake orders.', units: 1, slaPct: 95, revenuePerDay: 140, penaltyPerBreach: 80, durationDays: 30, profile: 'office' } },
+          { type: 'offer', contract: { customer: "Grandma's Bakery", name: 'Online Shop', description: 'Online cake orders.', units: 1, slaPct: 95, revenuePerDay: 140, penaltyPerBreach: 80, durationDays: 30, profile: 'office' } },
           { type: 'tip', key: 'install' },
         ],
       },

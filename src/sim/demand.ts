@@ -1,3 +1,4 @@
+import { contractLabel } from './naming';
 import { minuteOfDay, weekdayOf } from '../core/time';
 import { NETWORK } from '../data/catalog';
 import { clearAlarms, raiseAlarm } from './alarms';
@@ -47,11 +48,11 @@ export function updateDemand(s: GameState, dt: number): void {
       c.liveFrom = s.minute;
       if (provisioned) {
         s.cash += c.revenuePerDay;
-        addLog(s, 'money', `Setup fee from ${c.customer}: +$${c.revenuePerDay}.`);
+        addLog(s, 'money', `Setup fee from ${contractLabel(c)}: +$${c.revenuePerDay}.`);
       }
       addLog(s, provisioned ? 'success' : 'fail', provisioned
-        ? `${c.customer} is live! SLA measurement starts now.`
-        : `${c.customer}: setup time is over. SLA measurement starts now, ready or not!`);
+        ? `${contractLabel(c)} is live! SLA measurement starts now.`
+        : `${contractLabel(c)}: setup time is over. SLA measurement starts now, ready or not!`);
     }
     const ok = capacity + 1e-9 >= needed && (bandwidthOk || c.bandwidthPerUnit === 0);
     const load = capacity > 0 ? Math.min(1, needed / capacity) : 0;

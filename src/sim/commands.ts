@@ -1,3 +1,4 @@
+import { contractLabel } from './naming';
 import { CONTRACT_GRACE_MIN, EXTRA_UPLINK, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
 import { dayOf } from '../core/time';
 import { deliveryTime } from './economy';
@@ -221,7 +222,7 @@ export function applyCommand(s: GameState, cmd: Command): CommandResult {
       c.expiresDay = c.startDay + c.durationDays;
       c.liveFrom = null;
       c.graceUntil = s.minute + CONTRACT_GRACE_MIN;
-      addLog(s, 'success', `Contract signed with ${c.customer}! Assign ${c.units} units of servers to it.`);
+      addLog(s, 'success', `Contract signed: ${contractLabel(c)}! Assign ${c.units} units of servers to it.`);
       showTip(s, 'contracts');
       return ok();
     }

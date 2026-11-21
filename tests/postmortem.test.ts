@@ -4,6 +4,7 @@ import { step } from '../src/sim/sim';
 import { applyFault } from '../src/sim/failures';
 import { applyCommand } from '../src/sim/commands';
 import { cutUplink } from '../src/sim/network';
+import { contractLabel } from '../src/sim/naming';
 import type { GameState } from '../src/sim/types';
 
 function quiet(ch: GameState['chapter'] = 'ch1'): GameState {
@@ -29,7 +30,7 @@ describe('outage post-mortems', () => {
     run(s, 2);
     const pm = s.postMortems.at(-1)!;
     expect(pm).toBeDefined();
-    expect(pm.customer).toBe(c.customer);
+    expect(pm.customer).toBe(contractLabel(c));
     expect(pm.minutes).toBeGreaterThanOrEqual(20);
     expect(pm.kind).toBe('psu');
     expect(pm.cause).toMatch(/power supply/i);

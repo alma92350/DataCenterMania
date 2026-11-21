@@ -1,5 +1,6 @@
 import { MORALE } from '../data/catalog';
 import { SAVE_VERSION } from './state';
+import { assignMissingNames } from './naming';
 import type { GameState, PartId } from './types';
 
 export function serialize(s: GameState): string {
@@ -62,7 +63,13 @@ function migrateV3(d: AnyRecord): void {
   d.version = 4;
 }
 
-const MIGRATIONS: Record<number, (d: AnyRecord) => void> = { 1: migrateV1, 2: migrateV2, 3: migrateV3 };
+/** v4 -> v5: contract names. */
+function migrateV4(d: AnyRecord): void {
+  assignMissingNames(d.contracts as { customer: string; name?: string }[]);
+  d.version = 5;
+}
+
+const MIGRATIONS: Record<number, (d: AnyRecord) => void> = { 1: migrateV1, 2: migrateV2, 3: migrateV3, 4: migrateV4 };
 
 /** Parses, validates and migrates a save to the current version. */
 export function deserialize(json: string): GameState {

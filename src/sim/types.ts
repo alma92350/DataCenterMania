@@ -174,6 +174,8 @@ export type DemandProfileId = 'flat' | 'office' | 'lunchDinner' | 'evening';
 export interface Contract {
   id: string;
   customer: string;
+  /** Project name, unique among the customer's contracts. */
+  name: string;
   description: string;
   units: number; // compute units required at 100% demand
   slaPct: number;

@@ -1,3 +1,4 @@
+import { contractLabel } from './naming';
 import { chance, pick } from '../core/rng';
 import { hourOf } from '../core/time';
 import { WALKINS } from '../data/catalog';
@@ -21,8 +22,8 @@ export function spawnWalkin(s: GameState): Walkin | null {
   const rack = s.racks.find((r) => r.id === dev?.rackId) ?? s.racks[0];
   if (!contract || !rack) return null;
   const w: Walkin = {
-    id: newId(s, 'w'), customer: contract.customer, rackId: rack.id,
-    text: `${contract.customer} ${pick(s.rng, ASKS)} Rack ${s.racks.indexOf(rack) + 1}`,
+    id: newId(s, 'w'), customer: contractLabel(contract), rackId: rack.id,
+    text: `${contract.customer} (${contract.name}) ${pick(s.rng, ASKS)} Rack ${s.racks.indexOf(rack) + 1}`,
     reward: Math.round((WALKINS.baseReward + WALKINS.rewardPerChapter * CHAPTERS[s.chapter].number) * DIFFICULTIES[s.difficulty].startingCash),
     deadline: s.minute + WALKINS.deadlineMin, status: 'open',
   };

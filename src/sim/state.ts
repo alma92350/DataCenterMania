@@ -5,11 +5,12 @@ import { CHAPTERS, type ContractSeed } from '../data/chapters';
 import { FIRST_NAMES, HIREABLE_ROLES, LAST_NAMES, TIPS, TRAITS } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
 import { parseMap } from './grid';
+import { nextContractName } from './naming';
 import type {
   Candidate, ChapterId, Contract, Cooler, DayReport, DifficultyId, Facing, Fx, GameState, LogKind, PartId, Rack, Tech, Vec,
 } from './types';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 const LOG_CAP = 200;
 
 export function emptyReport(day: number): DayReport {
@@ -45,6 +46,7 @@ export function makeContract(s: GameState, seed: ContractSeed, status: Contract[
   return {
     id: newId(s, 'c'),
     ...seed,
+    name: nextContractName(s.contracts, seed.customer, seed.name),
     bandwidthPerUnit: seed.bandwidthPerUnit ?? 0,
     status,
     startDay: status === 'active' ? day : null,

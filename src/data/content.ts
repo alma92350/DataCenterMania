@@ -71,3 +71,20 @@ export const CUSTOMERS: CustomerArchetype[] = [
   { name: 'Law & Order Mail', description: 'Law firm email. Office hours only.', units: [2, 3], slaPct: 99, pricePerUnit: 200, profile: 'office', duration: [5, 10] , bandwidth: 0.2 },
   { name: 'Crypto Bro Capital', description: 'Pays double. Flat-out load, every minute.', units: [3, 5], slaPct: 97, pricePerUnit: 400, profile: 'flat', duration: [2, 4] , bandwidth: 0.1 },
 ];
+
+/**
+ * Every contract has its own project name, so two contracts of the same customer can be told
+ * apart everywhere (drop-downs, logs, post-mortems). Pools are used in order, then numbered.
+ */
+export const CONTRACT_PROJECTS: Record<string, string[]> = {
+  "Grandma's Bakery": ['Till System', 'Online Shop', 'Cake Orders', 'Loyalty App'],
+  'Pizza Rocket': ['Order App', 'Driver Tracking', 'Menu API', 'Promo Site'],
+  ByteBank: ['Payments Gateway', 'Core Ledger', 'Fraud Scoring', 'Mobile Banking'],
+  'Nightly News': ['News Website', 'Video Streams', 'Archive', 'Push Alerts'],
+  'Pixel Forge Games': ['Game Servers', 'Matchmaking', 'Leaderboards', 'Patch CDN'],
+  'Pixel Forge Launch': ['Launch Servers', 'Launch Login', 'Launch Store'],
+  'Law & Order Mail': ['Email Cluster', 'Case Files', 'Document Vault', 'Client Portal'],
+  'Crypto Bro Capital': ['Mining Rack', 'Trading Bot', 'Wallet Vault', 'Token Mint'],
+};
+
+export const GENERIC_PROJECTS = ['Main Site', 'Backoffice', 'Customer Portal', 'Data Lake', 'Analytics', 'Staging'];
