@@ -173,6 +173,7 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
     pendingPostMortem: null,
     alarmHistory: [],
     failuresEnabled: ch.failuresEnabled,
+    ...(ch.incidentMult !== undefined ? { incidentMult: ch.incidentMult } : {}),
     attention: null,
   };
   s.progress.peakCash = s.cash;
@@ -208,6 +209,6 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
   // with specialists, the first candidates always include one of each new role
   if (s.features.includes('roles')) availableRoles(s.features).filter((r) => r !== 'hw').forEach((role, i) => (s.candidates[i]!.role = role));
 
-  addLog(s, 'story', `Chapter ${ch.number}: ${ch.title}. ${ch.intro}`);
+  addLog(s, 'story', `${ch.event ? 'Event' : `Chapter ${ch.number}`}: ${ch.title}. ${ch.intro}`);
   return s;
 }

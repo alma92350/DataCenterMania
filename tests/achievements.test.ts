@@ -59,6 +59,16 @@ describe('achievements', () => {
     expect(earnedAchievements(won('ch4', 3), { ...all3, ch4: undefined })).not.toContain('architect');
   });
 
+  it('cyber achievements need played (not auto-defended) results', () => {
+    const s = createGame('hack', 'sysadmin', 1);
+    s.cyber.history.push({ kind: 'phish', score: 1, mode: 'auto', minute: 1 }, { kind: 'worm', score: 0.5, mode: 'played', minute: 2 });
+    expect(earnedAchievements(s, {})).not.toContain('phishPro');
+    expect(earnedAchievements(s, {})).not.toContain('wormWrangler');
+    s.cyber.history.push({ kind: 'phish', score: 1, mode: 'played', minute: 3 }, { kind: 'worm', score: 1, mode: 'played', minute: 4 });
+    s.cyber.blocked = 5;
+    expect(earnedAchievements(s, {})).toEqual(expect.arrayContaining(['phishPro', 'wormWrangler', 'hackerHunter']));
+  });
+
   it('a Daily Challenge does not count as a chapter win', () => {
     const s = won('ch2');
     s.dailyId = '2026-12-03';

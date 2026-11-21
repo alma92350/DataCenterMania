@@ -55,6 +55,10 @@ export interface ChapterDef {
   /** Facing of the map's racks, in map order (default: all 'S'). */
   rackFacing?: Facing[];
   uplinks?: Omit<Uplink, 'id' | 'up' | 'repairAt'>[];
+  /** A self-contained event: reachable from the start screen, not part of the campaign order. */
+  event?: boolean;
+  /** Scales random incidents for the whole chapter. */
+  incidentMult?: number;
   /** Fixed shift goal for every shift of this chapter (default: random). */
   shiftGoal?: 'sla' | 'noCritical' | 'fastFix';
   /** Roles of the starting technicians, besides the manager (default: hardware techs). */
@@ -74,6 +78,41 @@ const BAKERY: ContractSeed = {
   customer: "Grandma's Bakery", name: 'Till System', description: 'Website and till system. Busy in office hours.',
   units: 2, slaPct: 95, revenuePerDay: 240, penaltyPerBreach: 150, durationDays: 30, profile: 'office',
 };
+
+/** The 25x13 colocation floor shared by Colocation Floor, Launch Week and Hacker Weekend. */
+const COLO_MAP = [
+  '#########################',
+  '#SSS....C...........~~~~#',
+  '#S..................~~~~#',
+  '#..R.R.R.R.R........~~~~#',
+  '#...................~~~~#',
+  '#..R.R.R.R.R........~~~~#',
+  '#...................~~~~#',
+  '#..R.R.R.R.R........~~~~#',
+  '#...................~~~~#',
+  '#...........A.......~~~~#',
+  '#NN.................~~~~#',
+  '#NN................D~~~~#',
+  '#########################',
+];
+
+const COLO_DEVICES: ChapterDef['devices'] = [
+  { rack: 0, model: 'server1u', slot: 0, contract: 0 }, { rack: 0, model: 'server1u', slot: 1, contract: 0 },
+  { rack: 1, model: 'server1u', slot: 0, contract: 0 }, { rack: 1, model: 'server1u', slot: 1, contract: 0 },
+  { rack: 2, model: 'server1u', slot: 0, contract: 0 }, { rack: 2, model: 'server1u', slot: 1, contract: 1 },
+  { rack: 3, model: 'server1u', slot: 0, contract: 1 }, { rack: 3, model: 'server1u', slot: 1, contract: 1 },
+  { rack: 5, model: 'server1u', slot: 0, contract: 2 }, { rack: 5, model: 'server1u', slot: 1, contract: 2 },
+  { rack: 6, model: 'server1u', slot: 0, contract: 2 }, { rack: 6, model: 'server1u', slot: 1, contract: 2 },
+  { rack: 7, model: 'server1u', slot: 0, contract: 2 }, { rack: 7, model: 'server1u', slot: 1, contract: 3 },
+  { rack: 8, model: 'server1u', slot: 0, contract: 3 }, { rack: 8, model: 'server1u', slot: 1, contract: 3 },
+];
+
+const COLO_CONTRACTS: ChapterDef['contracts'] = [
+  { seed: { customer: 'ByteBank', description: 'Fintech. Strict SLA, pays a lot.', units: 4, slaPct: 99.5, revenuePerDay: 1800, penaltyPerBreach: 1100, durationDays: 10, profile: 'office' }, active: true },
+  { seed: { customer: 'Law & Order Mail', description: 'Email for a law firm.', units: 3, slaPct: 98, revenuePerDay: 750, penaltyPerBreach: 400, durationDays: 10, profile: 'office' }, active: true },
+  { seed: { customer: 'Nightly News', description: 'News site, busy in the evening.', units: 4, slaPct: 98, revenuePerDay: 1250, penaltyPerBreach: 700, durationDays: 10, profile: 'evening' }, active: true },
+  { seed: { ...BAKERY, units: 2, revenuePerDay: 350, durationDays: 10 }, active: true },
+];
 
 export const CHAPTERS: Record<ChapterId, ChapterDef> = {
   ch0: {
@@ -241,21 +280,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
   ch3: {
     id: 'ch3', number: 3, title: 'Colocation Floor', subtitle: 'Hot aisles, cold aisles and the HVAC specialist',
     intro: 'A real colocation floor: three rows of racks and a CRAC unit. Get the airflow right, keep the filters clean with an HVAC specialist, and survive the heatwave.',
-    map: [
-      '#########################',
-      '#SSS....C...........~~~~#',
-      '#S..................~~~~#',
-      '#..R.R.R.R.R........~~~~#',
-      '#...................~~~~#',
-      '#..R.R.R.R.R........~~~~#',
-      '#...................~~~~#',
-      '#..R.R.R.R.R........~~~~#',
-      '#...................~~~~#',
-      '#...........A.......~~~~#',
-      '#NN.................~~~~#',
-      '#NN................D~~~~#',
-      '#########################',
-    ],
+    map: COLO_MAP,
     startMinute: at(0, 8),
     endMinute: at(3, 22),
     features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch'],
@@ -264,22 +289,8 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     rackPowerBudgetW: 3000,
     mapCooler: 'wallAc',
     startingRoles: ['hw'],
-    devices: [
-      { rack: 0, model: 'server1u', slot: 0, contract: 0 }, { rack: 0, model: 'server1u', slot: 1, contract: 0 },
-      { rack: 1, model: 'server1u', slot: 0, contract: 0 }, { rack: 1, model: 'server1u', slot: 1, contract: 0 },
-      { rack: 2, model: 'server1u', slot: 0, contract: 0 }, { rack: 2, model: 'server1u', slot: 1, contract: 1 },
-      { rack: 3, model: 'server1u', slot: 0, contract: 1 }, { rack: 3, model: 'server1u', slot: 1, contract: 1 },
-      { rack: 5, model: 'server1u', slot: 0, contract: 2 }, { rack: 5, model: 'server1u', slot: 1, contract: 2 },
-      { rack: 6, model: 'server1u', slot: 0, contract: 2 }, { rack: 6, model: 'server1u', slot: 1, contract: 2 },
-      { rack: 7, model: 'server1u', slot: 0, contract: 2 }, { rack: 7, model: 'server1u', slot: 1, contract: 3 },
-      { rack: 8, model: 'server1u', slot: 0, contract: 3 }, { rack: 8, model: 'server1u', slot: 1, contract: 3 },
-    ],
-    contracts: [
-      { seed: { customer: 'ByteBank', description: 'Fintech. Strict SLA, pays a lot.', units: 4, slaPct: 99.5, revenuePerDay: 1800, penaltyPerBreach: 1100, durationDays: 10, profile: 'office' }, active: true },
-      { seed: { customer: 'Law & Order Mail', description: 'Email for a law firm.', units: 3, slaPct: 98, revenuePerDay: 750, penaltyPerBreach: 400, durationDays: 10, profile: 'office' }, active: true },
-      { seed: { customer: 'Nightly News', description: 'News site, busy in the evening.', units: 4, slaPct: 98, revenuePerDay: 1250, penaltyPerBreach: 700, durationDays: 10, profile: 'evening' }, active: true },
-      { seed: { ...BAKERY, units: 2, revenuePerDay: 350, durationDays: 10 }, active: true },
-    ],
+    devices: COLO_DEVICES,
+    contracts: COLO_CONTRACTS,
     inventory: { disk: 2, psu: 1, server1u: 2, filter: 1 },
     hwTechs: 1,
     failuresEnabled: true,
@@ -301,21 +312,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
   ch4: {
     id: 'ch4', number: 4, title: 'Launch Week', subtitle: 'Fiber, bandwidth and a long week',
     intro: 'A big game launches on Wednesday and every customer is online at once. Watch your uplink, keep spare switches, look after your people, and brace for a backhoe.',
-    map: [
-      '#########################',
-      '#SSS....C...........~~~~#',
-      '#S..................~~~~#',
-      '#..R.R.R.R.R........~~~~#',
-      '#...................~~~~#',
-      '#..R.R.R.R.R........~~~~#',
-      '#...................~~~~#',
-      '#..R.R.R.R.R........~~~~#',
-      '#...................~~~~#',
-      '#...........A.......~~~~#',
-      '#NN.................~~~~#',
-      '#NN................D~~~~#',
-      '#########################',
-    ],
+    map: COLO_MAP,
     startMinute: at(0, 8),
     endMinute: at(4, 22),
     features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue'],
@@ -327,16 +324,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     rackFacing: ['S', 'S', 'S', 'S', 'S', 'N', 'N', 'N', 'N', 'N', 'S', 'S', 'S', 'S', 'S'],
     uplinks: [{ name: 'MetroFiber A', capacityGbps: 8, costPerDay: 150 }],
     startingRoles: ['hw'],
-    devices: [
-      { rack: 0, model: 'server1u', slot: 0, contract: 0 }, { rack: 0, model: 'server1u', slot: 1, contract: 0 },
-      { rack: 1, model: 'server1u', slot: 0, contract: 0 }, { rack: 1, model: 'server1u', slot: 1, contract: 0 },
-      { rack: 2, model: 'server1u', slot: 0, contract: 0 }, { rack: 2, model: 'server1u', slot: 1, contract: 1 },
-      { rack: 3, model: 'server1u', slot: 0, contract: 1 }, { rack: 3, model: 'server1u', slot: 1, contract: 1 },
-      { rack: 5, model: 'server1u', slot: 0, contract: 2 }, { rack: 5, model: 'server1u', slot: 1, contract: 2 },
-      { rack: 6, model: 'server1u', slot: 0, contract: 2 }, { rack: 6, model: 'server1u', slot: 1, contract: 2 },
-      { rack: 7, model: 'server1u', slot: 0, contract: 2 }, { rack: 7, model: 'server1u', slot: 1, contract: 3 },
-      { rack: 8, model: 'server1u', slot: 0, contract: 3 }, { rack: 8, model: 'server1u', slot: 1, contract: 3 },
-    ],
+    devices: COLO_DEVICES,
     contracts: [
       { seed: { customer: 'ByteBank', description: 'Fintech. Strict SLA, pays a lot.', units: 4, slaPct: 99.5, revenuePerDay: 1800, penaltyPerBreach: 1100, durationDays: 10, profile: 'office', bandwidthPerUnit: 0.3 }, active: true },
       { seed: { customer: 'Law & Order Mail', description: 'Email for a law firm.', units: 3, slaPct: 98, revenuePerDay: 750, penaltyPerBreach: 400, durationDays: 10, profile: 'office', bandwidthPerUnit: 0.2 }, active: true },
@@ -364,6 +352,47 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     ],
     next: null,
   },
+  hack: {
+    id: 'hack', number: 3, event: true, title: 'Hacker Weekend', subtitle: 'Script Kiddies and Captain Phish are coming',
+    intro: 'Two cartoon villains have picked your data center for the weekend. Flood, phishing and worms: defend in quick micro-games (or auto-defend at half strength) and keep the customers online.',
+    map: COLO_MAP,
+    startMinute: at(4, 9),
+    endMinute: at(5, 20),
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'cyber'],
+    startCash: 16000,
+    ambient: 24,
+    rackPowerBudgetW: 3000,
+    mapCooler: 'wallAc',
+    // the aisles are already right: this weekend is about the hackers
+    rackFacing: ['S', 'S', 'S', 'S', 'S', 'N', 'N', 'N', 'N', 'N', 'S', 'S', 'S', 'S', 'S'],
+    startingRoles: ['hw'],
+    devices: COLO_DEVICES,
+    contracts: COLO_CONTRACTS,
+    inventory: { disk: 2, psu: 1, server1u: 2, filter: 1 },
+    hwTechs: 1,
+    failuresEnabled: true,
+    incidentMult: 0.6,
+    dailyOffers: false,
+    events: [
+      { id: 'cyberTip', at: at(4, 9, 3), actions: [{ type: 'tip', key: 'cyber' }] },
+      { id: 'atk1', at: at(4, 10), actions: [{ type: 'attack', kind: 'flood' }] },
+      { id: 'atk2', at: at(4, 13), actions: [{ type: 'attack', kind: 'phish' }] },
+      { id: 'atk3', at: at(4, 16), actions: [{ type: 'attack', kind: 'worm' }] },
+      { id: 'atk4', at: at(4, 19), actions: [{ type: 'attack', kind: 'flood' }] },
+      { id: 'atk5', at: at(5, 9), actions: [{ type: 'attack', kind: 'phish' }] },
+      { id: 'atk6', at: at(5, 12), actions: [{ type: 'attack', kind: 'worm' }] },
+      { id: 'atk7', at: at(5, 16), actions: [{ type: 'attack', kind: 'flood' }] },
+    ],
+    objectives: [
+      { label: 'Survive the weekend: SLA uptime ≥ 90% and cash ≥ $0', check: (s) => overallUptimePct(s) >= 90 && s.cash >= 0, progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 90% · blocked ${s.cyber.blocked}` },
+      { label: 'Block at least 5 attacks', check: (s) => s.cyber.blocked >= 5, progress: (s) => `Blocked ${s.cyber.blocked} / 5` },
+      { label: 'Block every attack, five of them perfectly', check: (s) => s.cyber.hits === 0 && s.cyber.perfect >= 5 },
+    ],
+    next: null,
+  },
 };
 
+/** The campaign, in order. Events (like the Hacker Weekend) are not part of it. */
 export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4'];
+
+export const EVENT_ORDER: ChapterId[] = ['hack'];

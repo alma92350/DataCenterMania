@@ -143,6 +143,7 @@ export class Persistence {
 
 /** A chapter is unlocked when it is the first, or the previous one was won on any difficulty. */
 export function isUnlocked(p: Progress, chapter: ChapterId): boolean {
+  if (chapter === 'hack') return bestStars(p, 'ch2') > 0; // events open after Startup Colo
   const i = CHAPTER_ORDER.indexOf(chapter);
   if (i <= 0) return true;
   const prev = p[CHAPTER_ORDER[i - 1]!];

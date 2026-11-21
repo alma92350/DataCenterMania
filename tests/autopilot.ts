@@ -5,7 +5,14 @@ import { PARTS, PROJECTS } from '../src/data/catalog';
 import type { GameState } from '../src/sim/types';
 
 /** A simple bot standing in for a competent player: fix every alarm, keep spares, fill contracts. */
-export function autopilot(s: GameState, opts: { auto?: boolean } = {}): void {
+export type Defend = 'auto' | 'perfect' | 'ignore';
+
+export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend } = {}): void {
+  // cyber attacks: skip the micro-game (half strength), play it perfectly, or never answer
+  if (s.cyber.attack && opts.defend !== 'ignore') {
+    if (opts.defend === 'perfect') applyCommand(s, { type: 'resolveAttack', score: 1, mode: 'played', infected: [] });
+    else applyCommand(s, { type: 'resolveAttack', score: 1, mode: 'auto' });
+  }
   // a player who trusts the Shift Lead hires one early and lets them handle routine alarms and requests
   if (opts.auto && s.features.includes('autodispatch')) {
     if (!s.techs.some((t) => t.role === 'lead') && s.cash > 4000) applyCommand(s, { type: 'hireLead' });

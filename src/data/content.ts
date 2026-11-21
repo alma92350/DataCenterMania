@@ -25,6 +25,8 @@ export const TIPS: Record<string, string> = {
   uplinkCut: 'A backhoe just cut your fiber! Until it is spliced, only your other uplinks carry traffic. A network engineer can fix it faster than the ISP.',
   switchDown: 'A top-of-rack switch died: every server in that rack is offline. Network engineers carry spare switches. Make sure you have some in stock.',
   autodispatch: 'Busy? Hire a Shift Lead in the Team tab. They send the best specialist to routine alarms and customer requests so you can focus on the big decisions. It costs a daily salary: you are buying back your attention.',
+  cyber: 'Hackers! When an attack hits, tap Defend to play a 10-second game. Skip it with Auto-defend and you only get half the protection. Floods overload your customers, phishing locks technicians out of their accounts, and worms quarantine racks until someone cleans and re-images them.',
+  malware: 'Quarantined racks are down until a technician cleans and re-images them. Send one from the Alarms tab (or let your Shift Lead do it).',
   quit: 'Unhappy, exhausted staff quit. Watch fatigue and morale in the Team tab.',
 };
 

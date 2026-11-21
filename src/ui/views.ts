@@ -57,7 +57,7 @@ export function topBar(s: GameState, speed: Speed, effective: Speed): string {
     <div class="stat" title="Cash"><span class="k">Cash</span><b class="${s.cash < 0 ? 'neg' : ''}">${money(s.cash)}</b></div>
     <div class="stat" title="Reputation"><span class="k">Rep</span><b class="stars">${stars(s.reputation)}</b></div>
     <div class="stat" title="SLA uptime since start"><span class="k">Uptime</span><b>${overallUptimePct(s).toFixed(2)}%</b></div>
-    <div class="stat clock" title="Time left: ${countdown(left)}"><span class="k">Ch${ch.number} · ${countdown(left)} left</span><b>${formatClock(s.minute)}</b></div>
+    <div class="stat clock" title="Time left: ${countdown(left)}"><span class="k">${ch.event ? 'Event' : `Ch${ch.number}`} · ${countdown(left)} left</span><b>${formatClock(s.minute)}</b></div>
     <div class="speed" role="group" aria-label="Game speed">
       ${speeds.map((sp) => `<button data-action="speed" data-speed="${sp}" class="${sp === speed ? 'on' : ''}" aria-pressed="${sp === speed}" title="${sp === 0 ? 'Pause (Space)' : `${sp}× speed`}">${sp === 0 ? '⏸' : `${sp}×`}</button>`).join('')}
       ${speed > 0 && effective === 0 ? '<span class="night paused" title="Read the tip to continue">⏸ Tip</span>' : effective !== speed ? '<span class="night" title="Night skip">🌙4×</span>' : ''}
@@ -285,7 +285,7 @@ export function goalsPanel(s: GameState): string {
   const status = objectiveStatus(s);
   const last = s.reports[s.reports.length - 1];
   return `
-    <h3>Chapter ${ch.number}: ${e(ch.title)}</h3>
+    <h3>${ch.event ? 'Event' : `Chapter ${ch.number}`}: ${e(ch.title)}</h3>
     <p class="muted">${e(ch.intro)}</p>
     <ul class="list goals">${objectivesFor(s)
       .map((o, i) => `<li class="row"><span class="star">${'★'.repeat(i + 1)}</span><span>${e(o.label)}</span><span class="${status[i] ? 'ok' : 'muted'}">${status[i] ? '✓ on track' : '…'}</span></li>`)
@@ -492,7 +492,7 @@ export function endScreen(s: GameState, extras: EndExtras = { newAchievements: [
   const next = ch.next ? CHAPTERS[ch.next] : null;
   const profit = s.cash - s.progress.startCash;
   return `<div class="modal-card end ${won ? 'won' : 'lost'}" role="dialog" aria-modal="true">
-    <h2>${s.dailyId ? (won ? '🎉 Daily complete!' : '💥 Daily failed') : won ? '🎉 Chapter complete!' : '💥 Chapter failed'}</h2>
+    <h2>${s.dailyId ? (won ? '🎉 Daily complete!' : '💥 Daily failed') : won ? `🎉 ${ch.event ? 'Event' : 'Chapter'} complete!` : `💥 ${ch.event ? 'Event' : 'Chapter'} failed`}</h2>
     <div class="big-stars">${'★'.repeat(s.progress.stars)}${'☆'.repeat(3 - s.progress.stars)}</div>
     <ul class="list goals">${objectivesFor(s).map((o, i) => `<li class="row"><span>${status[i] ? '✅' : '❌'}</span><span>${e(o.label)}</span></li>`).join('')}</ul>
     <div class="report">
