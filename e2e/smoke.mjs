@@ -450,6 +450,26 @@ try {
     check(await page.isVisible('#tabs'), 'the tab bar stays visible');
   });
 
+  await session('french + accessibility (phone)', { ...devices['Pixel 5'], deviceScaleFactor: 2 }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern', display: 'color', lang: 'fr' }));
+    });
+    await page.reload();
+    await page.waitForSelector('.start');
+    const start = await page.textContent('.start');
+    check(start.includes('Difficulté') && start.includes('Chapitres'), 'the start screen is in French when the language is French');
+    check((await page.getAttribute('html', 'lang')) === 'fr', 'the page language attribute follows the setting');
+    check(!(await page.getAttribute('meta[name="viewport"]', 'content')).includes('user-scalable=no'), 'pinch-zoom is not disabled');
+    check((await page.locator('h1').count()) >= 1 && (await page.locator('main, section.start').count()) >= 1, 'the start screen has a heading and a landmark');
+    await page.tap('[data-chapter="ch0"]');
+    await page.waitForSelector('#topbar .stat');
+    check((await page.textContent('#tabs')).includes('Alarmes'), 'the tabs are translated');
+    check((await page.textContent('#topbar')).includes('Argent'), 'the HUD is translated');
+    await page.waitForSelector('.tip-card', { timeout: 8000 });
+    check((await page.textContent('.tip-card')).includes('placard'), 'the mentor speaks French');
+    check(await page.evaluate(() => document.querySelector('#panel')?.getAttribute('tabindex') === '0'), 'the scrolling panel is keyboard focusable');
+  });
+
 } finally {
   server?.kill();
 }

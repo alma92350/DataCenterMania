@@ -3,6 +3,7 @@ import { deserialize, serialize } from '../sim/save';
 import type { ChapterId, DifficultyId, GameState } from '../sim/types';
 import { DEFAULT_SANDBOX, type SandboxConfig } from '../sim/sandbox';
 import type { AutoPauseSetting } from './clock';
+import type { Lang } from './i18n';
 import type { DisplaySetting } from './display';
 
 const SAVE_KEY = 'dcm.save.v1';
@@ -51,11 +52,13 @@ export interface Settings {
   difficulty: DifficultyId;
   /** Colour screen or e-ink (Kindle Scribe); auto-detected by default. */
   display: DisplaySetting;
+  /** Interface language; 'auto' follows the browser. */
+  lang: Lang | 'auto';
   /** Last Sandbox setup. */
   sandbox: SandboxConfig;
 }
 
-export const DEFAULT_SETTINGS: Settings = { autoPause: 'critical', nightSkip: true, sound: true, difficulty: 'sysadmin', display: 'auto', sandbox: { ...DEFAULT_SANDBOX } };
+export const DEFAULT_SETTINGS: Settings = { autoPause: 'critical', nightSkip: true, sound: true, difficulty: 'sysadmin', display: 'auto', lang: 'auto', sandbox: { ...DEFAULT_SANDBOX } };
 
 /** Best stars per chapter and difficulty. */
 export type Progress = Partial<Record<ChapterId, Partial<Record<DifficultyId, number>>>>;

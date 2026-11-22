@@ -19,6 +19,7 @@ import {
 } from '../sim/selectors';
 import type { Alarm, Contract, Device, DifficultyId, GameState, LogEntry, PartId, ProjectId, Rack, ShiftReport, Tech } from '../sim/types';
 import { SEVERITY_LABEL } from '../sim/types';
+import { t } from './i18n';
 import { countdown, escapeHtml as e, money, stars } from './format';
 import { bestStars, isDifficultyUnlocked, isSandboxUnlocked, isUnlocked, type Progress, type Settings } from './storage';
 import { generatorTested, upsCapacityKwh, upsRuntimeMin } from '../sim/backup';
@@ -57,9 +58,9 @@ export function topBar(s: GameState, speed: Speed, effective: Speed): string {
   const alarms = s.alarms.filter((a) => a.kind !== 'powerHigh');
   const worst = alarms.reduce((m, a) => Math.max(m, a.severity), 0);
   return `
-    <div class="stat" title="Cash"><span class="k">Cash</span><b class="${s.cash < 0 ? 'neg' : ''}">${money(s.cash)}</b></div>
-    <div class="stat" title="Reputation"><span class="k">Rep</span><b class="stars">${stars(s.reputation)}</b></div>
-    <div class="stat" title="SLA uptime since start"><span class="k">Uptime</span><b>${overallUptimePct(s).toFixed(2)}%</b></div>
+    <div class="stat" title="${t('Cash')}"><span class="k">${t('Cash')}</span><b class="${s.cash < 0 ? 'neg' : ''}">${money(s.cash)}</b></div>
+    <div class="stat" title="${t('Reputation')}"><span class="k">${t('Rep')}</span><b class="stars">${stars(s.reputation)}</b></div>
+    <div class="stat" title="${t('SLA uptime since start')}"><span class="k">${t('Uptime')}</span><b>${overallUptimePct(s).toFixed(2)}%</b></div>
     <div class="stat clock" title="Time left: ${countdown(left)}"><span class="k">${ch.event ? 'Event' : `Ch${ch.number}`} · ${countdown(left)} left</span><b>${formatClock(s.minute)}</b></div>
     <div class="speed" role="group" aria-label="Game speed">
       ${speeds.map((sp) => `<button data-action="speed" data-speed="${sp}" class="${sp === speed ? 'on' : ''}" aria-pressed="${sp === speed}" title="${sp === 0 ? 'Pause (Space)' : `${sp}× speed`}">${sp === 0 ? '⏸' : `${sp}×`}</button>`).join('')}
@@ -73,7 +74,7 @@ export function tabs(s: GameState, active: PanelId): string {
   return visiblePanels(s)
     .map((p) => {
       const badge = p === 'alarms' ? s.alarms.filter((a) => a.kind !== 'powerHigh').length + s.walkins.filter((w) => w.status === 'open').length : p === 'contracts' ? offeredContracts(s).length : 0;
-      const meta = p === 'network' && s.backup ? { icon: '🔌', label: 'Infra' } : PANEL_META[p];
+      const meta = p === 'network' && s.backup ? { icon: '🔌', label: t('Infra') } : PANEL_META[p];
       const alert = p === 'network' && s.backup && (!s.backup.grid || s.alarms.some((a) => a.kind === 'generator' || a.kind === 'battery'));
       return `<button data-action="panel" data-panel="${p}" class="${p === active ? 'on' : ''}" aria-pressed="${p === active}">
         <span class="ti">${meta.icon}</span><span class="tl">${meta.label}</span>${alert ? '<span class="badge">!</span>' : ''}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
@@ -245,13 +246,13 @@ export function backupPanel(s: GameState): string {
   if (!b) return '';
   const cap = upsCapacityKwh(b);
   const pct = cap > 0 ? Math.min(100, (b.upsKwh / cap) * 100) : 0;
-  const src = { grid: ['ok', 'Utility grid'], ups: ['warn', 'On battery'], generator: ['ok', 'On generator'], none: ['bad', 'BLACKOUT'] }[b.source];
+  const src = { grid: ['ok', t('Utility grid')], ups: ['warn', t('On battery')], generator: ['ok', t('On generator')], none: ['bad', t('BLACKOUT')] }[b.source];
   const tested = generatorTested(s);
   const busy = (kind: string) => s.jobs.some((j) => j.kind === kind);
   const gen = { none: ['muted', 'None'], idle: [tested ? 'ok' : 'warn', tested ? 'Standby · tested' : 'Standby · UNTESTED'], running: ['ok', 'Running'], failed: ['bad', 'FAILED'] }[b.generator];
   const need = (n: number) => (s.cash < n ? 'disabled' : '');
-  return `<h3>Backup power</h3>
-    <div class="report"><span>Racks run on</span><b class="${src[0]}">${src[1]}</b>
+  return `<h3>${t('Backup power')}</h3>
+    <div class="report"><span>${t('Racks run on')}</span><b class="${src[0]}">${src[1]}</b>
       ${!b.grid && b.gridBackAt ? `<span>Grid back</span><b>~${formatClock(b.gridBackAt)}</b>` : ''}
       ${b.source === 'ups' ? `<span>Battery left</span><b>${Math.floor(upsRuntimeMin(s))} min</b>` : ''}</div>
     <div class="bar big"><div style="width:${pct}%" class="${pct < 25 ? 'bad' : ''}"></div></div>
@@ -260,7 +261,7 @@ export function backupPanel(s: GameState): string {
         <div class="row meta">${b.upsKwh.toFixed(1)} / ${cap.toFixed(1)} kWh · bridges the gap until the generator starts</div>
         <div class="row actions">${busy('replaceBattery') ? '<span class="busy">🔧 Replacing…</span>' : b.health < 0.95 ? `<button class="primary" data-action="dispatchPower" data-job="replaceBattery" ${need(BACKUP.batteryJobCost)}>Replace batteries ${money(BACKUP.batteryJobCost)}</button>` : ''}
           ${b.upsUnits < BACKUP.maxUps ? `<button data-action="buyUps" ${need(BACKUP.upsPrice)}>+ UPS unit ${money(BACKUP.upsPrice)}</button>` : ''}</div></li>
-      <li><div class="row"><b>🛢️ Generator</b><span class="chip ${gen[0]}">${gen[1]}</span></div>
+      <li><div class="row"><b>🛢️ ${t('Generator')}</b><span class="chip ${gen[0]}">${gen[1]}</span></div>
         <div class="row meta">${b.generator === 'none' ? 'No generator: when the batteries run dry, the lights go out.' : `Starts ${BACKUP.genStartMin} min into an outage. ${tested ? 'Test valid until ' + formatClock((b.testedAt ?? 0) + BACKUP.genTestValidMin) + '.' : 'An untested generator often refuses to start.'}`}</div>
         <div class="row actions">${b.generator === 'failed' ? (busy('startGenerator') ? '<span class="busy">🔧 Starting…</span>' : '<button class="primary" data-action="dispatchPower" data-job="startGenerator">Start generator</button>')
           : b.generator === 'idle' && b.grid ? (busy('testGenerator') ? '<span class="busy">🔧 Testing…</span>' : `<button class="primary" data-action="dispatchPower" data-job="testGenerator" ${need(BACKUP.genTestCost)}>Test generator ${money(BACKUP.genTestCost)}</button>`)
@@ -275,11 +276,11 @@ export function networkPanel(s: GameState): string {
   const pct = cap > 0 ? (used / cap) * 100 : 100;
   const failed = s.racks.filter((r) => r.switchFailed);
   return `${backupPanel(s)}
-    <h3>Uplink traffic</h3>
+    <h3>${t('Uplink traffic')}</h3>
     <div class="report"><span>Using</span><b class="${used > cap ? 'bad' : pct > 90 ? 'warn' : ''}">${used.toFixed(1)} / ${cap} Gbps</b></div>
     <div class="bar big"><div style="width:${Math.min(100, pct)}%" class="${pct > 90 ? 'bad' : ''}"></div></div>
     <p class="muted small">If customers need more bandwidth than your live uplinks carry, every bandwidth-using contract misses its SLA.</p>
-    <h3>Uplinks</h3>
+    <h3>${t('Uplinks')}</h3>
     <ul class="list">${s.uplinks.map((u) => {
       const job = s.jobs.find((j) => j.uplinkId === u.id);
       return `<li><div class="row"><b>${e(u.name)}</b><span class="chip ${u.up ? 'ok' : 'bad'}">${u.up ? 'Up' : 'CUT'}</span></div>
@@ -289,7 +290,7 @@ export function networkPanel(s: GameState): string {
     ${s.uplinks.length < 2 ? `<div class="banner info"><span>Add <b>${e(EXTRA_UPLINK.name)}</b>: +${EXTRA_UPLINK.capacityGbps} Gbps on a separate route.
       ${money(EXTRA_UPLINK.setupCost)} setup + ${money(EXTRA_UPLINK.costPerDay)}/day.</span>
       <button class="primary" data-action="buyUplink" ${s.cash < EXTRA_UPLINK.setupCost ? 'disabled' : ''}>Order</button></div>` : ''}
-    <h3>Switches</h3>
+    <h3>${t('Switches')}</h3>
     ${failed.length ? `<ul class="list">${failed.map((r) => `<li class="row"><span>🔀 ${e(rackName(s, r))} switch down</span><button data-action="openRack" data-rack="${e(r.id)}">📍 Rack</button></li>`).join('')}</ul>`
       : `<div class="empty">All top-of-rack switches healthy. ${s.inventory.switch} spare${s.inventory.switch === 1 ? '' : 's'} in stock.</div>`}`;
 }
@@ -411,7 +412,7 @@ export function rackModal(s: GameState, rackId: string): string {
   const tempCls = rack.temp >= THERMAL.major ? 'bad' : rack.temp >= THERMAL.warn ? 'warn' : 'ok';
   const breakerJob = s.jobs.find((j) => j.kind === 'resetBreaker' && j.rackId === rack.id);
   return `<div class="modal-card" role="dialog" aria-modal="true" aria-label="${e(rackName(s, rack))}">
-    <header><h2 class="inline-ico"><span class="ico sm">${partSvg('rack')}</span> ${e(rackName(s, rack))}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
+    <header role="group"><h2 class="inline-ico"><span class="ico sm">${partSvg('rack')}</span> ${e(rackName(s, rack))}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
     <div class="rack-stats">
       <div><span class="k">Temperature</span><b class="${tempCls}">${rack.temp.toFixed(1)}°C</b></div>
       <div><span class="k">Power</span><b class="${powerPct > 90 ? 'bad' : powerPct > 70 ? 'warn' : ''}">${Math.round(rack.loadW)} / ${rack.powerBudgetW} W</b>
@@ -452,7 +453,7 @@ export function coolerModal(s: GameState, coolerId: string): string {
   const busy = s.jobs.find((j) => j.coolerId === c.id);
   const maint = hasFeature(s, 'maintenance') && c.kind !== 'officeAc';
   return `<div class="modal-card small-card" role="dialog" aria-modal="true">
-    <header><h2 class="inline-ico"><span class="ico sm">${partSvg(c.kind)}</span> ${COOLERS[c.kind].name}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
+    <header role="group"><h2 class="inline-ico"><span class="ico sm">${partSvg(c.kind)}</span> ${COOLERS[c.kind].name}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
     <p>Capacity <b>${c.capacityKw} kW</b> of heat · draws ${c.powerW} W · ${c.broken ? '<b class="bad">BROKEN</b>' : c.on ? 'running' : 'off'}</p>
     ${maint ? `<p>Filter <div class="bar"><div style="width:${(c.health * 100).toFixed(0)}%" class="${c.health < 0.4 ? 'bad' : ''}"></div></div>
       <span class="muted small">A dirty filter cuts capacity by up to half and can make the unit break down.</span></p>
@@ -472,20 +473,20 @@ export interface StartExtras {
 
 export function startScreen(progress: Progress, settings: Settings, hasSave: boolean, extras?: StartExtras): string {
   const diffs = Object.values(DIFFICULTIES);
-  return `<div class="start">
+  return `<section class="start" aria-label="${t('Main menu')}">
     <h1>Data<span>Center</span>Mania</h1>
-    <p class="tag">Keep the servers humming. Keep the customers happy. Keep your cool.</p>
-    ${hasSave ? '<button class="primary big" data-action="continue">▶ Continue</button>' : ''}
+    <p class="tag">${t('Keep the servers humming. Keep the customers happy. Keep your cool.')}</p>
+    ${hasSave ? `<button class="primary big" data-action="continue">${t('▶ Continue')}</button>` : ''}
     ${extras ? careerCard(progress) + dailyCard(extras.daily, extras.dailyBest) + eventCard('hack', isUnlocked(progress, 'hack'), bestStars(progress, 'hack')) + sandboxCard(settings.sandbox, isSandboxUnlocked(progress), extras.sandboxBest ?? null) : ''}
-    <h3>Difficulty</h3>
+    <h2 class="sec">${t('Difficulty')}</h2>
     <div class="diffs">${diffs
       .map((d) => isDifficultyUnlocked(progress, d.id)
         ? `<button class="diff ${settings.difficulty === d.id ? 'on' : ''}" data-action="difficulty" data-difficulty="${d.id}" aria-pressed="${settings.difficulty === d.id}">
         <span class="em">${d.emoji}</span><b>${e(d.name)}</b><span class="small">${e(d.blurb)}</span></button>`
-        : `<div class="diff locked" aria-disabled="true"><span class="em">${d.emoji}</span><b>${e(d.name)}</b><span class="small">🔒 Beat Chapter 3 to unlock</span></div>`)
+        : `<div class="diff locked" aria-disabled="true"><span class="em">${d.emoji}</span><b>${e(d.name)}</b><span class="small">${t('🔒 Beat Chapter 3 to unlock')}</span></div>`)
       .join('')}
     </div>
-    <h3>Chapters</h3>
+    <h2 class="sec">${t('Chapters')}</h2>
     <div class="chapters">${CHAPTER_ORDER.map((id) => {
       const ch = CHAPTERS[id];
       const open = isUnlocked(progress, id);
@@ -497,32 +498,35 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
     </div>
     ${extras ? achievementsGrid(extras.achievements) : ''}
     ${settingsForm(settings)}
-    <p class="muted small">Free, no ads, works offline. Saves stay in this browser.</p>
-  </div>`;
+    <p class="muted small">${t('Free, no ads, works offline. Saves stay in this browser.')}</p>
+  </section>`;
 }
 
 export function settingsForm(settings: Settings): string {
-  return `<details class="settings"><summary>⚙️ Settings</summary>
-    <label>Auto-pause on <select data-action="setting" data-key="autoPause">
-      ${(['critical', 'major', 'off'] as const).map((v) => `<option value="${v}" ${settings.autoPause === v ? 'selected' : ''}>${v === 'off' ? 'never' : `${v} alarms`}</option>`).join('')}
+  return `<details class="settings"><summary>${t('⚙️ Settings')}</summary>
+    <label>${t('Auto-pause on')} <select data-action="setting" data-key="autoPause">
+      ${(['critical', 'major', 'off'] as const).map((v) => `<option value="${v}" ${settings.autoPause === v ? 'selected' : ''}>${v === 'off' ? t('never') : t(`${v} alarms`)}</option>`).join('')}
     </select></label>
-    <label><input type="checkbox" data-action="setting" data-key="nightSkip" ${settings.nightSkip ? 'checked' : ''}> Night skip (fast nights when quiet)</label>
-    <label><input type="checkbox" data-action="setting" data-key="sound" ${settings.sound ? 'checked' : ''}> Sound</label>
-    <label>Display <select data-action="setting" data-key="display">
+    <label><input type="checkbox" data-action="setting" data-key="nightSkip" ${settings.nightSkip ? 'checked' : ''}> ${t('Night skip (fast nights when quiet)')}</label>
+    <label><input type="checkbox" data-action="setting" data-key="sound" ${settings.sound ? 'checked' : ''}> ${t('Sound')}</label>
+    <label>${t('Display')} <select data-action="setting" data-key="display">
       ${([['auto', 'Auto-detect'], ['color', 'Colour screen'], ['eink', 'E-ink (Kindle Scribe)']] as const)
-        .map(([v, l]) => `<option value="${v}" ${settings.display === v ? 'selected' : ''}>${l}</option>`).join('')}
+        .map(([v, l]) => `<option value="${v}" ${settings.display === v ? 'selected' : ''}>${t(l)}</option>`).join('')}
+    </select></label>
+    <label>${t('Language')} <select data-action="setting" data-key="lang">
+      ${([['auto', 'Auto'], ['en', 'English'], ['fr', 'Français']] as const).map(([v, l]) => `<option value="${v}" ${settings.lang === v ? 'selected' : ''}>${l}</option>`).join('')}
     </select></label>
   </details>`;
 }
 
 export function pauseMenu(s: GameState, settings: Settings): string {
   return `<div class="modal-card small-card" role="dialog" aria-modal="true" aria-label="Menu">
-    <header><h2>⏸ Paused</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
+    <header role="group"><h2>${t('⏸ Paused')}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
     <p class="muted">${s.sandbox ? `Sandbox: ${e(SANDBOX_FLOORS[s.sandbox.floor].name)}, day ${sandboxDays(s)}` : `Chapter ${CHAPTERS[s.chapter].number}: ${e(CHAPTERS[s.chapter].title)}`} · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
     <div class="stack">
-      <button class="primary" data-action="closeModal">Resume</button>
-      <button data-action="restart">Restart chapter</button>
-      <button data-action="quit">Save &amp; quit to menu</button>
+      <button class="primary" data-action="closeModal">${t('Resume')}</button>
+      <button data-action="restart">${t('Restart chapter')}</button>
+      <button data-action="quit">${t('Save & quit to menu')}</button>
     </div>
     ${settingsForm(settings)}
     <p class="muted small">Keys: Space pause · 1/2/3 speed · H heat map · P power map · Esc close</p>
@@ -590,7 +594,7 @@ export function endScreen(s: GameState, extras: EndExtras = { newAchievements: [
 
 export function tipCard(text: string): string {
   return `<div class="tip-card" role="status"><span class="avatar" aria-hidden="true">🧓</span>
-    <div><b>Sam, your mentor</b><p>${e(text)}</p></div><button class="primary" data-action="dismissTip">Got it</button></div>`;
+    <div><b>${t('Sam, your mentor')}</b><p>${e(text)}</p></div><button class="primary" data-action="dismissTip">${t('Got it')}</button></div>`;
 }
 
 export function difficultyName(id: DifficultyId): string {

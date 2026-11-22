@@ -1,7 +1,11 @@
 import './ui/style.css';
 import { App } from './ui/app';
 
-new App().start();
+import { Persistence } from './ui/storage';
+import { applyLanguage, detectLang } from './ui/i18n';
+
+const saved = new Persistence().loadSettings().lang;
+void applyLanguage(saved === 'auto' ? detectLang(navigator.languages) : saved).finally(() => new App().start());
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {

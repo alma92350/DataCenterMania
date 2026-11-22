@@ -47,6 +47,7 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 | Mastery (v0.5) | Hard ★★★ constraints per chapter, 14 achievements, career title (Intern → CTO), date-seeded Daily Challenge with a modifier and a share line, outage post-mortems with one-tap remedies |
 | Automation (v0.6) | Hire a Shift Lead from Chapter 2: auto-dispatch of routine alarms and requests; idle specialists do preventive work; the bot's workload stays flat from Ch2 to Ch4 |
 | Juice (v0.6) | Speech bubbles, SLA-perfect streak, confetti on a clean shift, screen shake on criticals (off for reduced motion and e-ink) |
+| Accessibility and French (v1.0) | axe-core-clean screens, keyboard-focusable panels, pinch-zoom, reduced motion; language switch with French menus, HUD, tips and chapter text |
 | Enterprise DC (v0.8) | Chapter 5: storms cut the grid; UPS batteries, a generator you must test, and a new Electrician role keep the lights on |
 | Hackers (v0.7) | Hacker Weekend event after Startup Colo: Script Kiddies and Captain Phish attack, you defend in three touch micro-games (or auto-defend at half strength) |
 | Sandbox (v0.7) | Endless mode after Startup Colo: pick floor and pressure, play until bankruptcy, beat your high score |

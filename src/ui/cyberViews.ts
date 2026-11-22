@@ -66,7 +66,7 @@ export function cyberChips(s: GameState): string {
 // ---------------------------------------------------------------- micro-game screens
 
 function header(a: Attack, title: string, right: string): string {
-  return `<header class="mini-head"><span class="avatar small">${villainSvg(a.villain)}</span><b>${e(title)}</b><span class="mini-right">${right}</span></header>`;
+  return `<header role="group" class="mini-head"><span class="avatar small">${villainSvg(a.villain)}</span><b>${e(title)}</b><span class="mini-right">${right}</span></header>`;
 }
 
 function floodBody(g: Flood): string {

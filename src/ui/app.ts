@@ -402,6 +402,12 @@ export class App {
         const key = d.key as keyof Settings;
         if (ev.type !== 'change') return;
         if (key === 'autoPause') this.settings.autoPause = input.value as Settings['autoPause'];
+        if (key === 'lang') {
+          this.settings.lang = input.value as Settings['lang'];
+          this.store.saveSettings(this.settings);
+          location.reload();
+          return;
+        }
         if (key === 'nightSkip') this.settings.nightSkip = input.checked;
         if (key === 'sound') this.settings.sound = this.sound.enabled = input.checked;
         if (key === 'display') {
