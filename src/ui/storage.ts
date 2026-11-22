@@ -52,18 +52,24 @@ export interface Settings {
   difficulty: DifficultyId;
   /** Colour screen or e-ink (Kindle Scribe); auto-detected by default. */
   display: DisplaySetting;
+  /** Keep a local play log that can be exported (never sent anywhere). */
+  telemetry: boolean;
   /** Interface language; 'auto' follows the browser. */
   lang: Lang | 'auto';
   /** Last Sandbox setup. */
   sandbox: SandboxConfig;
 }
 
-export const DEFAULT_SETTINGS: Settings = { autoPause: 'critical', nightSkip: true, sound: true, difficulty: 'sysadmin', display: 'auto', lang: 'auto', sandbox: { ...DEFAULT_SANDBOX } };
+export const DEFAULT_SETTINGS: Settings = { autoPause: 'critical', nightSkip: true, sound: true, difficulty: 'sysadmin', display: 'auto', lang: 'auto', telemetry: false, sandbox: { ...DEFAULT_SANDBOX } };
 
 /** Best stars per chapter and difficulty. */
 export type Progress = Partial<Record<ChapterId, Partial<Record<DifficultyId, number>>>>;
 
 export class Persistence {
+  get kv(): KeyValueStore | null {
+    return this.store;
+  }
+
   constructor(private readonly store: KeyValueStore | null = defaultStore()) {}
 
   saveGame(s: GameState): void {

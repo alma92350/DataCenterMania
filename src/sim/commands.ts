@@ -1,5 +1,5 @@
 import { contractLabel } from './naming';
-import { BACKUP, CONTRACT_GRACE_MIN, EXTRA_UPLINK, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
+import { BACKUP, CONTRACT_GRACE_MIN, EXTRA_UPLINK, JOB_WORK_MIN, LEAD, NOC, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
 import { dayOf } from '../core/time';
 import { deliveryTime } from './economy';
 import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
@@ -30,6 +30,8 @@ export type Command =
   | { type: 'serviceCooler'; coolerId: string; techId: TechChoice }
   | { type: 'repairCooler'; coolerId: string; techId: TechChoice }
   | { type: 'buyUplink' }
+  | { type: 'upgradeNoc' }
+  | { type: 'remoteReboot'; deviceId: string }
   | { type: 'buyUps' }
   | { type: 'buyGenerator' }
   | { type: 'hireLead' }
@@ -37,7 +39,7 @@ export type Command =
   | { type: 'setAutoDispatch'; on: boolean }
   | { type: 'startProject'; project: ProjectId; techId?: TechChoice };
 
-export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor' | 'reimage' | 'startGenerator' | 'testGenerator' | 'replaceBattery'>;
+export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor' | 'reimage' | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel'>;
 
 export type CommandResult = { ok: true } | { ok: false; error: string };
 
@@ -65,6 +67,10 @@ export function suggestedJob(kind: AlarmKind): DispatchJob | null {
       return 'startGenerator';
     case 'battery':
       return 'replaceBattery';
+    case 'ats':
+      return 'transferAts';
+    case 'fuel':
+      return 'refuel';
     default:
       return null;
   }
@@ -161,13 +167,20 @@ function exec(s: GameState, cmd: Command): CommandResult {
         const site = nearestTile(s.grid, 'dock', homeTile(s)) ?? homeTile(s);
         return dispatchJob(s, { kind: 'repairUplink', uplinkId: u.id, part: null, site }, cmd.techId);
       }
-      if (cmd.job === 'startGenerator' || cmd.job === 'testGenerator' || cmd.job === 'replaceBattery') {
+      if (cmd.job === 'startGenerator' || cmd.job === 'testGenerator' || cmd.job === 'replaceBattery' || cmd.job === 'transferAts' || cmd.job === 'refuel') {
         const b = s.backup;
         if (!b) return fail('This site has no backup power system.');
         const site = nearestTile(s.grid, 'dock', homeTile(s)) ?? homeTile(s);
         if (s.jobs.some((j) => j.kind === cmd.job)) return fail('Someone is already on it.');
         if (cmd.job === 'startGenerator') {
           if (b.generator !== 'failed') return fail('The generator is fine.');
+        } else if (cmd.job === 'transferAts') {
+          if (b.ats !== 'failed') return fail('The transfer switch is fine.');
+        } else if (cmd.job === 'refuel') {
+          if (b.generator === 'none') return fail('You have no generator yet.');
+          if ((b.fuelMin ?? BACKUP.fuelFullMin) > BACKUP.fuelFullMin * 0.9) return fail('The tank is nearly full.');
+          if (s.cash < BACKUP.refuelCost) return fail('Not enough cash for the diesel.');
+          s.cash -= BACKUP.refuelCost;
         } else if (cmd.job === 'testGenerator') {
           if (b.generator === 'none') return fail('You have no generator yet.');
           if (!b.grid) return fail('Not during an outage: it is already needed.');
@@ -200,7 +213,7 @@ function exec(s: GameState, cmd: Command): CommandResult {
         return fail(`No ${PARTS[need.part].name.toLowerCase()} in stock. Order one from the Shop.`);
       }
       const rack = rackById(s, dev.rackId)!;
-      const workMin = cmd.job === 'swapDisk' && dev.faults.includes('dataloss') ? 60 : undefined;
+      const workMin = cmd.job === 'swapDisk' && dev.faults.includes('dataloss') ? 60 : cmd.job === 'swapDisk' && (s.noc ?? 0) >= 2 ? Math.round(JOB_WORK_MIN.swapDisk * 0.67) : undefined;
       return dispatchJob(s, { kind: cmd.job, rackId: rack.id, deviceId: dev.id, part: need.part, site: rack.pos, workMin }, cmd.techId);
     }
     case 'install': {
@@ -321,7 +334,7 @@ function exec(s: GameState, cmd: Command): CommandResult {
       if (s.cash < def.cost) return fail('Not enough cash.');
       const rack = s.racks[0];
       if (!rack) return fail('No racks to work on.');
-      const res = dispatchJob(s, { kind: 'project', projectId: cmd.project, rackId: rack.id, part: null, site: rack.pos, workMin: def.workMin }, cmd.techId ?? 'best');
+      const res = dispatchJob(s, { kind: 'project', projectId: cmd.project, rackId: rack.id, part: null, site: rack.pos, workMin: (s.noc ?? 0) >= 3 ? Math.round(def.workMin / 2) : def.workMin }, cmd.techId ?? 'best');
       if (res.ok) {
         s.cash -= def.cost;
         addLog(s, 'money', `Started ${def.name} ($${def.cost}).`);
@@ -356,6 +369,27 @@ function exec(s: GameState, cmd: Command): CommandResult {
       s.cash -= EXTRA_UPLINK.setupCost;
       s.uplinks.push({ id: newId(s, 'u'), name: EXTRA_UPLINK.name, capacityGbps: EXTRA_UPLINK.capacityGbps, costPerDay: EXTRA_UPLINK.costPerDay, up: true, repairAt: null });
       addLog(s, 'success', `${EXTRA_UPLINK.name} is live: +${EXTRA_UPLINK.capacityGbps} Gbps on a separate route.`);
+      return ok();
+    }
+    case 'upgradeNoc': {
+      if (!hasFeature(s, 'remote')) return fail('Remote management unlocks in Chapter 2.');
+      const level = s.noc ?? 0;
+      const next = NOC.levels[level];
+      if (!next) return fail('The NOC is fully upgraded.');
+      if (s.cash < next.price) return fail('Not enough cash.');
+      s.cash -= next.price;
+      s.noc = level + 1;
+      addLog(s, 'success', `🖥️ NOC upgraded: ${next.name}. Licence $${next.perDay}/day extra.`);
+      return ok();
+    }
+    case 'remoteReboot': {
+      if ((s.noc ?? 0) < 1) return fail('You need the NOC remote reboot upgrade first.');
+      const dev = deviceById(s, cmd.deviceId);
+      if (!dev || !dev.faults.includes('hung')) return fail('That server is not hung.');
+      s.remoteReboots ??= [];
+      if (s.remoteReboots.some((r) => r.deviceId === dev.id)) return fail('A reboot is already running.');
+      s.remoteReboots.push({ deviceId: dev.id, at: s.minute + NOC.rebootMin });
+      addLog(s, 'info', `🖥️ Remote reboot sent to a server in Rack ${s.racks.findIndex((r) => r.id === dev.rackId) + 1}.`);
       return ok();
     }
     case 'buyUps': {

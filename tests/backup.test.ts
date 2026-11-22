@@ -228,3 +228,94 @@ describe('Backup power UI', () => {
     expect(endScreen(s)).not.toContain('Next:');
   });
 });
+
+describe('Backup power 2.0 (v1.1): realistic UPS, ATS and fuel', () => {
+  it('a UPS bridges minutes, not an hour', () => {
+    const s = ch5();
+    s.backup!.health = 1;
+    s.backup!.upsKwh = upsCapacityKwh(s.backup!);
+    advance(s, 1);
+    const min = upsRuntimeMin(s);
+    expect(min).toBeGreaterThanOrEqual(5);
+    expect(min).toBeLessThanOrEqual(20);
+  });
+
+  it('a stuck transfer switch leaves the racks on battery until an electrician transfers the load', () => {
+    let stuck: GameState | null = null;
+    for (let seed = 1; seed < 400 && !stuck; seed++) {
+      const s = ch5(seed);
+      hireElectrician(s);
+      s.backup!.upsKwh = 50; // plenty of battery for the test
+      s.backup!.testedAt = s.minute; // generator starts, but the switch was never exercised
+      s.backup!.atsServicedAt = null;
+      startOutage(s, 600);
+      advance(s, BACKUP.genStartMin + 1);
+      if (s.backup!.ats === 'failed') stuck = s;
+    }
+    expect(stuck).not.toBeNull();
+    const s = stuck!;
+    expect(s.backup!.generator).toBe('running');
+    expect(s.backup!.source).toBe('ups');
+    expect(s.alarms.some((a) => a.kind === 'ats' && a.severity === 3)).toBe(true);
+    expect(applyCommand(s, { type: 'dispatch', job: 'transferAts', techId: 'best' }).ok).toBe(true);
+    advance(s, 60);
+    expect(s.backup!.ats).toBe('ok');
+    expect(s.backup!.source).toBe('generator');
+    expect(s.alarms.some((a) => a.kind === 'ats')).toBe(false);
+    expect(applyCommand(s, { type: 'dispatch', job: 'transferAts', techId: 'best' }).ok).toBe(false);
+  });
+
+  it('a generator test exercises the switch and makes a stuck transfer much rarer', () => {
+    const stuckRate = (serviced: boolean) => {
+      let n = 0;
+      for (let seed = 1; seed <= 300; seed++) {
+        const s = ch5(seed);
+        s.backup!.testedAt = s.minute;
+        s.backup!.atsServicedAt = serviced ? s.minute : null;
+        startOutage(s, 100);
+        advance(s, BACKUP.genStartMin + 1);
+        if (s.backup!.ats === 'failed') n++;
+      }
+      return n / 300;
+    };
+    expect(stuckRate(false)).toBeGreaterThan(stuckRate(true));
+    expect(stuckRate(false)).toBeGreaterThan(0.05);
+  });
+
+  it('the generator burns fuel, raises a low-fuel alarm, and a refuel job fills the tank', () => {
+    const s = ch5();
+    hireElectrician(s);
+    expect(s.backup!.fuelMin).toBe(300);
+    advance(s, 2);
+    expect(s.alarms.some((a) => a.kind === 'fuel')).toBe(false); // 300 min is above the low mark
+    s.backup!.fuelMin = BACKUP.fuelLowMin - 10;
+    advance(s, 2);
+    expect(s.alarms.some((a) => a.kind === 'fuel')).toBe(true);
+    const cash = s.cash;
+    expect(applyCommand(s, { type: 'dispatch', job: 'refuel', techId: 'best' }).ok).toBe(true);
+    expect(s.cash).toBe(cash - BACKUP.refuelCost);
+    advance(s, 120);
+    expect(s.backup!.fuelMin).toBe(BACKUP.fuelFullMin);
+    expect(s.alarms.some((a) => a.kind === 'fuel')).toBe(false);
+    expect(applyCommand(s, { type: 'dispatch', job: 'refuel', techId: 'best' }).ok).toBe(false); // nearly full
+  });
+
+  it('an empty tank stops the generator mid-outage: batteries, then blackout', () => {
+    const s = ch5();
+    s.backup!.testedAt = s.minute;
+    s.backup!.atsServicedAt = s.minute;
+    s.backup!.fuelMin = 20;
+    startOutage(s, 400);
+    advance(s, BACKUP.genStartMin + 5);
+    expect(['generator', 'ups']).toContain(s.backup!.source);
+    advance(s, 60);
+    expect(s.backup!.generator).toBe('failed');
+    expect(s.alarms.some((a) => a.kind === 'fuel' && a.severity === 3)).toBe(true);
+    advance(s, 60);
+    expect(s.backup!.source).toBe('none');
+  });
+
+  it('the storm needs a refuel: starting fuel does not last the whole storm', () => {
+    expect(CHAPTERS.ch5.backup!.fuelMin).toBeLessThan(300 + 50 + 1);
+  });
+});

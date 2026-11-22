@@ -1,4 +1,4 @@
-import { BACKUP, CONTRACT_GRACE_MIN, COOLERS, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
+import { BACKUP, CONTRACT_GRACE_MIN, COOLERS, NOC, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
 import { CHAPTERS, CHAPTER_ORDER } from '../data/chapters';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
@@ -20,6 +20,7 @@ import {
 import type { Alarm, Contract, Device, DifficultyId, GameState, LogEntry, PartId, ProjectId, Rack, ShiftReport, Tech } from '../sim/types';
 import { SEVERITY_LABEL } from '../sim/types';
 import { t } from './i18n';
+import { HANDBOOK, handbookFor } from '../data/handbook';
 import { countdown, escapeHtml as e, money, stars } from './format';
 import { bestStars, isDifficultyUnlocked, isSandboxUnlocked, isUnlocked, type Progress, type Settings } from './storage';
 import { generatorTested, upsCapacityKwh, upsRuntimeMin } from '../sim/backup';
@@ -109,10 +110,12 @@ export function alarmsPanel(s: GameState): string {
       const tech = job ? s.techs.find((t) => t.id === job.techId) : undefined;
       const eta = a.escalateAt !== null ? `<span class="eta" title="Escalates in">⏱ ${countdown(a.escalateAt - s.minute)}</span>` : '';
       let action: string;
-      if (job) action = `<span class="busy">🔧 ${e(tech?.name ?? 'Queued')}${job.stage === 'queued' ? ' (queued)' : ''}</span>`;
+      const remote = a.kind === 'hung' && (s.noc ?? 0) >= 1 && a.deviceId ? s.remoteReboots?.find((r) => r.deviceId === a.deviceId) : undefined;
+      if (remote) action = `<span class="busy">🖥️ ${t('Remote reboot running…')}</span>`;
+      else if (job) action = `<span class="busy">🔧 ${e(tech?.name ?? 'Queued')}${job.stage === 'queued' ? ' (queued)' : ''}</span>`;
       else if (fix) {
         action = `<select class="tech-pick" aria-label="Technician">${techOptions(s)}</select>
-          <button class="primary" data-action="fix" data-alarm="${e(a.id)}">${e(JOB_LABEL[fix])}</button>`;
+          <button class="primary" data-action="fix" data-alarm="${e(a.id)}">${e(JOB_LABEL[fix])}</button>${a.kind === 'hung' && (s.noc ?? 0) >= 1 && a.deviceId ? `<button data-action="remoteReboot" data-device="${e(a.deviceId)}">🖥️ ${t('Remote reboot')}</button>` : ''}`;
       } else action = `<span class="hint">${e(ALARM_HINT[a.kind] ?? '')}</span>`;
       return `<li class="alarm sevrow-${a.severity}">
         <div class="row">${sevBadge(a.severity)}<b>${e(alarmLabel(s, a))}</b></div>
@@ -263,7 +266,10 @@ export function backupPanel(s: GameState): string {
           ${b.upsUnits < BACKUP.maxUps ? `<button data-action="buyUps" ${need(BACKUP.upsPrice)}>+ UPS unit ${money(BACKUP.upsPrice)}</button>` : ''}</div></li>
       <li><div class="row"><b>🛢️ ${t('Generator')}</b><span class="chip ${gen[0]}">${gen[1]}</span></div>
         <div class="row meta">${b.generator === 'none' ? 'No generator: when the batteries run dry, the lights go out.' : `Starts ${BACKUP.genStartMin} min into an outage. ${tested ? 'Test valid until ' + formatClock((b.testedAt ?? 0) + BACKUP.genTestValidMin) + '.' : 'An untested generator often refuses to start.'}`}</div>
-        <div class="row actions">${b.generator === 'failed' ? (busy('startGenerator') ? '<span class="busy">🔧 Starting…</span>' : '<button class="primary" data-action="dispatchPower" data-job="startGenerator">Start generator</button>')
+        ${b.generator !== 'none' ? `<div class="row meta">⛽ ${t('Fuel')}: ${Math.floor((b.fuelMin ?? BACKUP.fuelFullMin) / 60)} h ${t('left')} ${b.ats === 'failed' ? `· <b class="bad">${t('Transfer switch STUCK')}</b>` : ''}</div>` : ''}
+        <div class="row actions">${b.ats === 'failed' ? (busy('transferAts') ? '<span class="busy">🔧 …</span>' : `<button class="primary" data-action="dispatchPower" data-job="transferAts">${t('Transfer to generator')}</button>`) : ''}
+          ${b.generator !== 'none' && (b.fuelMin ?? BACKUP.fuelFullMin) < BACKUP.fuelFullMin * 0.9 ? (busy('refuel') ? '<span class="busy">🔧 …</span>' : `<button data-action="dispatchPower" data-job="refuel" ${need(BACKUP.refuelCost)}>${t('Refuel')} ${money(BACKUP.refuelCost)}</button>`) : ''}
+          ${b.generator === 'failed' ? (busy('startGenerator') ? '<span class="busy">🔧 Starting…</span>' : '<button class="primary" data-action="dispatchPower" data-job="startGenerator">Start generator</button>')
           : b.generator === 'idle' && b.grid ? (busy('testGenerator') ? '<span class="busy">🔧 Testing…</span>' : `<button class="primary" data-action="dispatchPower" data-job="testGenerator" ${need(BACKUP.genTestCost)}>Test generator ${money(BACKUP.genTestCost)}</button>`)
           : b.generator === 'none' ? `<button class="primary" data-action="buyGenerator" ${need(BACKUP.generatorPrice)}>Buy generator ${money(BACKUP.generatorPrice)}</button>` : ''}</div></li>
     </ul>
@@ -301,6 +307,16 @@ const SHOP_GATE: Partial<Record<PartId, Parameters<typeof hasFeature>[1]>> = {
 };
 const PLACEABLE: ReadonlySet<PartId> = new Set(['rack', 'portableAc', 'wallAc', 'crac']);
 
+export function nocCard(s: GameState): string {
+  if (!hasFeature(s, 'remote')) return '';
+  const level = s.noc ?? 0;
+  const next = NOC.levels[level];
+  return `<h3>🖥️ ${t('Network operations centre')}</h3>
+    <div class="banner info"><span><b>${t('Level')} ${level}/${NOC.levels.length}</b>${level ? ` · ${e(t(NOC.levels[level - 1]!.name))}` : ''}<br>
+      ${next ? `<span class="muted small">${t('Next')}: <b>${e(t(next.name))}</b> · ${e(t(next.blurb))} ${money(next.price)} + ${money(next.perDay)}/${t('day')}</span>` : `<span class="muted small">${t('Fully upgraded')}</span>`}</span>
+      ${next ? `<button class="primary" data-action="upgradeNoc" ${s.cash < next.price ? 'disabled' : ''}>${t('Upgrade')}</button>` : ''}</div>`;
+}
+
 export function shopPanel(s: GameState): string {
   const available = SHOP_ORDER.filter((p) => !SHOP_GATE[p] || hasFeature(s, SHOP_GATE[p]!));
   const rows = available
@@ -323,7 +339,7 @@ export function shopPanel(s: GameState): string {
   const orders = s.orders.length
     ? `<h3>On the way</h3><ul class="list">${s.orders.map((o) => `<li class="row"><span class="inline-ico"><span class="ico sm">${partSvg(o.part)}</span> ${o.qty} × ${e(PARTS[o.part].name)}</span><span class="muted">arrives ${formatClock(o.arriveAt)}</span></li>`).join('')}</ul>`
     : '';
-  return `<ul class="list shop">${rows}</ul>${orders}`;
+  return `${nocCard(s)}<h3>${t("Parts")}</h3><ul class="list shop">${rows}</ul>${orders}`;
 }
 
 function logLine(l: LogEntry): string {
@@ -471,6 +487,14 @@ export interface StartExtras {
   achievements: Record<string, number>;
 }
 
+/** Feature flags of every chapter the player has reached (the Handbook grows with them). */
+export function unlockedFeatures(progress: Progress): string[] {
+  const out = new Set<string>();
+  for (const id of CHAPTER_ORDER) if (isUnlocked(progress, id)) CHAPTERS[id].features.forEach((f) => out.add(f));
+  if (isUnlocked(progress, 'hack')) out.add('cyber');
+  return [...out];
+}
+
 export function startScreen(progress: Progress, settings: Settings, hasSave: boolean, extras?: StartExtras): string {
   const diffs = Object.values(DIFFICULTIES);
   return `<section class="start" aria-label="${t('Main menu')}">
@@ -496,10 +520,18 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
         <span class="best">${open ? `${'★'.repeat(best)}${'☆'.repeat(3 - best)}` : '🔒'}</span></button>`;
     }).join('')}
     </div>
-    ${extras ? achievementsGrid(extras.achievements) : ''}
+    ${extras ? achievementsGrid(extras.achievements) + handbookSection(unlockedFeatures(progress)) : ''}
     ${settingsForm(settings)}
     <p class="muted small">${t('Free, no ads, works offline. Saves stay in this browser.')}</p>
   </section>`;
+}
+
+export function handbookSection(features: readonly string[]): string {
+  const list = handbookFor(features);
+  return `<details class="handbook"><summary>📖 ${t('Ops Handbook')} ${list.length}/${HANDBOOK.length}</summary>
+    <ul class="hb-list">${list.map((h) => `<li><details><summary><span class="pi">${h.icon}</span> <b>${e(t(h.term))}</b></summary>
+      <p><span class="hb-k">${t('In the game')}</span> ${e(t(h.game))}</p><p><span class="hb-k">${t('In real life')}</span> ${e(t(h.real))}</p></details></li>`).join('')}</ul>
+    <p class="muted small">${t('New entries unlock as you meet each system.')}</p></details>`;
 }
 
 export function settingsForm(settings: Settings): string {
@@ -513,6 +545,8 @@ export function settingsForm(settings: Settings): string {
       ${([['auto', 'Auto-detect'], ['color', 'Colour screen'], ['eink', 'E-ink (Kindle Scribe)']] as const)
         .map(([v, l]) => `<option value="${v}" ${settings.display === v ? 'selected' : ''}>${t(l)}</option>`).join('')}
     </select></label>
+    <label><input type="checkbox" data-action="setting" data-key="telemetry" ${settings.telemetry ? 'checked' : ''}> ${t('Keep a play log on this device')}</label>
+    ${settings.telemetry ? `<button class="ghost" data-action="exportTelemetry">${t('Export play log')}</button>` : ''}
     <label>${t('Language')} <select data-action="setting" data-key="lang">
       ${([['auto', 'Auto'], ['en', 'English'], ['fr', 'Français']] as const).map(([v, l]) => `<option value="${v}" ${settings.lang === v ? 'selected' : ''}>${l}</option>`).join('')}
     </select></label>
@@ -528,6 +562,7 @@ export function pauseMenu(s: GameState, settings: Settings): string {
       <button data-action="restart">${t('Restart chapter')}</button>
       <button data-action="quit">${t('Save & quit to menu')}</button>
     </div>
+    ${handbookSection(s.features)}
     ${settingsForm(settings)}
     <p class="muted small">Keys: Space pause · 1/2/3 speed · H heat map · P power map · Esc close</p>
   </div>`;

@@ -4,6 +4,8 @@ import { CHAPTERS } from '../src/data/chapters';
 import { JOB_LABEL, PARTS, ROLE_LABEL } from '../src/data/catalog';
 import { TIPS } from '../src/data/content';
 import { DIFFICULTIES } from '../src/data/difficulty';
+import { HANDBOOK } from '../src/data/handbook';
+import { NOC } from '../src/data/catalog';
 import { ACHIEVEMENTS } from '../src/sim/achievements';
 import { FR, applyLanguage, currentLang, detectLang, t, tl, translateTree } from '../src/ui/i18n';
 import { DEFAULT_SETTINGS } from '../src/ui/storage';
@@ -15,6 +17,8 @@ const SOURCE = {
   alarms: Object.values(ALARM_TEXT), jobs: Object.values(JOB_LABEL), roles: Object.values(ROLE_LABEL), parts: Object.values(PARTS).map((p) => p.name),
   tips: Object.values(TIPS), chapters: Object.values(CHAPTERS).flatMap((c) => [c.title, c.subtitle, c.intro]),
   diffs: Object.values(DIFFICULTIES).flatMap((d) => [d.name, d.blurb]),
+  handbook: HANDBOOK.flatMap((h) => [h.term, h.game, h.real]),
+  noc: NOC.levels.flatMap((l) => [l.name, l.blurb]),
 };
 
 describe('localisation', () => {
@@ -31,7 +35,7 @@ describe('localisation', () => {
   });
 
   it('every alarm, job, role, part, tip, chapter text and difficulty has a French translation', () => {
-    const all = [...SOURCE.alarms, ...SOURCE.jobs, ...SOURCE.roles, ...SOURCE.parts, ...SOURCE.tips, ...SOURCE.chapters, ...SOURCE.diffs];
+    const all = [...SOURCE.alarms, ...SOURCE.jobs, ...SOURCE.roles, ...SOURCE.parts, ...SOURCE.tips, ...SOURCE.chapters, ...SOURCE.diffs, ...SOURCE.handbook, ...SOURCE.noc];
     const missing = all.filter((x) => !(x in FR));
     expect(missing).toEqual([]);
     for (const k of Object.keys(FR)) expect(FR[k]!.trim()).not.toBe('');

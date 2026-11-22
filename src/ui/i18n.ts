@@ -376,6 +376,79 @@ export const FR: Record<string, string> = {
   'Keep spare capacity for peaks.': 'Gardez de la capacité de réserve pour les pics.',
   'Order 2 spare disks': 'Commander 2 disques de rechange', 'Order 2 spare PSUs': 'Commander 2 alimentations de rechange', 'Order a portable AC': 'Commander un climatiseur mobile',
   'Order a spare switch': 'Commander un commutateur de rechange', 'Order a second uplink': 'Commander une seconde liaison', 'Order 2 filters': 'Commander 2 filtres',
+  // v1.1: NOC, ATS, fuel
+  'Transfer switch stuck: the generator is not carrying the load': 'Commutateur de transfert bloqué : le groupe ne porte pas la charge',
+  'Generator fuel is running low': 'Le carburant du groupe est bas',
+  'Transfer to generator': 'Transférer sur le groupe', 'Refuel generator': 'Ravitailler le groupe', 'Refuel': 'Ravitailler',
+  'Fuel': 'Carburant', 'left': 'restant', 'Transfer switch STUCK': 'Commutateur BLOQUÉ',
+  'The automatic transfer switch is stuck: the generator is running but the racks are still on batteries! An electrician can transfer the load by hand. A generator test also exercises the switch.': 'Le commutateur de transfert automatique est bloqué : le groupe tourne mais les baies sont encore sur batteries ! Un électricien peut transférer la charge à la main. Un test du groupe exerce aussi le commutateur.',
+  'Diesel does not last forever. A generator burns a full tank in 24 hours, and yours is not full. Order a refuel from the Infra tab before the storm.': 'Le gazole ne dure pas éternellement. Un groupe vide un plein en 24 heures, et le vôtre n’est pas plein. Commandez un ravitaillement dans l’onglet Infra avant la tempête.',
+  'Network operations centre': 'Centre d’exploitation réseau (NOC)', 'Level': 'Niveau', 'Next': 'Prochain', 'day': 'jour', 'Fully upgraded': 'Entièrement amélioré', 'Upgrade': 'Améliorer', 'Parts': 'Pièces',
+  'Remote reboot': 'Redémarrage à distance', 'Remote reboot running…': 'Redémarrage à distance en cours…',
+  'Remote diagnostics': 'Diagnostic à distance', 'Remote firmware': 'Firmware à distance',
+  'Hung servers reboot from the alarm card in 2 minutes. Nobody walks to the rack.': 'Les serveurs bloqués redémarrent depuis la carte d’alarme en 2 minutes. Personne ne marche jusqu’à la baie.',
+  'Disk swaps take a third less time: the technician arrives knowing which disk it is.': 'Les changements de disque prennent un tiers de temps en moins : le technicien arrive en sachant quel disque.',
+  'Ops projects (labels, firmware, cable tidy) take half the time.': 'Les projets d’exploitation (étiquettes, firmware, câbles) prennent deux fois moins de temps.',
+  // v1.1: Ops Handbook and play log
+  'Ops Handbook': 'Manuel d’exploitation', 'In the game': 'Dans le jeu', 'In real life': 'Dans la vraie vie',
+  'New entries unlock as you meet each system.': 'De nouvelles entrées se débloquent à chaque nouveau système.',
+  'Keep a play log on this device': 'Garder un journal de jeu sur cet appareil', 'Export play log': 'Exporter le journal de jeu',
+  'Time compression': 'Compression du temps',
+  'One real second is three game minutes at 1× speed, so a day takes a few real minutes.': 'Une seconde réelle vaut trois minutes de jeu à la vitesse 1×, donc une journée dure quelques minutes réelles.',
+  'A disk fails every few years per server, not every few days. The game speeds failures up about a hundred times to keep every shift eventful.': 'Un disque tombe en panne tous les quelques ans par serveur, pas tous les quelques jours. Le jeu accélère les pannes environ cent fois pour que chaque service soit animé.',
+  'SLA and uptime': 'SLA et disponibilité',
+  'Each customer is promised a share of time online. Miss it and you pay a penalty and lose reputation.': 'Chaque client se voit promettre une part de temps en ligne. Si vous la ratez, vous payez une pénalité et perdez en réputation.',
+  '99.9% uptime still allows about 8.8 hours of downtime a year. 99.99% allows under an hour. Every extra nine costs far more than the one before.': '99,9 % de disponibilité autorise encore environ 8,8 heures d’arrêt par an. 99,99 % en autorise moins d’une heure. Chaque « 9 » de plus coûte bien plus cher que le précédent.',
+  'RAID': 'RAID',
+  'A failed disk is a warning: the server keeps running. A second failure before the swap means data loss.': 'Un disque en panne est un avertissement : le serveur continue de tourner. Une seconde panne avant le remplacement entraîne une perte de données.',
+  'RAID keeps copies of data across disks. It protects against a disk failure, not against deleting a file, and it is not a backup.': 'Le RAID garde des copies des données sur plusieurs disques. Il protège d’une panne de disque, pas de la suppression d’un fichier, et ce n’est pas une sauvegarde.',
+  'MTTR': 'MTTR (temps moyen de réparation)',
+  'The timer on an alarm is how long you have before it gets worse. Faster response means less damage.': 'Le compte à rebours d’une alarme indique le temps avant que cela n’empire. Réagir plus vite, c’est moins de dégâts.',
+  'Mean time to repair is how long a fix takes on average. Good operations cut it with spares on the shelf, clear runbooks and the right person nearby.': 'Le temps moyen de réparation est la durée moyenne d’un dépannage. Une bonne exploitation le réduit avec des pièces en rayon, des procédures claires et la bonne personne à proximité.',
+  'Post-mortem': 'Analyse d’incident',
+  'After an outage the game explains what happened and offers a one-tap fix.': 'Après une panne, le jeu explique ce qui s’est passé et propose un correctif en un geste.',
+  'A blameless review that asks what went wrong, why it was not caught, and what changes next time. The goal is to fix the system, not to blame a person.': 'Un bilan sans reproche qui demande ce qui a mal tourné, pourquoi ce n’était pas détecté et ce qui change la prochaine fois. Le but est de corriger le système, pas d’accuser une personne.',
+  'Spares and N+1': 'Pièces de rechange et N+1',
+  'Give each customer one server more than they need and keep spare parts in stock.': 'Donnez à chaque client un serveur de plus que nécessaire et gardez des pièces de rechange en stock.',
+  'N+1 means one more unit than the minimum needed, so a single failure does not cause an outage. 2N means a full duplicate system.': 'N+1, c’est une unité de plus que le minimum nécessaire, pour qu’une seule panne ne cause pas d’arrêt. 2N, c’est un système entièrement dupliqué.',
+  'Power budget and breakers': 'Budget électrique et disjoncteurs',
+  'Each rack has a power budget. Go over it and the breaker trips and the whole rack goes dark.': 'Chaque baie a un budget électrique. Dépassez-le et le disjoncteur saute : toute la baie s’éteint.',
+  'Circuits are sized for a maximum load. Real servers have two power supplies on two separate feeds (A and B). The game uses one feed to keep things readable.': 'Les circuits sont dimensionnés pour une charge maximale. Les vrais serveurs ont deux alimentations sur deux arrivées distinctes (A et B). Le jeu n’utilise qu’une arrivée pour rester lisible.',
+  'Heat and cooling': 'Chaleur et refroidissement',
+  'Hotter racks fail more often, and above 45°C servers shut down to protect themselves.': 'Les baies plus chaudes tombent plus souvent en panne, et au-dessus de 45 °C les serveurs s’éteignent pour se protéger.',
+  'Electronics fail faster when hot. Cooling often uses as much energy as the servers themselves, which is why efficiency (PUE) matters. The game shows one temperature per rack, real rooms track inlet and exhaust.': 'L’électronique tombe plus vite en panne quand elle chauffe. Le refroidissement consomme souvent autant d’énergie que les serveurs eux-mêmes, d’où l’importance de l’efficacité (PUE). Le jeu affiche une température par baie ; les vraies salles suivent l’entrée et la sortie d’air.',
+  'Hot and cold aisles': 'Allées chaudes et froides',
+  'Face racks front-to-front so cold air meets the intakes and hot air leaves the other side.': 'Placez les baies face à face pour que l’air froid rencontre les entrées et que l’air chaud sorte de l’autre côté.',
+  'Mixing hot exhaust with cold supply wastes cooling and creates hot spots. Containment (doors and panels) goes further and is a standard upgrade.': 'Mélanger l’air chaud rejeté et l’air froid soufflé gaspille du refroidissement et crée des points chauds. Le confinement (portes et panneaux) va plus loin et c’est une amélioration courante.',
+  'Filters and maintenance': 'Filtres et maintenance',
+  'Clean filters keep coolers at full strength. Change them before they clog.': 'Des filtres propres gardent les climatiseurs à pleine puissance. Changez-les avant qu’ils ne s’encrassent.',
+  'Preventive maintenance is cheaper than repairs. Schedules are driven by run hours and condition, not by waiting for a failure.': 'La maintenance préventive coûte moins cher que les réparations. Les calendriers suivent les heures de fonctionnement et l’état, pas l’attente d’une panne.',
+  'Uplinks and bandwidth': 'Liaisons et bande passante',
+  'All traffic leaves through your internet links. A cut link or too much traffic hurts every customer.': 'Tout le trafic sort par vos liaisons internet. Une liaison coupée ou trop de trafic pénalise tous les clients.',
+  'Operators buy links from several carriers on physically separate routes. Two cables in the same trench are one cable to a backhoe.': 'Les opérateurs achètent des liaisons auprès de plusieurs fournisseurs sur des trajets physiquement séparés. Deux câbles dans la même tranchée, c’est un seul câble pour une pelleteuse.',
+  'Fatigue and shifts': 'Fatigue et services',
+  'Tired technicians work slower and make more mistakes. Rested people are worth more than extra hours.': 'Les techniciens fatigués travaillent plus lentement et font plus d’erreurs. Des gens reposés valent mieux que des heures en plus.',
+  'Human error is behind a large share of outages, and it rises with fatigue. Good operations plan rotas, handovers and rest.': 'L’erreur humaine est à l’origine d’une grande part des pannes, et elle augmente avec la fatigue. Une bonne exploitation planifie les roulements, les relèves et le repos.',
+  'NOC and remote hands': 'NOC et intervention à distance',
+  'The NOC lets you reboot a hung server from your desk, diagnose disks, and run firmware work remotely.': 'Le NOC permet de redémarrer un serveur bloqué depuis votre bureau, de diagnostiquer les disques et de mener des travaux de firmware à distance.',
+  'Most soft failures are fixed remotely through out-of-band management. People walk to the rack only for physical work: disks, cables, power supplies and coolers.': 'La plupart des pannes logicielles se règlent à distance via l’administration hors bande. On ne se déplace à la baie que pour le travail physique : disques, câbles, alimentations et climatiseurs.',
+  'UPS': 'Onduleur (UPS)',
+  'Batteries carry the racks for a few minutes while the generator starts. Batteries wear out and need replacing.': 'Les batteries portent les baies quelques minutes le temps que le groupe démarre. Elles s’usent et doivent être remplacées.',
+  'A UPS is a bridge, not a plan: real systems carry the load for about 5 to 15 minutes. Batteries age in a few years and should be tested.': 'Un onduleur est un pont, pas un plan : les vrais systèmes portent la charge environ 5 à 15 minutes. Les batteries vieillissent en quelques années et doivent être testées.',
+  'Generator and testing': 'Groupe électrogène et essais',
+  'An untested generator often refuses to start. Test it while the grid is up.': 'Un groupe jamais testé refuse souvent de démarrer. Testez-le quand le réseau fonctionne.',
+  'Generators are load-tested on a schedule. The most common cause of a backup power failure is a system nobody exercised.': 'Les groupes sont testés en charge selon un calendrier. La cause la plus fréquente d’une panne de secours est un système que personne n’a exercé.',
+  'Transfer switch (ATS)': 'Commutateur de transfert (ATS)',
+  'The switch moves the load from the grid to the generator. If it sticks, the generator runs but does nothing.': 'Le commutateur fait passer la charge du réseau au groupe. S’il se bloque, le groupe tourne mais ne sert à rien.',
+  'The automatic transfer switch is a classic single point of failure. It needs regular exercising, and a manual transfer procedure for the day it fails.': 'Le commutateur de transfert automatique est un point de défaillance classique. Il faut l’exercer régulièrement et avoir une procédure de transfert manuel pour le jour où il tombe en panne.',
+  'A full tank lasts 24 hours. Refuel before a storm.': 'Un plein dure 24 heures. Ravitaillez avant une tempête.',
+  'Sites hold 24 to 72 hours of fuel and have refuelling contracts, because a long outage can empty the tank when roads are blocked.': 'Les sites stockent 24 à 72 heures de carburant et ont des contrats de ravitaillement, car une longue panne peut vider la cuve quand les routes sont bloquées.',
+  'Phishing': 'Hameçonnage',
+  'A bad click locks a technician out of their account and lets the worm in.': 'Un mauvais clic verrouille le compte d’un technicien et laisse entrer le ver.',
+  'Most breaches start with a person, not a machine. Check the sender, be wary of urgency, and report suspicious mail. Many companies run phishing drills.': 'La plupart des intrusions commencent par une personne, pas une machine. Vérifiez l’expéditeur, méfiez-vous de l’urgence et signalez les courriels suspects. Beaucoup d’entreprises organisent des exercices d’hameçonnage.',
+  'Malware and isolation': 'Logiciels malveillants et isolation',
+  'Isolating infected machines early stops the spread. Infected racks are cleaned and re-imaged.': 'Isoler tôt les machines infectées stoppe la propagation. Les baies infectées sont nettoyées et réinstallées.',
+  'Network segmentation limits how far an infection spreads. Responders isolate first, investigate second.': 'La segmentation du réseau limite la propagation d’une infection. Les intervenants isolent d’abord, enquêtent ensuite.',
   // tips
   'Welcome to the closet! That humming box is the whole company. Tap the rack to look inside.': 'Bienvenue dans le placard ! Cette boîte qui ronronne, c’est toute l’entreprise. Touchez la baie pour regarder dedans.',
   'An alarm! Tap it in the alarm list, then send someone. Amber = warning, red = trouble.': 'Une alarme ! Touchez-la dans la liste, puis envoyez quelqu’un. Orange = avertissement, rouge = problème.',
@@ -494,7 +567,7 @@ export function translateTree(root: ParentNode): void {
   }
 }
 
-type Named = { name?: string; title?: string; subtitle?: string; intro?: string; description?: string; blurb?: string; label?: string };
+type Named = { term?: string; game?: string; real?: string; name?: string; title?: string; subtitle?: string; intro?: string; description?: string; blurb?: string; label?: string };
 
 export function t(text: string): string {
   return current === 'fr' ? FR[text] ?? text : text;
@@ -509,9 +582,9 @@ export async function applyLanguage(lang: Lang): Promise<void> {
   current = lang;
   document.documentElement.lang = lang;
   if (lang === 'en') return;
-  const [{ ALARM_TEXT }, catalog, { TIPS }, { CHAPTERS }, { DIFFICULTIES }, { ACHIEVEMENTS }, views] = await Promise.all([
+  const [{ ALARM_TEXT }, catalog, { TIPS }, { CHAPTERS }, { DIFFICULTIES }, { ACHIEVEMENTS }, views, handbook] = await Promise.all([
     import('../sim/alarms'), import('../data/catalog'), import('../data/content'), import('../data/chapters'),
-    import('../data/difficulty'), import('../sim/achievements'), import('./views'),
+    import('../data/difficulty'), import('../sim/achievements'), import('./views'), import('../data/handbook'),
   ]);
   for (const k of Object.keys(ALARM_TEXT) as (keyof typeof ALARM_TEXT)[]) ALARM_TEXT[k] = t(ALARM_TEXT[k]);
   for (const k of Object.keys(catalog.JOB_LABEL) as (keyof typeof catalog.JOB_LABEL)[]) catalog.JOB_LABEL[k] = t(catalog.JOB_LABEL[k]);
@@ -519,6 +592,8 @@ export async function applyLanguage(lang: Lang): Promise<void> {
   for (const p of Object.values(catalog.PARTS)) tr(p, ['name']);
   for (const p of Object.values(catalog.PROJECTS)) tr(p, ['name']);
   for (const k of Object.keys(TIPS)) TIPS[k] = t(TIPS[k]!);
+  for (const h of handbook.HANDBOOK) tr(h as Named & { term?: string }, ['term', 'game', 'real'] as (keyof Named)[]);
+  for (const l of catalog.NOC.levels) tr(l as Named, ['name', 'blurb']);
   for (const c of Object.values(CHAPTERS)) tr(c, ['title', 'subtitle', 'intro']);
   for (const d of Object.values(DIFFICULTIES)) tr(d, ['name', 'blurb']);
   for (const a of ACHIEVEMENTS) tr(a, ['name', 'description']);

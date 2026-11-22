@@ -40,6 +40,10 @@ function pickSpecialist(s: GameState, kind: JobKind, site: Vec, requireIdle = fa
 function autoDispatch(s: GameState, lead: Tech): void {
   const alarms = [...s.alarms].sort((a, b) => b.severity - a.severity || a.raisedAt - b.raisedAt);
   for (const a of alarms) {
+    if (a.kind === 'hung' && (s.noc ?? 0) >= 1 && a.deviceId && s.minute - a.raisedAt >= AUTO.reactMin && applyCommand(s, { type: 'remoteReboot', deviceId: a.deviceId }, { auto: true }).ok) {
+      s.stats.autoDispatched = (s.stats.autoDispatched ?? 0) + 1;
+      continue;
+    }
     const kind = alarmJob(a);
     if (!kind || s.minute - a.raisedAt < AUTO.reactMin || handled(s, a)) continue;
     const site = alarmSite(s, a);

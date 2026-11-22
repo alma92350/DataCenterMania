@@ -513,3 +513,12 @@ h2.sec { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; c
 #panel:focus-visible { outline: 2px solid var(--accent, #5ab4ff); outline-offset: -2px; }
 button:focus-visible, select:focus-visible, summary:focus-visible, input:focus-visible { outline: 3px solid var(--accent, #5ab4ff); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; } }
+
+/* ---------- v1.1 handbook ---------- */
+.handbook { margin: 16px 0; text-align: left; }
+.handbook > summary { cursor: pointer; font-weight: 700; padding: 10px 4px; min-height: 44px; display: flex; align-items: center; }
+.hb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.hb-list li > details { border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--panel-2); }
+.hb-list summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 8px; }
+.hb-list p { margin: 6px 0 10px; line-height: 1.4; }
+.hb-k { display: inline-block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-right: 6px; }

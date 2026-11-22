@@ -23,6 +23,8 @@ export const ALARM_TEXT: Record<AlarmKind, string> = {
   gridDown: 'Utility power is out',
   generator: 'Generator failed to start',
   battery: 'UPS batteries are worn out',
+  ats: 'Transfer switch stuck: the generator is not carrying the load',
+  fuel: 'Generator fuel is running low',
 };
 
 export interface AlarmTarget {

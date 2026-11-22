@@ -93,6 +93,12 @@ export interface Backup {
   health: number;
   generator: 'none' | 'idle' | 'running' | 'failed';
   testedAt: number | null;
+  /** The automatic transfer switch: a running generator does nothing if it does not transfer the load. */
+  ats?: 'ok' | 'failed';
+  /** When the transfer switch was last exercised (a generator test does it). */
+  atsServicedAt?: number | null;
+  /** Minutes of fuel left in the tank. */
+  fuelMin?: number;
 }
 
 export type TechRole = 'manager' | 'hw' | 'hvac' | 'net' | 'lead' | 'elec';
@@ -130,7 +136,7 @@ export interface Candidate {
 
 export type JobKind =
   | 'swapDisk'
-  | 'startGenerator' | 'testGenerator' | 'replaceBattery'
+  | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel'
   | 'replacePsu'
   | 'reboot'
   | 'resetBreaker'
@@ -178,7 +184,7 @@ export interface Job {
 
 export type AlarmKind =
   | 'disk' | 'dataloss' | 'psu' | 'hung' | 'overheat' | 'breaker' | 'powerHigh'
-  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth' | 'malware' | 'gridDown' | 'generator' | 'battery';
+  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth' | 'malware' | 'gridDown' | 'generator' | 'battery' | 'ats' | 'fuel';
 
 export interface Alarm {
   id: string;
@@ -399,6 +405,9 @@ export interface GameState {
     blackoutMin?: number;
     outages?: number;
   };
+  /** NOC level 0..3 (remote hands) and reboots in flight. */
+  noc?: number;
+  remoteReboots?: { deviceId: string; at: number }[];
   /** UPS, generator and the utility feed (Chapter 5). */
   backup?: Backup;
   /** The Shift Lead sends specialists to alarms automatically. */

@@ -179,7 +179,7 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
   };
   s.progress.peakCash = s.cash;
   s.progress.startCash = s.cash;
-  if (ch.backup) s.backup = createBackup(ch.backup.ups, ch.backup.health, ch.backup.generator);
+  if (ch.backup) s.backup = createBackup(ch.backup.ups, ch.backup.health, ch.backup.generator, ch.backup.fuelMin);
 
   map.racks.forEach((pos, i) => s.racks.push(makeRack(s, pos, ch.rackPowerBudgetW, ch.rackFacing?.[i] ?? 'S')));
   for (const pos of map.cracs) s.coolers.push(makeCooler(s, 'crac', pos));

@@ -7,7 +7,7 @@ import type { GameState } from '../src/sim/types';
 /** A simple bot standing in for a competent player: fix every alarm, keep spares, fill contracts. */
 export type Defend = 'auto' | 'perfect' | 'ignore';
 
-export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent' } = {}): void {
+export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean } = {}): void {
   // cyber attacks: skip the micro-game (half strength), play it perfectly, or never answer
   if (s.cyber.attack && opts.defend !== 'ignore') {
     if (opts.defend === 'perfect') applyCommand(s, { type: 'resolveAttack', score: 1, mode: 'played', infected: [] });
@@ -48,6 +48,13 @@ export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend;
       if (!s.techs.some((t) => t.role === role) && cand) applyCommand(s, { type: 'hire', candidateId: cand.id });
     }
   }
+  // NOC: buy remote reboot early, then use it instead of walking to hung servers
+  if (opts.noc && s.features.includes('remote')) {
+    if ((s.noc ?? 0) < 1 && s.cash > 3000) applyCommand(s, { type: 'upgradeNoc' });
+    if ((s.noc ?? 0) >= 1) {
+      for (const a of s.alarms) if (a.kind === 'hung' && a.deviceId) applyCommand(s, { type: 'remoteReboot', deviceId: a.deviceId });
+    }
+  }
   // backup power: test the generator while the grid is up, change worn batteries, add a second UPS
   if (s.backup && opts.power !== 'negligent') {
     const b = s.backup;
@@ -55,6 +62,7 @@ export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend;
     if (b.grid && b.generator === 'idle' && !tested && !s.jobs.some((j) => j.kind === 'testGenerator')) applyCommand(s, { type: 'dispatch', job: 'testGenerator', techId: 'best' });
     if (b.grid && b.health < 0.6) applyCommand(s, { type: 'dispatch', job: 'replaceBattery', techId: 'best' });
     if (b.upsUnits < 2 && s.cash > 9000) applyCommand(s, { type: 'buyUps' });
+    if (b.grid && (b.fuelMin ?? 1440) < 1000 && !s.jobs.some((j) => j.kind === 'refuel')) applyCommand(s, { type: 'dispatch', job: 'refuel', techId: 'best' });
   }
   if (s.features.includes('fatigue') && s.coffeeLevel === 0 && s.cash > 9000 && !s.orders.some((o) => o.part === 'coffee')) {
     applyCommand(s, { type: 'order', part: 'coffee', qty: 1 });

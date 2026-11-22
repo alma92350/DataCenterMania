@@ -65,6 +65,8 @@ export const JOB_WORK_MIN: Record<JobKind, number> = {
   startGenerator: 10,
   testGenerator: 60,
   replaceBattery: 40,
+  transferAts: 15,
+  refuel: 20,
 };
 
 export const JOB_LABEL: Record<JobKind, string> = {
@@ -88,6 +90,8 @@ export const JOB_LABEL: Record<JobKind, string> = {
   startGenerator: 'Start generator',
   testGenerator: 'Test generator',
   replaceBattery: 'Replace UPS batteries',
+  transferAts: 'Transfer to generator',
+  refuel: 'Refuel generator',
 };
 
 /**
@@ -99,7 +103,7 @@ export const JOB_ROLES: Record<JobKind, TechRole[]> = {
   buildRack: ['hw'], rotateRack: ['hw'], placeCooler: ['hw', 'hvac'],
   serviceCooler: ['hvac'], repairCooler: ['hvac'], replaceSwitch: ['net'], repairUplink: ['net'],
   project: ['hw', 'net'], favor: ['hw', 'hvac', 'net'], audit: ['net'], reimage: ['hw', 'net'],
-  startGenerator: ['elec'], testGenerator: ['elec'], replaceBattery: ['elec'],
+  startGenerator: ['elec'], testGenerator: ['elec'], replaceBattery: ['elec'], transferAts: ['elec'], refuel: ['elec', 'hw'],
 };
 
 export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer', lead: 'Shift Lead', elec: 'Electrician' };
@@ -178,8 +182,19 @@ export const AUDIT = { riskMult: 0.4, durationMin: 1440, renewBeforeMin: 120 } a
 
 /** Backup power (PRD §10, v0.8): UPS bridges the gap, the generator takes over, and must have been tested. */
 export const BACKUP = {
-  upsKwhPerUnit: 8, upsPrice: 3500, maxUps: 3, rechargeKwhPerMin: 0.12,
+  upsKwhPerUnit: 1.5, upsPrice: 3500, maxUps: 3, rechargeKwhPerMin: 0.05,
   batteryWearPerDay: 0.06, batteryWarnBelow: 0.6, batteryJobCost: 700, minHealthCapacity: 0.25,
   generatorPrice: 9000, genStartMin: 3, genTestCost: 150, genTestValidMin: 2 * 1440, untestedStartChance: 0.35,
   randomOutagePerDay: 0.12, outageMin: [45, 150],
+  atsFailUntested: 0.15, atsFailServiced: 0.02, fuelFullMin: 1440, fuelLowMin: 180, refuelCost: 400, transferMin: 15,
+} as const;
+
+/** Network operations centre (PRD v2 F3): remote hands for soft failures. Each level includes the ones below. */
+export const NOC = {
+  rebootMin: 2,
+  levels: [
+    { price: 1500, perDay: 60, name: 'Remote reboot', blurb: 'Hung servers reboot from the alarm card in 2 minutes. Nobody walks to the rack.' },
+    { price: 2500, perDay: 60, name: 'Remote diagnostics', blurb: 'Disk swaps take a third less time: the technician arrives knowing which disk it is.' },
+    { price: 4000, perDay: 80, name: 'Remote firmware', blurb: 'Ops projects (labels, firmware, cable tidy) take half the time.' },
+  ],
 } as const;

@@ -8,7 +8,9 @@ import { tileAt } from '../sim/grid';
 import type { Facing, GameState, LogEntry, PartId, ProjectId, ServerModelId, ShiftReport } from '../sim/types';
 import { formatClock } from '../core/time';
 import { ACHIEVEMENTS, earnedAchievements } from '../sim/achievements';
+import { CHAPTERS } from '../data/chapters';
 import { tl } from './i18n';
+import { Telemetry } from './telemetry';
 import { createSandbox, sandboxDays, sandboxScore, type SandboxConfig } from '../sim/sandbox';
 import { createDaily, dailyIdFor, dailyScore, dailySpec, shareLine } from '../sim/daily';
 import { clampCamera, createCamera, panBy, pickNearest, screenToWorld, touchFitCamera, zoomAt } from '../render/camera';
@@ -57,6 +59,7 @@ export class App {
   private lastHtml = new Map<string, string>();
   private readonly store = new Persistence();
   private settings: Settings = this.store.loadSettings();
+  private telemetry = new Telemetry(this.store.kv, () => this.settings.telemetry);
   private readonly sound = new Sound();
   private readonly canvas = $<HTMLCanvasElement>('#map');
   private readonly ctx = this.canvas.getContext('2d')!;
@@ -108,6 +111,7 @@ export class App {
 
   private startGame(s: GameState): void {
     this.state = s;
+    this.telemetry.record('chapterStart', { chapter: s.chapter, difficulty: s.difficulty, sandbox: !!s.sandbox, daily: !!s.dailyId });
     this.speed = 1;
     this.carry = 0;
     this.modal = s.progress.status === 'playing' ? null : { kind: 'end' };
@@ -208,6 +212,7 @@ export class App {
       this.endExtras = { newAchievements: [] };
     }
     this.endExtras.newAchievements = this.store.unlockAchievements(earnedAchievements(s, progress));
+    this.telemetry.record('chapterEnd', { chapter: s.chapter, won: s.progress.status === 'won', stars: s.progress.stars, minutes: s.minute - CHAPTERS[s.chapter].startMinute });
     this.store.clearGame();
     this.modal = { kind: 'end' };
     if (s.progress.status === 'won') this.sound.success();
@@ -403,6 +408,14 @@ export class App {
         const key = d.key as keyof Settings;
         if (ev.type !== 'change') return;
         if (key === 'autoPause') this.settings.autoPause = input.value as Settings['autoPause'];
+        if (key === 'telemetry') {
+          this.settings.telemetry = input.checked;
+          this.store.saveSettings(this.settings);
+          if (input.checked) this.telemetry.record('session', { lang: this.settings.lang });
+          else this.telemetry.clear();
+          this.showStart();
+          return;
+        }
         if (key === 'lang') {
           this.settings.lang = input.value as Settings['lang'];
           this.store.saveSettings(this.settings);
@@ -459,6 +472,21 @@ export class App {
         return;
       case 'dispatchPower':
         this.run({ type: 'dispatch', job: d.job as 'testGenerator', techId: 'best' });
+        return;
+      case 'exportTelemetry': {
+        const blob = new Blob([this.telemetry.export()], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'datacentermania-play-log.json';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        return;
+      }
+      case 'upgradeNoc':
+        this.run({ type: 'upgradeNoc' });
+        return;
+      case 'remoteReboot':
+        this.run({ type: 'remoteReboot', deviceId: d.device! });
         return;
       case 'buyUps':
         this.run({ type: 'buyUps' });

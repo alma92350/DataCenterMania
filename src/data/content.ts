@@ -26,6 +26,8 @@ export const TIPS: Record<string, string> = {
   electrician: 'Hire an electrician from the Team tab: only they can test the generator, restart it and change worn UPS batteries.',
   gridDown: 'The utility power is out! Watch the battery minutes in the top bar. If the generator does not take over in time, every server goes dark.',
   generatorFail: 'The generator did not start! Send your electrician (or you, slowly) to start it before the batteries run out.',
+  atsFail: 'The automatic transfer switch is stuck: the generator is running but the racks are still on batteries! An electrician can transfer the load by hand. A generator test also exercises the switch.',
+  fuelLow: 'Diesel does not last forever. A generator burns a full tank in 24 hours, and yours is not full. Order a refuel from the Infra tab before the storm.',
   uplinkCut: 'A backhoe just cut your fiber! Until it is spliced, only your other uplinks carry traffic. A network engineer can fix it faster than the ISP.',
   switchDown: 'A top-of-rack switch died: every server in that rack is offline. Network engineers carry spare switches. Make sure you have some in stock.',
   autodispatch: 'Busy? Hire a Shift Lead in the Team tab. They send the best specialist to routine alarms and customer requests so you can focus on the big decisions. It costs a daily salary: you are buying back your attention.',

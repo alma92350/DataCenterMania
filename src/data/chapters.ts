@@ -70,7 +70,7 @@ export interface ChapterDef {
   hwTechs: number;
   failuresEnabled: boolean;
   /** Starting backup power: UPS units, their health and the generator. */
-  backup?: { ups: number; health: number; generator: 'none' | 'idle' };
+  backup?: { ups: number; health: number; generator: 'none' | 'idle'; fuelMin?: number };
   dailyOffers: boolean;
   events: ScriptedEvent[];
   objectives: [Objective, Objective, Objective]; // ★ pass, ★★ pro, ★★★ legend
@@ -250,7 +250,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     ],
     startMinute: at(0, 8),
     endMinute: at(4, 22),
-    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'projects', 'walkins', 'autodispatch'],
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'projects', 'walkins', 'autodispatch', 'remote'],
     startCash: 14000,
     ambient: 24,
     rackPowerBudgetW: 3000,
@@ -293,7 +293,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     map: COLO_MAP,
     startMinute: at(0, 8),
     endMinute: at(3, 22),
-    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch'],
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'remote'],
     startCash: 16000,
     ambient: 24,
     rackPowerBudgetW: 3000,
@@ -325,7 +325,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     map: COLO_MAP,
     startMinute: at(0, 8),
     endMinute: at(4, 22),
-    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue'],
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue', 'remote'],
     startCash: 16000,
     ambient: 24,
     rackPowerBudgetW: 3000,
@@ -363,7 +363,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     map: COLO_MAP,
     startMinute: at(0, 8),
     endMinute: at(3, 22),
-    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue', 'backup'],
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue', 'backup', 'remote'],
     startCash: 18000,
     ambient: 24,
     rackPowerBudgetW: 3000,
@@ -378,7 +378,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     failuresEnabled: true,
     dailyOffers: true,
     incidentMult: 0.8,
-    backup: { ups: 1, health: 0.7, generator: 'idle' },
+    backup: { ups: 1, health: 0.7, generator: 'idle', fuelMin: 300 },
     events: [
       { id: 'backupTip', at: at(0, 8, 5), actions: [{ type: 'tip', key: 'backup' }] },
       { id: 'elecTip', at: at(0, 9), actions: [{ type: 'tip', key: 'electrician' }] },

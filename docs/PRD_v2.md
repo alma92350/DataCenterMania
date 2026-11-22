@@ -464,7 +464,7 @@ All v1 guardrails stay in CI. New ones:
 
 | Release | Theme | Contents | Exit criteria |
 |---|---|---|---|
-| **v1.1 "Remote Hands"** | Quick wins | NOC and remote reboot (F3), backup power 2.0 retune (F9), Ops Handbook v1 (F13), sim message keys (F14), local telemetry | APM −15% in Ch3–5; Ch5 tests updated; Handbook covers every v1 system |
+| **v1.1 "Remote Hands"** ✅ shipped (message keys deferred) | Quick wins | NOC and remote reboot (F3), backup power 2.0 retune (F9), Ops Handbook v1 (F13), local telemetry (F14); sim message keys moved to v1.2 | Ch5 tests updated ✓; Handbook covers every v1 system ✓ (see §12) |
 | **v1.2 "Two Legs"** | Redundancy | Dual PSU, A/B feeds, N+1 cooling, SPOF view (F1); ticket queue v1 (F7 partial) | SPOF property tests; bot feed-failure test |
 | **v1.3 "Change Advisory Board"** | Risk | Change management (F2), supply chain events (F12), Chapter 6 | Change-risk tests; guardrails hold in Ch6 |
 | **v1.4 "Efficiency Drive"** | Planning | DCIM capacity (F4), live PUE and free cooling (F5), Chapter 7, Black Friday event | PUE property tests; Ch7 ★★★ bot-gated |
@@ -528,3 +528,13 @@ All playtest metrics come from the opt-in local telemetry export, gathered by ha
 ## Appendix B: parked for v2.x
 
 Office cat in the data center (morale), visitor tours as a reputation event, weather forecast panel, second-hand hardware market, robots for disk swaps, scenario editor UI, seasonal events, a third language.
+
+## 12. v1.1 "Remote Hands" results
+
+- **NOC (F3)**, available from Chapter 2 and in Sandbox, three levels bought in the Shop tab: remote reboot ($1,500 + $60/day: a hung server reboots from the alarm card in 2 game minutes, no walking, and the Shift Lead uses it by itself), remote diagnostics ($2,500: disk swaps a third faster), remote firmware ($4,000: ops projects take half the time). Licences are charged daily.
+- **Correction to the plan.** The plan expected actions per minute to drop by 15%. In practice a remote reboot is still one tap, so the tap count does not fall. The real gain is technician time and downtime (nobody has to walk to the rack), and the test now checks that the bot loses no uptime and still clears every hang.
+- **Backup power 2.0 (F9)**: UPS batteries now bridge about 5 to 15 minutes (was about an hour); an **automatic transfer switch** can stick (15% if never exercised, 2% after a generator test) so the generator runs while the racks stay on battery until an electrician transfers the load; **fuel** burns while the generator carries the load (Ch5 starts with a half-empty tank, so the storm needs a refuel), low-fuel alarm, $400 refuel job, empty tank stops the generator.
+- **Ops Handbook (F13)**: 18 entries, each with *In the game* and *In real life*, unlocking as systems appear; shown on the start screen (by progress) and in the pause menu (by chapter features); English and French; the tests require every system of the campaign to have an entry.
+- **Local telemetry (F14)**: an opt-in play log (session, chapter start, chapter end with result and minutes) kept only in the browser, capped at 500 events, exportable as JSON from Settings; nothing is sent anywhere.
+- **Deferred to v1.2**: simulation message keys (the v0.9 fragment translator stays).
+- **Tests**: 353 unit tests (new: NOC, backup 2.0, Handbook, telemetry, translation coverage of the new texts) and the phone e2e (new session for the NOC, Handbook and fuel).

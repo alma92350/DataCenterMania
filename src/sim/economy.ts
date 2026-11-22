@@ -1,3 +1,4 @@
+import { NOC } from '../data/catalog';
 import { contractLabel } from './naming';
 import { pick, randInt } from '../core/rng';
 import { MINUTES_PER_DAY, dayOf, minuteOfDay } from '../core/time';
@@ -45,11 +46,13 @@ export function accrueMinute(s: GameState): void {
   }
 }
 
+export const nocLicencePerDay = (s: GameState): number => NOC.levels.slice(0, s.noc ?? 0).reduce((sum, l) => sum + l.perDay, 0);
+
 function dailyCosts(s: GameState) {
   return {
     salaries: s.techs.reduce((sum, t) => sum + t.salaryPerDay, 0),
     rent: s.racks.length * RACK_RENT_PER_DAY,
-    network: s.uplinks.reduce((sum, u) => sum + u.costPerDay, 0),
+    network: s.uplinks.reduce((sum, u) => sum + u.costPerDay, 0) + nocLicencePerDay(s),
   };
 }
 

@@ -37,7 +37,7 @@ export const sandboxDays = (s: GameState): number => Math.max(0, Math.floor((s.m
 
 export function createSandbox(cfg: SandboxConfig, difficulty: DifficultyId, seed: number): GameState {
   const s = createGame(SANDBOX_FLOORS[cfg.floor].chapter, difficulty, seed);
-  const extra: FeatureFlag[] = ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'projects', 'walkins', 'autodispatch', 'roles', 'maintenance'];
+  const extra: FeatureFlag[] = ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'projects', 'walkins', 'autodispatch', 'roles', 'maintenance', 'remote'];
   if (cfg.cyber) extra.push('cyber');
   s.features = [...new Set([...s.features, ...extra])];
   s.sandbox = { ...cfg };

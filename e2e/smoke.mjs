@@ -470,6 +470,35 @@ try {
     check(await page.evaluate(() => document.querySelector('#panel')?.getAttribute('tabindex') === '0'), 'the scrolling panel is keyboard focusable');
   });
 
+  await session('remote hands + handbook (phone)', { ...devices['Pixel 5'], deviceScaleFactor: 2 }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 }, ch3: { sysadmin: 3 }, ch4: { sysadmin: 1 } }));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern', display: 'color' }));
+    });
+    await page.reload();
+    await page.waitForSelector('.handbook');
+    await page.tap('.handbook > summary');
+    const entries = await page.locator('.hb-list li').count();
+    check(entries >= 12, `the Ops Handbook lists the unlocked entries on the start screen (${entries})`);
+    await page.tap('.hb-list li summary >> nth=0');
+    check((await page.textContent('.hb-list li details[open]')).includes('In real life'), 'an entry opens to show the real-life side');
+    await page.screenshot({ path: `${outDir}/handbook.png` });
+    await page.tap('[data-chapter="ch5"]');
+    await page.waitForSelector('#topbar .stat');
+    while (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+    await page.tap('#tabs [data-panel="shop"]');
+    await page.waitForSelector('[data-action="upgradeNoc"]');
+    check(true, 'the Shop offers the NOC upgrade');
+    await page.tap('[data-action="upgradeNoc"]');
+    await page.waitForFunction(() => document.querySelector('#panel')?.textContent.includes('Level 1/3'), null, { timeout: 4000 });
+    check(true, 'upgrading the NOC works and shows level 1/3');
+    await page.screenshot({ path: `${outDir}/noc.png` });
+    await page.tap('#tabs [data-panel="network"]');
+    await page.waitForSelector('[data-job="refuel"]', { timeout: 4000 });
+    check((await page.textContent('#panel')).includes('Fuel'), 'the Infra tab shows generator fuel and a refuel button');
+    check(await page.isVisible('#tabs'), 'the tab bar stays visible');
+  });
+
 } finally {
   server?.kill();
 }

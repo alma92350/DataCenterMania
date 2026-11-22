@@ -16,6 +16,7 @@ import { facilityPowerW, updatePower } from './power';
 import { updateThermal } from './thermal';
 import { updateCoolers } from './maintenance';
 import { updateNetwork } from './network';
+import { updateNoc } from './noc';
 import { updateFatigue } from './fatigue';
 import type { GameState } from './types';
 
@@ -35,6 +36,7 @@ export function step(s: GameState): void {
   updateThermal(s, dt);
   rollFailures(s, dt);
   escalateAlarms(s);
+  updateNoc(s);
   runAutomation(s);
   updateTechs(s, dt);
   expireBubbles(s);
