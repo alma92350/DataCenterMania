@@ -8,6 +8,7 @@ import { tileAt } from '../sim/grid';
 import type { Facing, GameState, LogEntry, PartId, ProjectId, ServerModelId, ShiftReport } from '../sim/types';
 import { formatClock } from '../core/time';
 import { ACHIEVEMENTS, earnedAchievements } from '../sim/achievements';
+import { tl } from './i18n';
 import { createSandbox, sandboxDays, sandboxScore, type SandboxConfig } from '../sim/sandbox';
 import { createDaily, dailyIdFor, dailyScore, dailySpec, shareLine } from '../sim/daily';
 import { clampCamera, createCamera, panBy, pickNearest, screenToWorld, touchFitCamera, zoomAt } from '../render/camera';
@@ -291,7 +292,7 @@ export class App {
     const host = $('#toasts');
     const el = document.createElement('div');
     el.className = `toast toast-${kind}`;
-    el.textContent = text;
+    el.textContent = tl(text);
     host.appendChild(el);
     const max = window.matchMedia('(max-width: 820px)').matches ? 2 : 4;
     while (host.children.length > max) host.firstElementChild?.remove();

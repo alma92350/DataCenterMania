@@ -1,3 +1,5 @@
+import { translateTree } from './i18n';
+
 /**
  * Minimal DOM morph: makes `target`'s children match `html` while reusing existing nodes
  * where the structure is the same. Live panels refresh several times a second; replacing
@@ -6,6 +8,7 @@
 export function morph(target: Element, html: string): void {
   const tpl = document.createElement('template');
   tpl.innerHTML = html;
+  translateTree(tpl.content);
   morphChildren(target, tpl.content);
 }
 

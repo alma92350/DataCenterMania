@@ -191,6 +191,191 @@ export const FR: Record<string, string> = {
   'On-Call Legend': 'Légende de l’astreinte', 'Win any chapter on On-Call Nightmare.': 'Gagnez un chapitre en Cauchemar d’astreinte.',
   'Daily Grind': 'Rendez-vous quotidien', 'Complete a Daily Challenge.': 'Terminez un défi du jour.',
   'Architect': 'Architecte', 'Three stars on every chapter.': 'Trois étoiles sur chaque chapitre.',
+  // v0.9: panels, HUD and shift report
+  'Zoom in': 'Zoom avant', 'Zoom out': 'Zoom arrière', 'Fit map': 'Ajuster la carte',
+  'Overlay: heat → power → off (H / P)': 'Calque : chaleur → électricité → aucun (H / P)',
+  'Map overlay: heat, power, off (H)': 'Calque de la carte : chaleur, électricité, aucun (H)',
+  'Map controls': 'Commandes de la carte', 'Details': 'Détails', 'Details panel': 'Panneau de détails', 'Panels': 'Panneaux',
+  'Game speed': 'Vitesse du jeu', 'Pause (Space)': 'Pause (Espace)', '{n}× speed': 'Vitesse {n}×', 'Status': 'État',
+  'Time left: {n}h{n}': 'Temps restant : {n}h{n}', '{n} alarms': '{n} alarmes',
+  'Today so far (credited every hour)': 'Aujourd’hui jusqu’ici (crédité chaque heure)',
+  'Hours in a row with every customer within SLA (best {n}h)': 'Heures d’affilée avec tous les clients dans le SLA (record {n} h)',
+  '🔥 Streak {n}h': '🔥 Série {n} h', '${n}/day': '{n} $/jour', '${n}/day · {n}d left': '{n} $/jour · {n} j restants',
+  'Live capacity vs demand': 'Capacité active et demande', 'Revenue minus server power and rack rent': 'Revenu moins électricité des serveurs et loyer des baies',
+  'Margin ${n}/day': 'Marge {n} $/jour', 'Today {n}% / {n}%': 'Aujourd’hui {n} % / {n} %',
+  'Hire': 'Recruter', 'You (Manager)': 'Vous (Responsable)', 'Log': 'Journal', 'Start': 'Début', 'Technician': 'Technicien', 'Best tech': 'Meilleur technicien',
+  '✓ on track': '✓ en bonne voie', 'Idle ☕': 'Disponible ☕', '📍 Rack': '📍 Baie', '📍 Cooler': '📍 Climatiseur',
+  'Critical': 'Critique', 'Major': 'Majeure', 'Warning': 'Avertissement', 'Send': 'Envoyer', 'Decline': 'Refuser', 'Sign': 'Signer',
+  'Active ({n})': 'Actifs ({n})', 'Offers ({n})': 'Offres ({n})', 'No offers right now.': 'Aucune offre pour l’instant.',
+  'Offer expires in {n}d': 'L’offre expire dans {n} j', 'In stock:': 'En stock :', 'Buy {n}': 'Acheter {n}',
+  '· delivery {n}h{n}': '· livraison {n}h{n}', '· delivery instant': '· livraison immédiate',
+  'Read the tip to continue': 'Lisez le conseil pour continuer', '⏸ Tip': '⏸ Conseil',
+  'Let go': 'Licencier', 'Delegate the routine': 'Déléguer la routine',
+  'A Shift Lead sends the best specialist to routine alarms and customer requests while you run the floor. They never touch a rack themselves. ${n}/day.': 'Un chef d’équipe envoie le meilleur spécialiste sur les alarmes et demandes courantes pendant que vous gérez la salle. Il ne touche jamais une baie lui-même. {n} $/jour.',
+  'Ops projects': 'Projets d’exploitation',
+  'Quiet moment? Invest a technician\'s time now and every shift after gets easier.': 'Un moment calme ? Investissez du temps de technicien maintenant : chaque service suivant sera plus facile.',
+  'Halves botched jobs: no more pulling the wrong cable.': 'Réduit de moitié les tâches ratées : fini les câbles arrachés par erreur.',
+  'Every job goes {n}% faster.': 'Chaque tâche est {n} % plus rapide.', 'Servers hang {n}% less often.': 'Les serveurs se bloquent {n} % moins souvent.',
+  'Candidates': 'Candidats', 'New candidates every morning. Salaries are paid at midnight.': 'De nouveaux candidats chaque matin. Les salaires sont payés à minuit.',
+  '🏷️ Cable Artist: Works {n}% faster.': '🏷️ Artiste du câble : travaille {n} % plus vite.',
+  '🏷️ Old Timer: Slow walker, never botches a job.': '🏷️ Vieux de la vieille : marche lentement, ne rate jamais une tâche.',
+  '🏷️ Coffee-Powered: Walks {n}% faster.': '🏷️ Carburé au café : marche {n} % plus vite.',
+  '🏷️ Clumsy: Botches jobs three times as often.': '🏷️ Maladroit : rate trois fois plus de tâches.',
+  '★★★☆☆ · walks {n} tiles/min': '★★★☆☆ · marche {n} cases/min', '★★☆☆☆ · walks {n} tiles/min': '★★☆☆☆ · marche {n} cases/min', '★☆☆☆☆ · walks {n} tiles/min': '★☆☆☆☆ · marche {n} cases/min', '★★★★☆ · walks {n} tiles/min': '★★★★☆ · marche {n} cases/min',
+  'Fatigue': 'Fatigue', 'Morale': 'Moral', 'Manager · ★★': 'Responsable · ★★',
+  'HW tech · ★★★': 'Technicien matériel · ★★★', 'HW tech · ★★': 'Technicien matériel · ★★', 'HW tech · ★★★★': 'Technicien matériel · ★★★★', 'HW tech · ★': 'Technicien matériel · ★',
+  '🔒 Hiring unlocks in Chapter {n} For now, it is just you.': '🔒 Le recrutement se débloque au chapitre {n}. Pour l’instant, vous êtes seul.',
+  '{n} unassigned servers. New contracts have {n}h{n} of setup time before the SLA starts counting. Going live fully provisioned pays a setup fee.': '{n} serveurs non affectés. Les nouveaux contrats ont {n}h{n} de mise en place avant le début du SLA. Démarrer entièrement équipé rapporte des frais d’installation.',
+  '{n} unassigned server. New contracts have {n}h{n} of setup time before the SLA starts counting. Going live fully provisioned pays a setup fee.': '{n} serveur non affecté. Les nouveaux contrats ont {n}h{n} de mise en place avant le début du SLA. Démarrer entièrement équipé rapporte des frais d’installation.',
+  '{n} Gbps · ${n}/day': '{n} Gbit/s · {n} $/jour', '{n} Gbps · ${n}/day · ISP repair ETA Mon {n}': '{n} Gbit/s · {n} $/jour · réparation opérateur prévue Lun {n}',
+  '{n} / {n} Gbps': '{n} / {n} Gbit/s', 'Using': 'Utilisation', 'CUT': 'COUPÉE',
+  'If customers need more bandwidth than your live uplinks carry, every bandwidth-using contract misses its SLA.': 'Si les clients ont besoin de plus de bande passante que vos liaisons actives n’en portent, tous les contrats gourmands manquent leur SLA.',
+  'Send network engineer': 'Envoyer un ingénieur réseau', 'Escalates in': 'Escalade dans', '⏱ {n}m left': '⏱ encore {n} min',
+  'Customer requests': 'Demandes clients', 'Incident history': 'Historique des incidents',
+  'Hit': 'Touché', 'Hits': 'Touches', 'Blocked': 'Bloqué', 'Innocent': 'Innocent', 'Off': 'Aucun',
+  '🔋 UPS × {n}': '🔋 Onduleur × {n}', 'Health {n}%': 'État {n} %', '{n} / {n} kWh · bridges the gap until the generator starts': '{n} / {n} kWh · comble le temps que le groupe démarre',
+  'Replace batteries ${n}': 'Changer les batteries {n} $', '+ UPS unit ${n}': '+ onduleur {n} $', '🛢️ Generator': '🛢️ Groupe électrogène',
+  'Standby · UNTESTED': 'Veille · NON TESTÉ', 'Standby · tested': 'Veille · testé', 'Running': 'En marche', 'FAILED': 'EN PANNE', 'None': 'Aucun',
+  'Starts {n} min into an outage. An untested generator often refuses to start.': 'Démarre {n} min après la coupure. Un groupe non testé refuse souvent de démarrer.',
+  'Test generator ${n}': 'Tester le groupe {n} $', 'Buy generator ${n}': 'Acheter un groupe {n} $',
+  'Only an': 'Seul un', 'electrician': 'électricien', 'works at full speed on power jobs. Hire one in the Team tab.': 'travaille à pleine vitesse sur les tâches électriques. Recrutez-en un dans l’onglet Équipe.',
+  'Grid back': 'Retour du courant', 'Battery left': 'Batterie restante',
+  'Shift report': 'Bilan de service', '🕙 Shift {n} report': '🕙 Bilan du service {n}', 'Cash this shift': 'Argent ce service',
+  '😴 Sleep until {n}': '😴 Dormir jusqu’à {n}', 'Keep working through the night': 'Continuer à travailler la nuit',
+  'Progress saved. A good place to take a break.': 'Progression sauvegardée. Un bon moment pour une pause.',
+  'Uptime {n}%': 'Disponibilité {n} %', 'Uptime {n}% / {n}%': 'Disponibilité {n} % / {n} %', 'Uptime {n}% / {n}% ✓': 'Disponibilité {n} % / {n} % ✓',
+  'SLA uptime ≥ {n}%': 'Disponibilité SLA ≥ {n} %', 'No critical alarm all shift': 'Aucune alarme critique de tout le service',
+  'Keys: Space pause · {n}/{n}/{n} speed · H heat map · P power map · Esc close': 'Touches : Espace pause · {n}/{n}/{n} vitesse · H chaleur · P électricité · Échap fermer',
+  'Cool it down, fix the airflow, cut load or turn servers off': 'Refroidissez, corrigez la circulation d’air, réduisez la charge ou éteignez des serveurs',
+  'Add a second uplink in the Network tab, or turn away traffic-heavy clients': 'Ajoutez une seconde liaison dans l’onglet Réseau, ou refusez les clients gourmands en trafic',
+  'Move or power off servers': 'Déplacez ou éteignez des serveurs',
+  '✅ All quiet. Time for those requests!': '✅ Tout est calme. Place aux demandes !', '✅ All quiet. Maybe start an ops project (Team tab)?': '✅ Tout est calme. Pourquoi pas un projet d’exploitation (onglet Équipe) ?', '✅ All quiet. Enjoy your coffee.': '✅ Tout est calme. Savourez votre café.',
+  'Event': 'Événement', 'Event · {n}h{n} left': 'Événement · {n}h{n} restantes',
+  'Survive the weekend: SLA uptime ≥ {n}% and cash ≥ ${n}': 'Survivez au week-end : disponibilité SLA ≥ {n} % et trésorerie ≥ {n} $',
+  'Block at least {n} attacks': 'Bloquez au moins {n} attaques', 'Block every attack, five of them perfectly': 'Bloquez toutes les attaques, dont cinq parfaitement',
+  'SLA uptime ≥ {n}% and ${n} profit': 'Disponibilité SLA ≥ {n} % et {n} $ de bénéfice',
+  'SLA uptime ≥ {n}% and ${n} profit (scaled by difficulty)': 'Disponibilité SLA ≥ {n} % et {n} $ de bénéfice (selon la difficulté)',
+  'No blackout, a tested generator, a second UPS and ${n} profit': 'Aucune coupure, un groupe testé, un second onduleur et {n} $ de bénéfice',
+  'Keep every rack below {n}°C all day': 'Gardez chaque baie sous {n} °C toute la journée',
+  'Fix the airflow within {n} hours, keep it fixed, and no critical alarm': 'Corrigez la circulation d’air en {n} heures, gardez-la corrigée, sans alarme critique',
+  'Rack overheating · Rack {n}': 'Baie en surchauffe · Baie {n}',
+  'Disk failed (RAID degraded) · Rack {n} U{n}': 'Disque en panne (RAID dégradé) · Baie {n} U{n}',
+  'Server not responding · Rack {n} U{n}': 'Serveur injoignable · Baie {n} U{n}',
+  'Data loss: second disk failed · Rack {n} U{n}': 'Perte de données : second disque en panne · Baie {n} U{n}',
+  'Power supply failed (server down) · Rack {n} U{n}': 'Alimentation en panne (serveur arrêté) · Baie {n} U{n}',
+  'Fiber uplink cut · SkyLink Fiber B (separate route)': 'Liaison fibre coupée · SkyLink Fiber B (trajet séparé)',
+  'Cooler filter clogged · CRAC unit': 'Filtre du climatiseur encrassé · Unité CRAC',
+  'Chapter {n} The Closet': 'Chapitre {n} : Le placard', 'Chapter {n} Colocation Floor': 'Chapitre {n} : Plateau de colocation', 'Chapter {n} Enterprise DC': 'Chapitre {n} : Datacenter d’entreprise',
+  'Event: Hacker Weekend': 'Événement : Week-end de hackers',
+  'Chapter {n} The Closet · 🧑‍💻 Sysadmin': 'Chapitre {n} : Le placard · 🧑‍💻 Administrateur', 'Chapter {n} Colocation Floor · 🧑‍💻 Sysadmin': 'Chapitre {n} : Plateau de colocation · 🧑‍💻 Administrateur',
+  'Cyber attack': 'Cyberattaque', 'Script Kiddies': 'Script Kiddies', 'Captain Phish': 'Capitaine Phish',
+  '🛡️ Traffic flood: defend!': '🛡️ Inondation de trafic : défendez !', '🛡️ Phishing campaign: defend!': '🛡️ Campagne d’hameçonnage : défendez !',
+  '🚨 Traffic flood': '🚨 Inondation de trafic', '🚨 Phishing campaign': '🚨 Campagne d’hameçonnage',
+  'Bot traffic is about to overload your customers. Block the bots, but leave real users alone.': 'Du trafic de robots va surcharger vos clients. Bloquez les robots, mais laissez les vrais utilisateurs tranquilles.',
+  'Three emails land in the team inbox. Every mistake locks a technician out of their account for two hours and lets the worm in.': 'Trois e-mails arrivent dans la boîte de l’équipe. Chaque erreur verrouille le compte d’un technicien pendant deux heures et laisse entrer le ver.',
+  '⚡ Auto-defend (only half strength)': '⚡ Défense auto (demi-force seulement)', 'Later (it keeps waiting {n}h{n})': 'Plus tard (elle attend encore {n}h{n})',
+  '🛡️ Defend: Block the Flood (about {n} s)': '🛡️ Défendre : Bloquer l’inondation (environ {n} s)', '🛡️ Defend: Phish or Legit? (about {n} s)': '🛡️ Défendre : Phishing ou légitime ? (environ {n} s)',
+  'Block the Flood': 'Bloquer l’inondation', 'BOT': 'ROBOT', 'USER': 'UTILISATEUR', 'Incoming traffic': 'Trafic entrant', 'Bot traffic': 'Trafic de robots', 'Your servers': 'Vos serveurs',
+  'Skip: half-strength auto-defence': 'Passer : défense auto à demi-force', 'Skip ⚡': 'Passer ⚡',
+  'Tap the': 'Touchez le', 'traffic before it lands. Leave': 'avant qu’il n’arrive. Laissez le trafic', 'traffic alone.': 'tranquille.',
+  'A flood is overloading your customers': 'Une inondation surcharge vos clients', '🌊 Flood +{n}% traffic · {n}h{n}': '🌊 Inondation +{n} % de trafic · {n}h{n}',
+  'The flood got through: {n}% extra traffic for {n} minutes.': 'L’inondation est passée : +{n} % de trafic pendant {n} minutes.',
+  '❌ The flood got through: {n}% extra traffic for {n} minutes.': '❌ L’inondation est passée : +{n} % de trafic pendant {n} minutes.',
+  '🏆 Achievements {n}/{n}': '🏆 Succès {n}/{n}', 'Same challenge for everyone today.': 'Le même défi pour tout le monde aujourd’hui.',
+  '📅 Daily Challenge #{n}': '📅 Défi du jour n° {n}', '🕶️ Hacker Weekend': '🕶️ Week-end de hackers',
+  'Script Kiddies and Captain Phish are coming · {n} shifts · {n} micro-games': 'Les Script Kiddies et le Capitaine Phish arrivent · {n} services · {n} micro-jeux',
+  '♾️ Sandbox': '♾️ Bac à sable', 'play until bankruptcy': 'jouez jusqu’à la faillite', 'Floor': 'Salle', 'Small colo': 'Petite colo', 'Colocation floor': 'Plateau de colocation', 'Big hall': 'Grande salle',
+  'Incidents': 'Incidents', 'Hackers': 'Hackers', 'Ramp-up': 'Montée en charge', 'Auto': 'Auto', 'English': 'English', 'Français': 'Français',
+  'Aisles and room to grow. Score = days survived, peak cash and attacks blocked.': 'Allées et place pour grandir. Score = jours tenus, trésorerie max et attaques bloquées.',
+  'Everything breaks, fast. Unlocked by beating Chapter {n}': 'Tout casse, vite. Débloqué en terminant le chapitre {n}',
+  'Post-mortem: Law & Order Mail · Email Cluster down {n}h{n}': 'Analyse d’incident : Law & Order Mail · Email Cluster arrêté {n}h{n}',
+  'What:': 'Quoi :', 'Why:': 'Pourquoi :', 'Prevent:': 'Prévention :',
+  'Reboot hung servers quickly. The firmware campaign makes hangs much rarer.': 'Redémarrez vite les serveurs bloqués. La campagne de firmware rend les blocages bien plus rares.',
+  'Start the firmware campaign': 'Lancer la campagne de firmware',
+  'A server hung and stopped answering.': 'Un serveur s’est bloqué et ne répond plus.',
+  'Demand was higher than the servers assigned to this customer could handle.': 'La demande dépassait ce que les serveurs affectés à ce client pouvaient absorber.',
+  'Keep the closet below {n}°C all day.': 'Gardez le placard sous {n} °C toute la journée.', 'Finish a chapter with {n}% SLA uptime.': 'Terminez un chapitre avec {n} % de disponibilité.',
+  'Win Colocation Floor with ≥ {n}% uptime.': 'Gagnez Plateau de colocation avec ≥ {n} % de disponibilité.', 'Grant {n} customer requests in one chapter.': 'Satisfaites {n} demandes clients dans un chapitre.',
+  'Reboot {n} hung servers in one chapter.': 'Redémarrez {n} serveurs bloqués dans un chapitre.', 'Keep every customer within SLA for {n} hours in a row.': 'Respectez le SLA de tous les clients {n} heures d’affilée.',
+  'Block {n} cyber attacks in one game.': 'Bloquez {n} cyberattaques dans une partie.', 'Have {n} people on the team at once.': 'Ayez {n} personnes dans l’équipe en même temps.',
+  'Needs {n} units · SLA {n}% · {n} days · penalty ${n}/breach · demand: office': 'Il faut {n} unités · SLA {n} % · {n} jours · pénalité {n} $/manquement · demande : bureau',
+  'Current machine: level': 'Machine actuelle : niveau',
+  'All top-of-rack switches healthy. {n} spare in stock.': 'Tous les commutateurs de baie sont sains. {n} de rechange en stock.',
+  'Portable AC ({n} kW)': 'Climatiseur mobile ({n} kW)', 'Wall AC unit ({n} kW)': 'Climatiseur mural ({n} kW)', 'CRAC unit ({n} kW)': 'Unité CRAC ({n} kW)', '{n}U rack': 'Baie {n}U',
+  'Pizza Box {n}U server': 'Serveur Pizza Box {n}U', 'Workhorse {n}U server': 'Serveur Workhorse {n}U',
+  '· delivery {n}h{n} · {n} unit, {n}U, {n}-{n} W': '· livraison {n}h{n} · {n} unité, {n}U, {n}-{n} W', '· delivery {n}h{n} · {n} units, {n}U, {n}-{n} W': '· livraison {n}h{n} · {n} unités, {n}U, {n}-{n} W',
+  '🏆 Achievement unlocked: 🔥 Hot Streak': '🏆 Succès débloqué : 🔥 Série en feu', '🏆 Achievement unlocked: 🏛️ Architect': '🏆 Succès débloqué : 🏛️ Architecte',
+  'Mon {n}': 'Lun {n}', 'Fri {n}': 'Ven {n}', 'Mon {n} · {n}h{n}': 'Lun {n} · {n}h{n}', 'Fri {n} · {n}h{n}': 'Ven {n} · {n}h{n}',
+  'Shift goal: No critical alarm all shift': 'Objectif du service : aucune alarme critique',
+  'Shift goal: Every customer meets their SLA today': 'Objectif du service : chaque client respecte son SLA aujourd’hui',
+  'Shift goal: Send someone to every alarm within {n} minutes': 'Objectif du service : envoyer quelqu’un sur chaque alarme en moins de {n} minutes',
+  'Send someone to every alarm within {n} minutes': 'Envoyer quelqu’un sur chaque alarme en moins de {n} minutes',
+  'Every customer meets their SLA today': 'Chaque client respecte son SLA aujourd’hui',
+  '🕘 No critical alarm all shift · ✗ missed': '🕘 Aucune alarme critique de tout le service · ✗ raté',
+  '🕘 No critical alarm all shift · +${n}': '🕘 Aucune alarme critique de tout le service · +{n} $',
+  '🕘 Every customer meets their SLA today · +${n}': '🕘 Chaque client respecte son SLA aujourd’hui · +{n} $',
+  '🕘 Send someone to every alarm within {n} minutes · +${n}': '🕘 Envoyer quelqu’un sur chaque alarme en moins de {n} min · +{n} $',
+  '🕘 Send someone to every alarm within {n} minutes · ✗ missed': '🕘 Envoyer quelqu’un sur chaque alarme en moins de {n} min · ✗ raté',
+  '💰 Today +${n}': '💰 Aujourd’hui +{n} $', '💰 Today -${n}': '💰 Aujourd’hui -{n} $',
+  'Uptime {n}% / {n}% · blocked {n} ✓': 'Disponibilité {n} % / {n} % · {n} bloquées ✓', 'Uptime {n}% / {n}% · blocked {n}': 'Disponibilité {n} % / {n} % · {n} bloquées',
+  'Uptime {n}% / {n}% · profit ${n} / ${n}': 'Disponibilité {n} % / {n} % · bénéfice {n} $ / {n} $', 'Uptime {n}% / {n}% · profit -${n} / ${n}': 'Disponibilité {n} % / {n} % · bénéfice -{n} $ / {n} $',
+  'Ch{n} · {n}h{n} left': 'Ch{n} · {n}h{n} restantes',
+  'Ends Thu {n} · goals are checked at the end · goals are checked at the end · 🧑‍💻 Sysadmin': 'Fin Jeu {n} · objectifs vérifiés à la fin · 🧑‍💻 Administrateur',
+  'Ends Fri {n} · goals are checked at the end · goals are checked at the end · 🧑‍💻 Sysadmin': 'Fin Ven {n} · objectifs vérifiés à la fin · 🧑‍💻 Administrateur',
+  'Ends Sat {n} · goals are checked at the end · goals are checked at the end · 🧑‍💻 Sysadmin': 'Fin Sam {n} · objectifs vérifiés à la fin · 🧑‍💻 Administrateur',
+  // v0.9b: customers, story and villains
+  'Website and till system. Busy in office hours.': 'Site web et caisse. Chargé aux heures de bureau.',
+  'Fintech. Strict SLA, pays a lot.': 'Fintech. SLA strict, paie bien.',
+  'Email for a law firm.': 'Messagerie d’un cabinet d’avocats.', 'Email for a law firm. Office hours only.': 'Messagerie d’un cabinet d’avocats. Heures de bureau seulement.',
+  'News site, busy in the evening.': 'Site d’actualités, chargé le soir.', 'Online cake orders.': 'Commandes de gâteaux en ligne.',
+  'Food delivery: big peaks at lunch and dinner.': 'Livraison de repas : gros pics à midi et le soir.',
+  'Game launch servers: huge evening traffic.': 'Serveurs de lancement de jeu : énorme trafic le soir.', 'Game servers for an indie studio.': 'Serveurs de jeu pour un studio indépendant.',
+  'Assign one spare server per customer (N+{n}) and watch the demand marker on the contract card.': 'Affectez un serveur de rechange par client (N+{n}) et surveillez le repère de demande sur la carte du contrat.',
+  'Grandma wants an online shop! Sign the new contract (Clients tab), then install the server from your stock for it.': 'Mamie veut une boutique en ligne ! Signez le nouveau contrat (onglet Clients), puis installez-lui un serveur de votre stock.',
+  'Grandma calls: "The website is frozen!" A server hung. A quick reboot will do.': 'Mamie appelle : « Le site est figé ! » Un serveur s’est bloqué. Un petit redémarrage suffira.',
+  'Pop! A power supply died, and there is no spare on the shelf.': 'Pop ! Une alimentation a lâché, et il n’y a pas de pièce de rechange sur l’étagère.',
+  '{n} the office AC just broke down. Facilities promise a fix by {n}…': '{n} : la clim du bureau vient de tomber en panne. Les services généraux promettent une réparation d’ici {n}…',
+  'SLA uptime ≥ {n}% and cash ≥ ${n} at {n}': 'Disponibilité SLA ≥ {n} % et trésorerie ≥ {n} $ à {n}',
+  'MetroFiber A': 'MetroFiber A',
+  '{n}★ earned · win on 🔥 Nightmare to become CTO': '{n}★ obtenues · gagnez en 🔥 Cauchemar pour devenir CTO',
+  'Your firewall is a joke! — Script Kiddies': 'Votre pare-feu est une blague ! — Script Kiddies',
+  'lol n{n}bs, prepare to be flooded! — Script Kiddies': 'lol n{n}bs, préparez-vous à être inondés ! — Script Kiddies',
+  'We saw your admin password. It was "admin". — Script Kiddies': 'On a vu votre mot de passe admin. C’était « admin ». — Script Kiddies',
+  'Ahoy! Fancy a free coffee machine licence? Just click here… — Captain Phish': 'Ohé ! Une licence de machine à café gratuite ? Cliquez ici… — Capitaine Phish',
+  'Yarr, your password be mine! — Captain Phish': 'Yarr, votre mot de passe sera à moi ! — Capitaine Phish',
+  'Nothing to see here, matey. Open the attachment. — Captain Phish': 'Rien à voir, matelot. Ouvrez la pièce jointe. — Capitaine Phish',
+  'Ends Mon {n}': 'Fin Lun {n}', 'Ends Tue {n}': 'Fin Mar {n}', 'Ends Wed {n}': 'Fin Mer {n}', 'Ends Thu {n}': 'Fin Jeu {n}', 'Ends Fri {n}': 'Fin Ven {n}', 'Ends Sat {n}': 'Fin Sam {n}', 'Ends Sun {n}': 'Fin Dim {n}',
+  'goals are checked at the end': 'objectifs vérifiés à la fin', '🧑‍💻 Administrateur': '🧑‍💻 Administrateur',
+  'No end date': 'Pas de date de fin', 'milestones': 'étapes',
+  'CRAC unit broke down! The floor is heating up.': 'L’unité CRAC est tombée en panne ! La salle chauffe.', '❌ CRAC unit broke down! The floor is heating up.': '❌ L’unité CRAC est tombée en panne ! La salle chauffe.',
+  '{n} facilities fixed the AC. Phew.': '{n} : les services généraux ont réparé la clim. Ouf.',
+  'Salle serveurs · one shift · You start with half the usual cash.': 'Salle serveurs · un service · Vous commencez avec la moitié de l’argent habituel.',
+  'A degraded disk was not swapped in time and a second disk died: data loss.': 'Un disque dégradé n’a pas été changé à temps et un second disque est mort : perte de données.',
+  'Swap degraded disks within the warning window, and always keep spares.': 'Changez les disques dégradés pendant le délai d’alerte, et gardez toujours des pièces de rechange.',
+  'A disk failed and the server limped on in degraded mode.': 'Un disque est tombé en panne et le serveur a continué en mode dégradé.',
+  'Keep spare disks and swap degraded disks before the second one fails.': 'Gardez des disques de rechange et changez les disques dégradés avant la panne du second.',
+  'A power supply died and took its server down.': 'Une alimentation est morte et a arrêté son serveur.',
+  'Keep a spare PSU on the shelf, and give every customer one server more than they need (N+1).': 'Gardez une alimentation de rechange et donnez à chaque client un serveur de plus que nécessaire (N+1).',
+  'The rack drew more power than its budget and the breaker tripped, taking every server down.': 'La baie a dépassé son budget électrique et le disjoncteur a sauté, arrêtant tous les serveurs.',
+  'Spread servers across racks and keep each rack under 90% of its budget (power overlay).': 'Répartissez les serveurs entre les baies et gardez chacune sous 90 % de son budget (calque électrique).',
+  'The rack overheated and its servers shut down to protect themselves.': 'La baie a surchauffé et ses serveurs se sont éteints pour se protéger.',
+  'Add cooling near hot racks, fix the aisles, and power off idle servers.': 'Ajoutez du refroidissement près des baies chaudes, corrigez les allées et éteignez les serveurs inutilisés.',
+  'A top-of-rack switch failed and cut the whole rack off the network.': 'Un commutateur de baie est tombé en panne et a coupé toute la baie du réseau.',
+  'Keep a spare switch and a network engineer on the team.': 'Gardez un commutateur de rechange et un ingénieur réseau dans l’équipe.',
+  'The fiber uplink was cut and traffic had nowhere to go.': 'La liaison fibre a été coupée et le trafic ne pouvait plus passer.',
+  'A second uplink on a separate route keeps you online when one is cut.': 'Une seconde liaison sur un trajet séparé vous garde en ligne quand l’une est coupée.',
+  'Customers needed more bandwidth than your uplinks carry.': 'Les clients avaient besoin de plus de bande passante que vos liaisons n’en portent.',
+  'Add uplink capacity before signing traffic-heavy customers.': 'Ajoutez de la capacité réseau avant de signer des clients gourmands en trafic.',
+  'A cooler broke down and the floor heated up.': 'Un climatiseur est tombé en panne et la salle a chauffé.',
+  'Change filters before they clog: a dirty cooler can break.': 'Changez les filtres avant qu’ils ne s’encrassent : un climatiseur sale peut casser.',
+  'A clogged filter cut cooling capacity.': 'Un filtre encrassé a réduit la capacité de refroidissement.',
+  'Have an HVAC tech change filters when they turn amber.': 'Faites changer les filtres par un technicien clim dès qu’ils passent à l’orange.',
+  'Malware got in and the infected servers were quarantined.': 'Un logiciel malveillant est entré et les serveurs infectés ont été mis en quarantaine.',
+  'Spot phishing emails, cut the spread fast, and re-image infected racks quickly.': 'Repérez les e-mails d’hameçonnage, coupez vite la propagation et réinstallez vite les baies infectées.',
+  'A server hung and the customer lost capacity.': 'Un serveur s’est bloqué et le client a perdu de la capacité.',
+  'Keep spare capacity for peaks.': 'Gardez de la capacité de réserve pour les pics.',
+  'Order 2 spare disks': 'Commander 2 disques de rechange', 'Order 2 spare PSUs': 'Commander 2 alimentations de rechange', 'Order a portable AC': 'Commander un climatiseur mobile',
+  'Order a spare switch': 'Commander un commutateur de rechange', 'Order a second uplink': 'Commander une seconde liaison', 'Order 2 filters': 'Commander 2 filtres',
   // tips
   'Welcome to the closet! That humming box is the whole company. Tap the rack to look inside.': 'Bienvenue dans le placard ! Cette boîte qui ronronne, c’est toute l’entreprise. Touchez la baie pour regarder dedans.',
   'An alarm! Tap it in the alarm list, then send someone. Amber = warning, red = trouble.': 'Une alarme ! Touchez-la dans la liste, puis envoyez quelqu’un. Orange = avertissement, rouge = problème.',
@@ -223,6 +408,91 @@ export const FR: Record<string, string> = {
   'The generator did not start! Send your electrician (or you, slowly) to start it before the batteries run out.': 'Le groupe n’a pas démarré ! Envoyez votre électricien (ou vous-même, lentement) avant que les batteries ne soient vides.',
   'Hackers! When an attack hits, tap Defend to play a 10-second game. Skip it with Auto-defend and you only get half the protection. Floods overload your customers, phishing locks technicians out of their accounts, and worms quarantine racks until someone cleans and re-images them.': 'Des pirates ! Quand une attaque arrive, touchez Défendre pour jouer 10 secondes. Avec la défense auto, vous n’avez que la moitié de la protection. Les inondations surchargent vos clients, l’hameçonnage verrouille les comptes des techniciens, et les vers mettent des baies en quarantaine jusqu’à leur nettoyage.',
 };
+
+const NUM = /\d[\d,.:]*/g;
+
+/** Looks a sentence up exactly, then with its numbers abstracted to {n} ("Needs 4 units" -> "Needs {n} units"). */
+export function tl(text: string): string {
+  if (current !== 'fr') return text;
+  const whole = tlOne(text);
+  if (whole !== text) return whole;
+  // a log line starts with an icon ("ℹ️ ", "🧓 ", "📣 "): translate the sentence behind it
+  const m = /^((?:\p{Extended_Pictographic}\uFE0F?\u200D?\s?)+)(.+)$/u.exec(text);
+  if (m) {
+    const rest = tlOne(m[2]!);
+    if (rest !== m[2]) return m[1] + rest;
+  }
+  return text;
+}
+
+const ASKS: Record<string, string> = {
+  'says a light is blinking oddly on': 'signale un voyant qui clignote bizarrement sur',
+  'wants a visual check of their servers in': 'demande un contrôle visuel de ses serveurs dans',
+  'needs a cable re-seated in': 'a besoin qu’on rebranche un câble dans',
+  'asks for a photo of their kit in': 'demande une photo de son matériel dans',
+  'needs a USB stick plugged into a server in': 'a besoin d’une clé USB branchée sur un serveur dans',
+};
+const ASK_RX = new RegExp(`^(.+?) \\((.+?)\\) (${Object.keys(ASKS).join('|')}) Rack (\\d+)\\.?(?: \\$(\\d+) if done within (\\d+) min\\.)?$`);
+const SEV: Record<string, string> = { Warning: 'Avertissement', Major: 'Majeure', Critical: 'Critique' };
+
+function tlRx(text: string): string | null {
+  const ask = ASK_RX.exec(text);
+  if (ask) return `${ask[1]} (${ask[2]}) ${ASKS[ask[3]!]} Baie ${ask[4]}${ask[5] ? `. ${ask[5]} $ si fait en moins de ${ask[6]} min.` : ''}`;
+  const q = /^“(.+)”$/.exec(text);
+  if (q) return `“${tl(q[1]!)}”`;
+  const pm = /^Post-mortem: (.+?) was down for (\S+?)\.? (.+)$/.exec(text);
+  if (pm) return `Analyse d’incident : ${pm[1]} arrêté pendant ${pm[2]}. ${tl(pm[3]!)}`;
+  const wi = /^Walk-in request: (.+)$/.exec(text);
+  if (wi) return `Demande client : ${tl(wi[1]!)}`;
+  const sev = /^(?:Escalated to )?(Warning|Major|Critical): (.+)$/.exec(text);
+  if (sev) return `${text.startsWith('Escalated') ? 'Escalade vers ' : ''}${SEV[sev[1]!]} : ${tl(sev[2]!)}`;
+  const shift = /^Shift (\d+) begins\. Goal: (.+?) \(\+\$(\d+)\)\.$/.exec(text);
+  if (shift) return `Service ${shift[1]} : début. Objectif : ${tl(shift[2]!)} (+${shift[3]} $).`;
+  if (text.includes(' · ')) {
+    const parts = text.split(' · ');
+    const out = parts.map((p) => tlOne(p));
+    if (out.some((p, i) => p !== parts[i])) return out.join(' · ');
+  }
+  return null;
+}
+
+function tlOne(text: string): string {
+  const exact = FR[text];
+  if (exact !== undefined) return exact;
+  const rx = tlRx(text);
+  if (rx !== null) return rx;
+  const nums: string[] = [];
+  const key = text.replace(NUM, (m) => { nums.push(m); return '{n}'; });
+  if (!nums.length) return text.replace(/\bRack (\d+)/g, 'Baie $1');
+  const hit = FR[key];
+  if (hit === undefined) return text;
+  let i = 0;
+  return hit.replace(/\{n\}/g, () => nums[i++] ?? '');
+}
+
+const ATTRS = ['title', 'aria-label', 'placeholder'] as const;
+
+/** Translates the text nodes and labels of a parsed fragment (before it is morphed into the page). */
+export function translateTree(root: ParentNode): void {
+  if (current !== 'fr') return;
+  const walker = document.createTreeWalker(root as Node, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (n.nodeType === Node.ELEMENT_NODE) {
+      const el = n as Element;
+      if (el.tagName === 'STYLE' || el.tagName === 'SCRIPT' || el.tagName === 'SVG' || el.tagName === 'svg') continue;
+      for (const a of ATTRS) {
+        const v = el.getAttribute(a);
+        if (v) el.setAttribute(a, tl(v));
+      }
+    } else {
+      const raw = n.nodeValue ?? '';
+      const core = raw.trim();
+      if (!core) continue;
+      const out = tl(core);
+      if (out !== core) n.nodeValue = raw.replace(core, out);
+    }
+  }
+}
 
 type Named = { name?: string; title?: string; subtitle?: string; intro?: string; description?: string; blurb?: string; label?: string };
 

@@ -494,6 +494,7 @@ Colour-blind palette plus shapes, scalable UI text, reduced-motion option, all s
 | **v0.6 "Launch Week"** ✅ shipped | Re-sequence and automation | Ch3/Ch4 split, Shift Lead auto-dispatch from Ch2, proactive specialists, juice pass (speech bubbles, SLA streak, confetti, screen shake), contract names, new artwork | ≤ 2 new systems per chapter ✓ (tested); with a Shift Lead the bot's workload is 1.18 / 1.66 / 1.31 actions/min in Ch2 / Ch3 / Ch4 (≈ 4.5 by hand) ✓ |
 | **v0.7 "Hackers"** ✅ shipped | Differentiator | Hacker Weekend event (2 villains, 3 micro-games), sandbox/endless mode | Event playable in ≤ 10 min ✓ (tested); micro-games pass phone touch tests (controls ≥ 44 px) ✓ |
 | **v0.8 "Enterprise DC"** ✅ shipped | Power resilience | Chapter 5: utility outages, UPS batteries, generator (start/test), Electrician role, blackout consequences, Infra tab | One new system (backup power); bot guardrails hold; negligent play suffers blackout, prepared play survives the storm ✓ (tested) |
+| **v0.9 "Parlez-vous datacenter?"** ✅ shipped | Localisation completeness | Fragment translator for every panel, modal, toast and log line, with number-aware keys; customers, taunts, post-mortems and walk-in requests in French | ≈96% of strings seen in a harvested play session (Ch0, Ch3, Ch5, Hacker Weekend) have a French form ✓ |
 | **v1.0** ✅ shipped (code) | Polish | Accessibility audit, FR localisation | axe-core clean on every screen ✓; French menus/HUD/tips/chapters ✓; §19 KPIs still need a 20-player test |
 
 ### MVP (vertical slice): Chapters 0–2 (shipped)
@@ -681,6 +682,13 @@ Player report: "UI not very responsive on mobile". The probe (`e2e/perf-probe.mj
 - **Accessibility audit** (axe-core on the start screen, game, every panel and the pause menu): fixed zoom being disabled (`user-scalable=no`), missing level-one heading and landmarks, heading order, a scrolling panel without keyboard access, and a duplicate banner landmark. All screens now report zero violations (colour contrast already passed). Added visible focus rings and `prefers-reduced-motion` support.
 - **French localisation**: language setting (Auto / English / Français, auto follows the browser). Translated: menus, settings, HUD, tabs, pause and end screens, mentor tips, chapter titles and intros, difficulties, achievements, parts, jobs, roles, alarms and the backup-power panel. Switching reloads the page. Still English: simulation log lines and toasts, shift-report prose and some panel text. These are the next localisation pass.
 - Not done: a human 20-player test for the §19 KPIs.
+
+### 21.19 v0.9 results
+
+- **How it works**: `morph()` now passes each rendered fragment through `translateTree`, so every panel, modal, label, tooltip and toast is translated at the DOM-fragment level. Sentences are matched exactly, then with numbers abstracted (`Needs {n} units`), then through a few patterns (icon prefixes, `A · B · C` segments, walk-in requests, alarm lines, post-mortems, quoted taunts). Anything unknown stays English, never blank.
+- **Coverage check**: a scripted play session (Closet, Colocation Floor, Enterprise DC, Hacker Weekend) harvested 473 distinct on-screen strings; 19 contained untranslated English at the last check, and those were fixed afterwards (about 4% left, mostly rare log lines).
+- **Tests**: every FR entry keeps its `{n}` placeholders, every data table is translated, and the phone e2e covers French.
+- **Still English**: rare simulation log lines and any text added after this pass. Customer and person names stay as is.
 
 ## Appendix A: Example "first 5 minutes"
 

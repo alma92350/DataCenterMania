@@ -5,7 +5,7 @@ import { JOB_LABEL, PARTS, ROLE_LABEL } from '../src/data/catalog';
 import { TIPS } from '../src/data/content';
 import { DIFFICULTIES } from '../src/data/difficulty';
 import { ACHIEVEMENTS } from '../src/sim/achievements';
-import { FR, applyLanguage, currentLang, detectLang, t } from '../src/ui/i18n';
+import { FR, applyLanguage, currentLang, detectLang, t, tl, translateTree } from '../src/ui/i18n';
 import { DEFAULT_SETTINGS } from '../src/ui/storage';
 import { settingsForm, startScreen } from '../src/ui/views';
 import { dailySpec } from '../src/sim/daily';
@@ -53,6 +53,30 @@ describe('localisation', () => {
     expect(html).toContain('Chapitres');
     expect(settingsForm(DEFAULT_SETTINGS)).toContain('Langue');
     expect(settingsForm(DEFAULT_SETTINGS)).toContain('Français');
+    await applyLanguage('en');
+  });
+
+  it('keeps numbers and placeholders aligned in every translation', () => {
+    for (const [en, fr] of Object.entries(FR)) {
+      const slots = (en.match(/\{n\}/g) ?? []).length;
+      if (slots) expect([en, (fr.match(/\{n\}/g) ?? []).length]).toEqual([en, slots]);
+    }
+  });
+
+  it('translates sentences with numbers, icon prefixes and attributes (French only)', async () => {
+    expect(tl('Offer expires in 3d')).toBe('Offer expires in 3d'); // English by default
+    await applyLanguage('fr');
+    expect(tl('Offer expires in 3d')).toBe('L’offre expire dans 3 j');
+    expect(tl('Uptime 99.5% / 98%')).toBe('Disponibilité 99.5 % / 98 %');
+    expect(tl('🧓 To install a server, open a rack, tap an empty slot and pick a server from your stock.')).toContain('🧓 Pour installer');
+    expect(tl('Brand new unknown sentence 12')).toBe('Brand new unknown sentence 12');
+    const host = document.createElement('div');
+    host.innerHTML = '<button title="Zoom in" aria-label="Fit map">  Decline </button><p>Candidates</p>';
+    translateTree(host);
+    expect(host.innerHTML).toContain('title="Zoom avant"');
+    expect(host.innerHTML).toContain('aria-label="Ajuster la carte"');
+    expect(host.querySelector('button')!.textContent).toBe('  Refuser ');
+    expect(host.querySelector('p')!.textContent).toBe('Candidats');
     await applyLanguage('en');
   });
 });

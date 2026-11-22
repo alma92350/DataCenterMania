@@ -341,7 +341,7 @@ export function goalsPanel(s: GameState): string {
     <ul class="list goals">${objectivesFor(s)
       .map((o, i) => `<li class="row"><span class="star">${'★'.repeat(i + 1)}</span><span>${e(o.label)}</span><span class="${status[i] ? 'ok' : 'muted'}">${status[i] ? '✓ on track' : '…'}</span></li>`)
       .join('')}</ul>
-    <p class="muted small">${s.sandbox ? `No end date · score ${sandboxScore(s).toLocaleString('en-US')} · milestones` : `Ends ${formatClock(chapterEnd(s))} · goals are checked at the end`} · goals are checked at the end · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
+    <p class="muted small">${s.sandbox ? `No end date · score ${sandboxScore(s).toLocaleString('en-US')} · milestones` : `Ends ${formatClock(chapterEnd(s))} · goals are checked at the end`} · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
     ${last ? `<h3>Last day</h3><div class="report">
       <span>Revenue</span><b>${money(last.revenue)}</b><span>Penalties</span><b>${money(-last.penalties)}</b>
       <span>Salaries</span><b>${money(-last.salaries)}</b><span>Electricity</span><b>${money(-last.electricity)}</b>
