@@ -13,7 +13,7 @@ import type { AlarmKind, Cooler, Facing, GameState, JobKind, PartId, ProjectId, 
 type TechChoice = string | 'best';
 
 export type Command =
-  | { type: 'dispatch'; job: DispatchJob; deviceId?: string; rackId?: string; uplinkId?: string; walkinId?: string; techId: TechChoice }
+  | { type: 'dispatch'; job: DispatchJob; deviceId?: string; rackId?: string; uplinkId?: string; walkinId?: string; feed?: 'A' | 'B'; techId: TechChoice }
   | { type: 'install'; rackId: string; slot: number; model: ServerModelId; contractId: string | null; techId: TechChoice }
   | { type: 'buildRack'; pos: Vec; facing?: Facing; techId: TechChoice }
   | { type: 'placeCooler'; coolerKind: Exclude<Cooler['kind'], 'officeAc'>; pos: Vec; techId: TechChoice }
@@ -39,7 +39,7 @@ export type Command =
   | { type: 'setAutoDispatch'; on: boolean }
   | { type: 'startProject'; project: ProjectId; techId?: TechChoice };
 
-export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor' | 'reimage' | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel'>;
+export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor' | 'reimage' | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel' | 'repairPdu' | 'dualCord'>;
 
 export type CommandResult = { ok: true } | { ok: false; error: string };
 
@@ -69,6 +69,8 @@ export function suggestedJob(kind: AlarmKind): DispatchJob | null {
       return 'replaceBattery';
     case 'ats':
       return 'transferAts';
+    case 'feed':
+      return 'repairPdu';
     case 'fuel':
       return 'refuel';
     default:
@@ -134,7 +136,8 @@ function exec(s: GameState, cmd: Command): CommandResult {
         if (s.jobs.some((j) => j.walkinId === w.id)) return fail('Someone is already on it.');
         const rack = rackById(s, w.rackId);
         if (!rack) return fail('Unknown rack.');
-        return dispatchJob(s, { kind: 'favor', rackId: rack.id, walkinId: w.id, part: null, site: rack.pos }, cmd.techId);
+        const kind = w.kind === 'crossConnect' ? 'crossConnect' : 'favor';
+        return dispatchJob(s, { kind, rackId: rack.id, walkinId: w.id, part: null, site: rack.pos }, cmd.techId);
       }
       if (cmd.job === 'reimage') {
         const rack = rackById(s, cmd.rackId ?? null);
@@ -193,6 +196,27 @@ function exec(s: GameState, cmd: Command): CommandResult {
           s.cash -= BACKUP.batteryJobCost;
         }
         return dispatchJob(s, { kind: cmd.job, part: null, site }, cmd.techId);
+      }
+      if (cmd.job === 'repairPdu') {
+        const rack = rackById(s, cmd.rackId ?? null);
+        if (!rack) return fail('Unknown rack.');
+        const feed = cmd.feed ?? (rack.pduA === 'failed' ? 'A' : rack.pduB === 'failed' ? 'B' : null);
+        if (!feed || (feed === 'A' ? rack.pduA : rack.pduB) !== 'failed') return fail('That power feed is fine.');
+        if (s.jobs.some((j) => j.kind === 'repairPdu' && j.rackId === rack.id)) return fail('Someone is already on it.');
+        return dispatchJob(s, { kind: 'repairPdu', rackId: rack.id, feed, part: null, site: rack.pos }, cmd.techId);
+      }
+      if (cmd.job === 'dualCord') {
+        if (!hasFeature(s, 'redundancy')) return fail('Redundant power unlocks in Chapter 6.');
+        const dev = deviceById(s, cmd.deviceId ?? null);
+        if (!dev) return fail('Unknown server.');
+        if ((dev.psus ?? 1) === 2) return fail('That server already has two legs.');
+        if (pendingFor(s, 'dualCord', dev.id)) return fail('Someone is already on it.');
+        if (s.inventory.psu < 1) {
+          showTip(s, 'shop');
+          return fail('No power supply in stock. Order one from the Shop.');
+        }
+        const rack = rackById(s, dev.rackId)!;
+        return dispatchJob(s, { kind: 'dualCord', rackId: rack.id, deviceId: dev.id, part: 'psu', site: rack.pos }, cmd.techId);
       }
       if (cmd.job === 'resetBreaker') {
         const rack = rackById(s, cmd.rackId ?? null);

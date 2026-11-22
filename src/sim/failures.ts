@@ -20,7 +20,7 @@ export function hungRateMultiplier(s: GameState): number {
 export function applyFault(s: GameState, d: Device, fault: FaultKind): void {
   if (d.faults.includes(fault) || (fault === 'disk' && d.faults.includes('dataloss'))) return;
   d.faults.push(fault);
-  const severity = FAULT_SEVERITY[fault];
+  const severity = fault === 'psu' && (d.psus ?? 1) === 2 ? 1 : FAULT_SEVERITY[fault];
   raiseAlarm(s, fault, d.rackId, d.id, severity, fault === 'dataloss' ? null : escalationDelay(s, severity));
 }
 

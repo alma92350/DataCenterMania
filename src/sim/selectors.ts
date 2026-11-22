@@ -9,12 +9,29 @@ export const contractById = (s: GameState, id: string | null): Contract | undefi
 
 export const devicesInRack = (s: GameState, rackId: string): Device[] => s.devices.filter((d) => d.rackId === rackId);
 
-const BLOCKING_FAULTS = new Set(['psu', 'hung', 'dataloss', 'malware']);
+const BLOCKING_FAULTS = new Set(['hung', 'dataloss', 'malware']);
+
+export const feedOk = (r: Rack | undefined, feed: 'A' | 'B'): boolean => (feed === 'A' ? r?.pduA : r?.pduB) !== 'failed';
+
+/** Leg A: feed A through power supply 1. Leg B (dual-corded only): feed B through power supply 2. A dead PSU takes out leg A. */
+export function legsUp(s: GameState, d: Device): { a: boolean; b: boolean } {
+  const rack = rackById(s, d.rackId);
+  return { a: feedOk(rack, 'A') && !d.faults.includes('psu'), b: (d.psus ?? 1) === 2 && feedOk(rack, 'B') };
+}
+
+/** A dual-corded server that has lost one leg is still up, but one failure away from an outage. */
+export function onOneLeg(s: GameState, d: Device): boolean {
+  if ((d.psus ?? 1) !== 2) return false;
+  const l = legsUp(s, d);
+  return l.a !== l.b;
+}
 
 /** Is the device serving traffic right now? */
 export function deviceUp(s: GameState, d: Device): boolean {
   if (!d.poweredOn || d.thermalShutdown || s.backup?.source === 'none') return false;
   if (d.faults.some((f) => BLOCKING_FAULTS.has(f))) return false;
+  const legs = legsUp(s, d);
+  if (!legs.a && !legs.b) return false;
   const rack = rackById(s, d.rackId);
   return !!rack && !rack.tripped && !rack.switchFailed && !rack.maintenance;
 }

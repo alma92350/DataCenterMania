@@ -2,6 +2,7 @@ import { CHAPTERS, type ScriptedAction } from '../data/chapters';
 import { applyFault } from './failures';
 import { cutUplink } from './network';
 import { startOutage } from './backup';
+import { failPdu } from './feeds';
 import { launchAttack } from './cyber';
 import { addLog, makeContract, showTip } from './state';
 import type { GameState } from './types';
@@ -34,6 +35,12 @@ function run(s: GameState, a: ScriptedAction): void {
     case 'filter': {
       const c = s.coolers[a.cooler];
       if (c) c.health = Math.min(c.health, a.health);
+      break;
+    }
+    case 'pduFail': {
+      const r = s.racks[a.rack];
+      if (a.text) addLog(s, 'story', a.text);
+      if (r) failPdu(s, r, a.feed);
       break;
     }
     case 'outage':

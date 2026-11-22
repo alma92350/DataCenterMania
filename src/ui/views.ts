@@ -23,6 +23,8 @@ import { t } from './i18n';
 import { HANDBOOK, handbookFor } from '../data/handbook';
 import { countdown, escapeHtml as e, money, stars } from './format';
 import { bestStars, isDifficultyUnlocked, isSandboxUnlocked, isUnlocked, type Progress, type Settings } from './storage';
+import { spofCount } from '../sim/spof';
+import { feedOk, onOneLeg } from '../sim/selectors';
 import { generatorTested, upsCapacityKwh, upsRuntimeMin } from '../sim/backup';
 import { SANDBOX_FLOORS, sandboxDays, sandboxScore, type SandboxConfig, type SandboxFloor } from '../sim/sandbox';
 import { ACHIEVEMENTS, careerTitle } from '../sim/achievements';
@@ -76,7 +78,7 @@ export function tabs(s: GameState, active: PanelId): string {
     .map((p) => {
       const badge = p === 'alarms' ? s.alarms.filter((a) => a.kind !== 'powerHigh').length + s.walkins.filter((w) => w.status === 'open').length : p === 'contracts' ? offeredContracts(s).length : 0;
       const meta = p === 'network' && s.backup ? { icon: '🔌', label: t('Infra') } : PANEL_META[p];
-      const alert = p === 'network' && s.backup && (!s.backup.grid || s.alarms.some((a) => a.kind === 'generator' || a.kind === 'battery'));
+      const alert = p === 'network' && ((s.backup && (!s.backup.grid || s.alarms.some((a) => a.kind === 'generator' || a.kind === 'battery' || a.kind === 'ats' || a.kind === 'fuel'))) || s.alarms.some((a) => a.kind === 'feed'));
       return `<button data-action="panel" data-panel="${p}" class="${p === active ? 'on' : ''}" aria-pressed="${p === active}">
         <span class="ti">${meta.icon}</span><span class="tl">${meta.label}</span>${alert ? '<span class="badge">!</span>' : ''}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
     })
@@ -276,12 +278,32 @@ export function backupPanel(s: GameState): string {
     <p class="muted small">Only an <b>electrician</b> works at full speed on power jobs. Hire one in the Team tab.</p>`;
 }
 
+export function redundancyCard(s: GameState): string {
+  if (!hasFeature(s, 'redundancy')) return '';
+  const serving = s.devices.filter((d) => d.contractId !== null);
+  const single = serving.filter((d) => (d.psus ?? 1) !== 2);
+  const spof = spofCount(s);
+  const busy = s.jobs.some((j) => j.kind === 'dualCord');
+  const failed = s.racks.flatMap((r, i) => (['A', 'B'] as const).filter((f) => !feedOk(r, f)).map((f) => ({ r, i, f })));
+  return `<h3>${t('Redundancy')}</h3>
+    <div class="report"><span>${t('Dual-cord')}</span><b class="${single.length ? 'warn' : 'ok'}">${serving.length - single.length} / ${serving.length}</b>
+      <span>${t('Single points of failure')}</span><b class="${spof.servers ? 'bad' : 'ok'}">${spof.servers}</b>
+      <span>${t('Spare PSUs in stock')}</span><b>${s.inventory.psu}</b></div>
+    ${failed.length ? `<ul class="list">${failed.map(({ r, i, f }) => {
+      const job = s.jobs.find((j) => j.kind === 'repairPdu' && j.rackId === r.id);
+      return `<li><div class="row"><b>⚡ ${t('Feed')} ${f} · Rack ${i + 1}</b><span class="chip bad">${t('FAILED')}</span></div>
+        <div class="row actions">${job ? '<span class="busy">🔧 …</span>' : `<button class="primary" data-action="dispatchFeed" data-rack="${e(r.id)}" data-feed="${f}">${t('Repair power feed')}</button>`}</div></li>`;
+    }).join('')}</ul>` : ''}
+    <div class="row actions">${single.length ? (busy ? '<span class="busy">🔧 …</span>' : `<button class="primary" data-action="dualCordNext" ${s.inventory.psu < 1 ? 'disabled' : ''}>${t('Dual-cord next server')}</button>`) : `<span class="ok">✅ ${t('two legs')}</span>`}</div>
+    <p class="muted small">${t('Power feeds, dual power supplies and single points of failure')}: ${t('SPOF view')} (O).</p>`;
+}
+
 export function networkPanel(s: GameState): string {
   const cap = bandwidthCapacity(s);
   const used = s.bandwidthUsed;
   const pct = cap > 0 ? (used / cap) * 100 : 100;
   const failed = s.racks.filter((r) => r.switchFailed);
-  return `${backupPanel(s)}
+  return `${backupPanel(s)}${redundancyCard(s)}
     <h3>${t('Uplink traffic')}</h3>
     <div class="report"><span>Using</span><b class="${used > cap ? 'bad' : pct > 90 ? 'warn' : ''}">${used.toFixed(1)} / ${cap} Gbps</b></div>
     <div class="bar big"><div style="width:${Math.min(100, pct)}%" class="${pct > 90 ? 'bad' : ''}"></div></div>
@@ -407,11 +429,13 @@ function deviceRow(s: GameState, d: Device): string {
   const contractOptions = `<option value="">— unassigned —</option>${activeContracts(s)
     .map((c) => `<option value="${e(c.id)}" ${c.id === d.contractId ? 'selected' : ''}>${e(contractLabel(c))}</option>`)
     .join('')}`;
+  const legs = hasFeature(s, 'redundancy') ? ((d.psus ?? 1) === 2 ? (onOneLeg(s, d) ? `<span class="chip warn">${t('one leg')}</span>` : `<span class="chip ok">${t('two legs')}</span>`) : `<span class="chip bad">${t('one leg')}</span>`) : '';
+  const dual = hasFeature(s, 'redundancy') && (d.psus ?? 1) !== 2 && !job ? `<button data-action="dispatchDevice" data-job="dualCord" data-device="${e(d.id)}" ${s.inventory.psu < 1 ? 'disabled' : ''}>${t('Dual-cord')}</button>` : '';
   return `<li class="slot dev ${cls}" style="--u:${m.u}">
-    <div class="row"><span class="u">U${d.slot + 1}${m.u > 1 ? `-${d.slot + m.u}` : ''}</span><span class="ico xs">${partSvg(d.model)}</span><b>${e(m.name)}</b><span class="chip ${cls}">${status}</span></div>
+    <div class="row"><span class="u">U${d.slot + 1}${m.u > 1 ? `-${d.slot + m.u}` : ''}</span><span class="ico xs">${partSvg(d.model)}</span><b>${e(m.name)}</b><span class="chip ${cls}">${status}</span>${legs}</div>
     <div class="row meta">${d.faults.map((f) => `⚠ ${e(f)}`).join(' ')} ${up ? `Load ${(d.load * 100).toFixed(0)}%` : ''} ${contract ? `· for ${e(contractLabel(contract))}` : ''}</div>
     <div class="row actions">
-      ${job ? `<span class="busy">🔧 ${e(JOB_LABEL[job.kind])}…</span>` : fixes}
+      ${job ? `<span class="busy">🔧 ${e(JOB_LABEL[job.kind])}…</span>` : fixes}${dual}
       <select data-action="assign" data-device="${e(d.id)}" aria-label="Customer">${contractOptions}</select>
       <button data-action="power" data-device="${e(d.id)}" data-on="${d.poweredOn ? '0' : '1'}">${d.poweredOn ? 'Power off' : 'Power on'}</button>
       ${job ? '' : `<button class="ghost danger" data-action="dispatchDevice" data-job="remove" data-device="${e(d.id)}">Remove</button>`}
@@ -442,6 +466,7 @@ export function rackModal(s: GameState, rackId: string): string {
         : `<button data-action="dispatchRack" data-job="rotateRack" data-rack="${e(rack.id)}">↻ Rotate (servers offline ~1h)</button>`}</div>` : ''}
     ${rack.switchFailed ? `<div class="banner bad">🔀 Top-of-rack switch failed: every server here is offline.
       ${s.jobs.some((j) => j.kind === 'replaceSwitch' && j.rackId === rack.id) ? '<span class="busy">🔧 On it</span>' : `<button class="primary" data-action="dispatchRack" data-job="replaceSwitch" data-rack="${e(rack.id)}">Replace switch</button>`}</div>` : ''}
+    ${hasFeature(s, 'redundancy') ? (['A', 'B'] as const).map((f) => `<div class="banner ${feedOk(rack, f) ? 'info' : 'bad'}"><span>⚡ ${t('Feed')} ${f}: <b>${feedOk(rack, f) ? 'OK' : t('FAILED')}</b></span>${feedOk(rack, f) ? '' : (s.jobs.some((j) => j.kind === 'repairPdu' && j.rackId === rack.id) ? '<span class="busy">🔧 …</span>' : `<button class="primary" data-action="dispatchFeed" data-rack="${e(rack.id)}" data-feed="${f}">${t('Repair power feed')}</button>`)}</div>`).join('') : ''}
     ${rack.tripped ? `<div class="banner bad">⚡ Breaker tripped. The whole rack is down. ${breakerJob ? '🔧 Someone is on the way.' : `<button class="primary" data-action="dispatchRack" data-job="resetBreaker" data-rack="${e(rack.id)}">Reset breaker</button>`}
       <div class="small">Tip: if the rack still draws more than its budget, it will trip again. Remove or power off servers first.</div></div>` : ''}
     <ul class="slots">${layout
@@ -701,7 +726,7 @@ export function requestsSection(s: GameState): string {
   return `<h3>Customer requests</h3><ul class="list">${open
     .map((w) => {
       const job = s.jobs.find((j) => j.walkinId === w.id);
-      return `<li class="walkin"><div class="row"><span>🙋</span><b>${e(w.text)}</b><span class="chip ok">+${money(w.reward)}</span></div>
+      return `<li class="walkin"><div class="row"><span>${w.kind === 'crossConnect' ? '🔌' : '🙋'}</span><b>${e(w.text)}</b><span class="chip ok">+${money(w.reward)}</span></div>
         <div class="row meta"><span class="eta">⏱ ${countdown(w.deadline - s.minute)} left</span></div>
         <div class="row actions">${job ? `<span class="busy">🔧 ${e(s.techs.find((t) => t.id === job.techId)?.name ?? 'Queued')}</span>`
           : `<select class="tech-pick" aria-label="Technician">${techOptions(s)}</select><button class="primary" data-action="favor" data-walkin="${e(w.id)}">Send</button>`}</div></li>`;

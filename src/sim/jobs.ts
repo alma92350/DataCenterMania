@@ -9,6 +9,7 @@ import { clearAlarms } from './alarms';
 import { accessTile, findPath, isWalkable, nearestTile } from './grid';
 import { mistakeFactor, staminaFactor } from './fatigue';
 import { restoreUplink } from './network';
+import { repairPdu } from './feeds';
 import { refuelGenerator, replaceBatteries, startGenerator, testGenerator, transferAts } from './backup';
 import { addLog, homeSpot, makeCooler, makeRack, newId, showTip } from './state';
 import { blockedTiles, deviceById, isIdle, rackById, techById, techQueueLength } from './selectors';
@@ -29,6 +30,7 @@ export interface JobSpec {
   facing?: Job['facing'];
   projectId?: Job['projectId'];
   walkinId?: string;
+  feed?: 'A' | 'B';
   proactive?: boolean;
   workMin?: number;
 }
@@ -38,7 +40,7 @@ export function createJob(s: GameState, spec: JobSpec): Job {
     id: newId(s, 'j'), kind: spec.kind, rackId: spec.rackId ?? null, deviceId: spec.deviceId ?? null,
     techId: null, stage: 'queued', workLeft: spec.workMin ?? JOB_WORK_MIN[spec.kind], workTotal: spec.workMin ?? JOB_WORK_MIN[spec.kind], part: spec.part,
     site: { ...spec.site }, model: spec.model, slot: spec.slot, contractId: spec.contractId, coolerKind: spec.coolerKind,
-    coolerId: spec.coolerId, uplinkId: spec.uplinkId, facing: spec.facing, projectId: spec.projectId, walkinId: spec.walkinId, proactive: spec.proactive,
+    coolerId: spec.coolerId, uplinkId: spec.uplinkId, facing: spec.facing, projectId: spec.projectId, walkinId: spec.walkinId, feed: spec.feed, proactive: spec.proactive,
   };
   if (spec.part) s.inventory[spec.part]--;
   s.jobs.push(job);
@@ -65,7 +67,7 @@ export function bestTech(s: GameState, site: Vec, kind: JobKind = 'reboot'): Tec
   return [...pool].sort((a, b) => score(a) - score(b))[0]!;
 }
 
-const SPECIALIST: Partial<Record<JobKind, true>> = { serviceCooler: true, repairCooler: true, replaceSwitch: true, repairUplink: true, startGenerator: true, testGenerator: true, replaceBattery: true, transferAts: true, refuel: true };
+const SPECIALIST: Partial<Record<JobKind, true>> = { serviceCooler: true, repairCooler: true, replaceSwitch: true, repairUplink: true, startGenerator: true, testGenerator: true, replaceBattery: true, transferAts: true, refuel: true, repairPdu: true, crossConnect: true };
 
 export function assignJob(s: GameState, job: Job, techId: string | 'best'): Tech {
   const tech = techId === 'best' ? bestTech(s, job.site, job.kind) : techById(s, techId);
@@ -90,7 +92,7 @@ function siteAccess(s: GameState, job: Job): Vec | null {
     const front = { x: rack.pos.x, y: rack.pos.y + (rack.facing === 'S' ? 1 : -1) };
     if (isWalkable(s.grid, blocked, front.x, front.y)) return front;
   }
-  if ((job.kind === 'repairUplink' || job.kind === 'startGenerator' || job.kind === 'testGenerator' || job.kind === 'replaceBattery' || job.kind === 'transferAts' || job.kind === 'refuel') && isWalkable(s.grid, blocked, job.site.x, job.site.y)) return job.site;
+  if ((job.kind === 'repairUplink' || job.kind === 'startGenerator' || job.kind === 'testGenerator' || job.kind === 'replaceBattery' || job.kind === 'transferAts' || job.kind === 'refuel' || job.kind === 'crossConnect') && isWalkable(s.grid, blocked, job.site.x, job.site.y)) return job.site;
   return accessTile(s.grid, blocked, job.site);
 }
 
@@ -254,7 +256,7 @@ function finishWork(s: GameState, tech: Tech, job: Job): void {
   else routeTo(s, tech, home);
 }
 
-const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker', 'replaceSwitch', 'repairCooler', 'repairUplink', 'reimage', 'startGenerator', 'replaceBattery', 'transferAts', 'refuel']);
+const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker', 'replaceSwitch', 'repairCooler', 'repairUplink', 'reimage', 'startGenerator', 'replaceBattery', 'transferAts', 'refuel', 'repairPdu']);
 
 /** Applies a finished job's effect on the world. */
 export function completeJob(s: GameState, job: Job): void {
@@ -287,7 +289,7 @@ export function completeJob(s: GameState, job: Job): void {
       if (rack && job.model !== undefined && job.slot !== undefined) {
         s.devices.push({
           id: newId(s, 'd'), model: job.model, rackId: rack.id, slot: job.slot, faults: [], poweredOn: true,
-          thermalShutdown: false, contractId: job.contractId ?? null, load: 0,
+          thermalShutdown: false, contractId: job.contractId ?? null, load: 0, psus: s.features.includes('redundancy') ? 2 : 1,
         });
       }
       break;
@@ -351,6 +353,20 @@ export function completeJob(s: GameState, job: Job): void {
       break;
     case 'transferAts':
       transferAts(s);
+      break;
+    case 'repairPdu': {
+      const rack = rackById(s, job.rackId);
+      if (rack && job.feed) repairPdu(s, rack, job.feed);
+      break;
+    }
+    case 'dualCord':
+      if (dev) {
+        dev.psus = 2;
+        addLog(s, 'success', 'A second power supply is in: that server now has two legs.');
+      }
+      break;
+    case 'crossConnect':
+      completeWalkin(s, job.walkinId);
       break;
     case 'refuel':
       refuelGenerator(s);

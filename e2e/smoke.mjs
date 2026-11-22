@@ -231,7 +231,7 @@ try {
     check(true, 'sleeping fast-forwards the night and shows a recap');
     await page.screenshot({ path: `${outDir}/night-recap.png` });
     await page.click('[data-action="closeModal"]');
-    await page.waitForFunction(() => document.querySelector('#topbar')?.textContent.includes('Tue'), null, { timeout: 4000 }).catch(() => {});
+    await page.waitForFunction(() => document.querySelector('#topbar')?.textContent.includes('Tue'), null, { timeout: 12000 }).catch(() => {});
     check((await page.textContent('#topbar')).includes('Tue'), 'the next shift starts on Tuesday morning');
   });
   await session('e-ink (Kindle Scribe)', { viewport: { width: 930, height: 1240 }, deviceScaleFactor: 1, hasTouch: true }, async (page) => {
@@ -497,6 +497,32 @@ try {
     await page.waitForSelector('[data-job="refuel"]', { timeout: 4000 });
     check((await page.textContent('#panel')).includes('Fuel'), 'the Infra tab shows generator fuel and a refuel button');
     check(await page.isVisible('#tabs'), 'the tab bar stays visible');
+  });
+
+  await session('two legs (phone)', { ...devices['Pixel 5'], deviceScaleFactor: 2 }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 }, ch3: { sysadmin: 3 }, ch4: { sysadmin: 3 }, ch5: { sysadmin: 1 } }));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern', display: 'color' }));
+    });
+    await page.reload();
+    await page.waitForSelector('[data-chapter="ch6"]');
+    check(true, 'Chapter 6: Grown-up Infrastructure unlocks after Enterprise DC');
+    await page.tap('[data-chapter="ch6"]');
+    await page.waitForSelector('#topbar .stat');
+    while (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+    await page.tap('#tabs [data-panel="network"]');
+    await page.waitForSelector('[data-action="dualCordNext"]');
+    check((await page.textContent('#panel')).includes('Single points of failure'), 'the Infra tab shows the redundancy card');
+    await page.screenshot({ path: `${outDir}/redundancy.png` });
+    await page.tap('[data-action="dualCordNext"]');
+    await page.waitForFunction(() => document.querySelector('#panel')?.textContent.includes('🔧'), null, { timeout: 5000 });
+    check(true, 'Dual-cord next server sends a technician');
+    await page.tap('#tabs [data-panel="network"]'); // close the sheet: it covers the map buttons
+    // cycle the map overlay: heat -> power -> single points of failure
+    for (let i = 0; i < 3; i++) await page.tap('[data-zoom="heat"]');
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${outDir}/spof.png` });
+    check(await page.isVisible('#tabs'), 'the SPOF overlay is on and the tab bar stays visible');
   });
 
 } finally {

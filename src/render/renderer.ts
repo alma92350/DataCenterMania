@@ -6,12 +6,14 @@ import { worldToScreen, type Camera } from './camera';
 import { avatarSprite, drawSprite, glyphSprite, partSprite, placeSprite } from './sprites';
 import { BUBBLE_LIFE } from '../sim/bubbles';
 
-export type Overlay = 'none' | 'heat' | 'power';
+export type Overlay = 'none' | 'heat' | 'power' | 'spof';
 
 export interface RenderView {
   selectedRackId: string | null;
   buildPreview: { x: number; y: number; valid: boolean } | null;
   overlay: Overlay;
+  /** Single points of failure per rack (only computed while that overlay is on). */
+  spof?: Record<string, import('../sim/spof').RackSpof>;
   time: number; // ms, for animations
   /** E-ink screen: monochrome palette, no animation. */
   eink?: boolean;
@@ -198,6 +200,12 @@ function drawRack(ctx: CanvasRenderingContext2D, s: GameState, cam: Camera, r: R
   } else if (view.overlay === 'power') {
     const ratio = r.loadW / r.powerBudgetW;
     ctx.fillStyle = EINK ? `rgba(0,0,0,${Math.min(0.7, ratio * 0.7).toFixed(2)})` : ratio > 0.9 ? 'rgba(255,59,92,0.5)' : ratio > 0.7 ? 'rgba(255,176,32,0.45)' : 'rgba(61,220,132,0.3)';
+    ctx.fill();
+  }
+  else if (view.overlay === 'spof') {
+    const sp = view.spof?.[r.id];
+    const bad = !!sp && sp.power.length > 0;
+    ctx.fillStyle = EINK ? (bad ? 'rgba(0,0,0,0.65)' : sp?.singleCooler ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)') : bad ? 'rgba(255,59,92,0.55)' : sp?.singleCooler ? 'rgba(255,176,32,0.5)' : 'rgba(61,220,132,0.3)';
     ctx.fill();
   }
   const selected = view.selectedRackId === r.id;

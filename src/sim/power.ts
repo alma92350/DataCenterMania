@@ -1,13 +1,14 @@
 import { SERVER_MODELS } from '../data/catalog';
 import { clearAlarms, raiseAlarm } from './alarms';
 import { addLog, showTip } from './state';
-import { devicesInRack, hasFeature, rackById } from './selectors';
+import { devicesInRack, hasFeature, legsUp, rackById } from './selectors';
 import type { Device, GameState } from './types';
 
 export function devicePowerW(s: GameState, d: Device): number {
   const rack = rackById(s, d.rackId);
   if (!d.poweredOn || d.thermalShutdown || !rack || rack.tripped || rack.maintenance || s.backup?.source === 'none') return 0;
-  if (d.faults.includes('psu')) return 0;
+  const legs = legsUp(s, d);
+  if (!legs.a && !legs.b) return 0;
   const m = SERVER_MODELS[d.model];
   if (d.faults.includes('hung')) return m.idleW;
   return m.idleW + (m.maxW - m.idleW) * d.load;

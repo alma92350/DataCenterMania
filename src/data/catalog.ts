@@ -67,6 +67,9 @@ export const JOB_WORK_MIN: Record<JobKind, number> = {
   replaceBattery: 40,
   transferAts: 15,
   refuel: 20,
+  repairPdu: 40,
+  dualCord: 25,
+  crossConnect: 45,
 };
 
 export const JOB_LABEL: Record<JobKind, string> = {
@@ -92,6 +95,9 @@ export const JOB_LABEL: Record<JobKind, string> = {
   replaceBattery: 'Replace UPS batteries',
   transferAts: 'Transfer to generator',
   refuel: 'Refuel generator',
+  repairPdu: 'Repair power feed',
+  dualCord: 'Dual-cord server',
+  crossConnect: 'Patch cross-connect',
 };
 
 /**
@@ -103,7 +109,7 @@ export const JOB_ROLES: Record<JobKind, TechRole[]> = {
   buildRack: ['hw'], rotateRack: ['hw'], placeCooler: ['hw', 'hvac'],
   serviceCooler: ['hvac'], repairCooler: ['hvac'], replaceSwitch: ['net'], repairUplink: ['net'],
   project: ['hw', 'net'], favor: ['hw', 'hvac', 'net'], audit: ['net'], reimage: ['hw', 'net'],
-  startGenerator: ['elec'], testGenerator: ['elec'], replaceBattery: ['elec'], transferAts: ['elec'], refuel: ['elec', 'hw'],
+  startGenerator: ['elec'], testGenerator: ['elec'], replaceBattery: ['elec'], transferAts: ['elec'], refuel: ['elec', 'hw'], repairPdu: ['elec'], dualCord: ['hw', 'elec'], crossConnect: ['net'],
 };
 
 export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer', lead: 'Shift Lead', elec: 'Electrician' };
@@ -198,3 +204,9 @@ export const NOC = {
     { price: 4000, perDay: 80, name: 'Remote firmware', blurb: 'Ops projects (labels, firmware, cable tidy) take half the time.' },
   ],
 } as const;
+
+/** Redundancy (PRD v2 F1): feeds fail rarely but hit a whole rack leg. */
+export const REDUNDANCY = { pduFailPerDay: 0.05, repairMin: 40, dualCordMin: 25 } as const;
+
+/** Ticket queue v1: cross-connect orders pay more than favours and need a network engineer. */
+export const TICKETS = { crossConnectShare: 0.3, rewardMult: 3, deadlineMin: 120 } as const;

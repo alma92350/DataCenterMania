@@ -465,7 +465,7 @@ All v1 guardrails stay in CI. New ones:
 | Release | Theme | Contents | Exit criteria |
 |---|---|---|---|
 | **v1.1 "Remote Hands"** ✅ shipped (message keys deferred) | Quick wins | NOC and remote reboot (F3), backup power 2.0 retune (F9), Ops Handbook v1 (F13), local telemetry (F14); sim message keys moved to v1.2 | Ch5 tests updated ✓; Handbook covers every v1 system ✓ (see §12) |
-| **v1.2 "Two Legs"** | Redundancy | Dual PSU, A/B feeds, N+1 cooling, SPOF view (F1); ticket queue v1 (F7 partial) | SPOF property tests; bot feed-failure test |
+| **v1.2 "Two Legs"** ✅ shipped | Redundancy | Dual PSU, A/B feeds, SPOF view (F1); cross-connect tickets (F7 partial); Chapter 6 arrives early with redundancy only | SPOF property tests ✓; bot feed-failure test ✓ (see §13) |
 | **v1.3 "Change Advisory Board"** | Risk | Change management (F2), supply chain events (F12), Chapter 6 | Change-risk tests; guardrails hold in Ch6 |
 | **v1.4 "Efficiency Drive"** | Planning | DCIM capacity (F4), live PUE and free cooling (F5), Chapter 7, Black Friday event | PUE property tests; Ch7 ★★★ bot-gated |
 | **v1.5 "AI Factory"** | Density | Liquid cooling and GPU racks (F6), Chapter 8 | Thermal runaway tests; 60 fps on throttled phone |
@@ -538,3 +538,14 @@ Office cat in the data center (morale), visitor tours as a reputation event, wea
 - **Local telemetry (F14)**: an opt-in play log (session, chapter start, chapter end with result and minutes) kept only in the browser, capped at 500 events, exportable as JSON from Settings; nothing is sent anywhere.
 - **Deferred to v1.2**: simulation message keys (the v0.9 fragment translator stays).
 - **Tests**: 353 unit tests (new: NOC, backup 2.0, Handbook, telemetry, translation coverage of the new texts) and the phone e2e (new session for the NOC, Handbook and fuel).
+
+## 13. v1.2 "Two Legs" results
+
+- **Legs model (F1).** Every rack has feeds A and B. A server is *single-corded* (leg A only) or *dual-corded* (A and B). A dead power supply takes out leg A. A server is up if any leg works, so: single-corded dies with feed A or its PSU, dual-corded survives one failure and goes down only when both legs are gone. The chain "one leg fails, nobody fixes it, then the other goes" is scripted in Chapter 6 (Wednesday 15:00 feed B, 17:00 feed A on the same rack).
+- **Chapter 6 "Grown-up Infrastructure"** (unlocked by Enterprise DC): the existing servers are single-corded; six spare power supplies are in stock; a *Dual-cord* job (hardware tech, 25 min, one PSU) gives a server two legs; new installs arrive dual-corded. An electrician repairs a failed feed (40 min). ★ 97% and $2,000, ★★ 99.5% and $6,000, ★★★ every serving server dual-corded, no blackout and $20,000 profit (the default bot gets it in 0 of 2 seeds; the dual-cord bot reaches about $17k).
+- **SPOF view.** A third map overlay (key `O`, or the overlay button cycles heat → power → SPOF → off): red racks lose servers if one feed fails, amber racks have fewer than two coolers in reach, green racks are safe. It is computed honestly: each feed is taken down in turn and the servers that stop are counted (a property test checks it against a brute-force copy on 25 random layouts).
+- **UI.** Rack view: feed A/B lamps with a repair button, a *one leg / two legs* chip per server and a *Dual-cord* button. The Infra tab gets a Redundancy card (dual-corded count, single points of failure, spare PSUs, one-tap *Dual-cord next server*, failed feeds with repair).
+- **Ticket queue v1.** Where the network exists, 30% of customer requests are *cross-connect orders*: triple reward, 120 minutes, only a network engineer (the Shift Lead sends one). Satisfaction, renewals and tours stay for v1.6.
+- **Handbook** gains *A/B feeds and dual power supplies* and *Single point of failure*; French translations for everything new.
+- **Deferred**: N+1 cooling as an explicit setting (the SPOF view already flags single-cooler racks), dual top-of-rack switches, simulation message keys (now v1.3).
+- **Tests**: 377 unit tests (new: legs, feeds, dual-cording, scripted chain, bot with and without dual-cording, SPOF property test, overlay cycle, cross-connect tickets) and the phone e2e (new session).

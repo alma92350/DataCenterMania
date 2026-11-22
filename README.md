@@ -47,6 +47,7 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 | Mastery (v0.5) | Hard ★★★ constraints per chapter, 14 achievements, career title (Intern → CTO), date-seeded Daily Challenge with a modifier and a share line, outage post-mortems with one-tap remedies |
 | Automation (v0.6) | Hire a Shift Lead from Chapter 2: auto-dispatch of routine alarms and requests; idle specialists do preventive work; the bot's workload stays flat from Ch2 to Ch4 |
 | Juice (v0.6) | Speech bubbles, SLA-perfect streak, confetti on a clean shift, screen shake on criticals (off for reduced motion and e-ink) |
+| Two legs (v1.2) | Chapter 6: A/B power feeds, dual power supplies, a single-points-of-failure map overlay, and cross-connect orders from customers |
 | Remote hands (v1.1) | NOC upgrade (remote reboot, diagnostics, firmware), a stuck transfer switch and generator fuel, an in-game Ops Handbook, and an opt-in local play log |
 | Full French (v0.9) | Every panel, toast and log line passes through a number-aware translator |
 | Accessibility and French (v1.0) | axe-core-clean screens, keyboard-focusable panels, pinch-zoom, reduced motion; language switch with French menus, HUD, tips and chapter text |

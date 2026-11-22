@@ -9,6 +9,7 @@ import type { Facing, GameState, LogEntry, PartId, ProjectId, ServerModelId, Shi
 import { formatClock } from '../core/time';
 import { ACHIEVEMENTS, earnedAchievements } from '../sim/achievements';
 import { CHAPTERS } from '../data/chapters';
+import { spofReport } from '../sim/spof';
 import { tl } from './i18n';
 import { Telemetry } from './telemetry';
 import { createSandbox, sandboxDays, sandboxScore, type SandboxConfig } from '../sim/sandbox';
@@ -177,6 +178,7 @@ export class App {
         selectedRackId: this.modal?.kind === 'rack' ? this.modal.id : null,
         buildPreview: this.build && this.hover ? { ...this.hover, valid: this.canBuildAt(this.hover.x, this.hover.y) } : null,
         overlay: this.overlay,
+        spof: this.overlay === 'spof' ? spofReport(s) : undefined,
         time: t,
         eink: this.eink,
       };
@@ -482,6 +484,14 @@ export class App {
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
         return;
       }
+      case 'dualCordNext': {
+        const dev = s.devices.find((x) => x.contractId !== null && (x.psus ?? 1) !== 2 && !s.jobs.some((j) => j.kind === 'dualCord' && j.deviceId === x.id));
+        if (dev) this.run({ type: 'dispatch', job: 'dualCord', deviceId: dev.id, techId: 'best' });
+        return;
+      }
+      case 'dispatchFeed':
+        this.run({ type: 'dispatch', job: 'repairPdu', rackId: d.rack, feed: d.feed as 'A' | 'B', techId: 'best' });
+        return;
       case 'upgradeNoc':
         this.run({ type: 'upgradeNoc' });
         return;
@@ -787,6 +797,7 @@ export class App {
         '3': () => (this.speed = 4),
         h: () => (this.overlay = this.overlay === 'heat' ? 'none' : 'heat'),
         p: () => (this.overlay = this.overlay === 'power' ? 'none' : 'power'),
+        o: () => (this.overlay = this.overlay === 'spof' ? 'none' : 'spof'),
         Escape: () => {
           if (this.build) this.build = null;
           else if (this.modal?.kind === 'attack') this.modal = null; // 'Later'
@@ -854,13 +865,20 @@ export class App {
       if (!b) return;
       const z = b.dataset.zoom;
       if (z === 'fit' && this.state) this.fitMap();
-      else if (z === 'heat') this.overlay = this.overlay === 'none' ? 'heat' : this.overlay === 'heat' && this.state?.features.includes('power') ? 'power' : 'none';
+      else if (z === 'heat') this.overlay = this.nextOverlay();
       else if (z === 'power') this.overlay = this.overlay === 'power' ? 'none' : 'power';
       else zoomAt(this.cam, z === 'in' ? 1.25 : 0.8, c.clientWidth / 2, c.clientHeight / 2);
       b.closest('#zoom')?.querySelectorAll('[data-zoom="heat"],[data-zoom="power"]').forEach((x) =>
         x.classList.toggle('on', (x as HTMLElement).dataset.zoom === this.overlay));
       this.clamp();
     });
+  }
+
+  /** heat -> power -> single points of failure (from Chapter 6) -> off */
+  private nextOverlay(): Overlay {
+    const f = this.state?.features ?? [];
+    const order: Overlay[] = ['none', 'heat', ...(f.includes('power') ? (['power'] as const) : []), ...(f.includes('redundancy') ? (['spof'] as const) : [])];
+    return order[(order.indexOf(this.overlay) + 1) % order.length] ?? 'none';
   }
 
   private pinchDistance(): number {

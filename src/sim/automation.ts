@@ -61,7 +61,7 @@ function autoDispatch(s: GameState, lead: Tech): void {
   for (const w of s.walkins) {
     if (w.status !== 'open' || s.jobs.some((j) => j.walkinId === w.id)) continue;
     const rack = rackById(s, w.rackId);
-    const tech = rack ? pickSpecialist(s, 'favor', rack.pos, true) : null;
+    const tech = rack ? pickSpecialist(s, w.kind === 'crossConnect' ? 'crossConnect' : 'favor', rack.pos, true) : null;
     if (tech) applyCommand(s, { type: 'dispatch', job: 'favor', walkinId: w.id, techId: tech.id }, { auto: true });
   }
 }

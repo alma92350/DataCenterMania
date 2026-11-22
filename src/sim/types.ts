@@ -21,11 +21,11 @@ export interface Grid {
 }
 
 export type DifficultyId = 'intern' | 'sysadmin' | 'senior' | 'nightmare';
-export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'hack';
+export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'ch6' | 'hack';
 export type FeatureFlag =
   | 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote'
   | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance'
-  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup';
+  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup' | 'redundancy';
 
 export type PartId =
   | 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc'
@@ -42,6 +42,8 @@ export interface Device {
   faults: FaultKind[];
   poweredOn: boolean;
   thermalShutdown: boolean;
+  /** Power supplies: 1 = single-corded on feed A, 2 = dual-corded on A and B. Missing means 1. */
+  psus?: 1 | 2;
   contractId: string | null;
   load: number; // 0..1, computed each tick
 }
@@ -64,6 +66,9 @@ export interface Rack {
   maintenance: boolean;
   /** °C of hot exhaust recirculated into this rack's intake (computed). */
   recirculation: number;
+  /** Power feeds A and B (PRD v2 F1). Missing means working. */
+  pduA?: 'ok' | 'failed';
+  pduB?: 'ok' | 'failed';
 }
 
 export interface Cooler {
@@ -137,6 +142,7 @@ export interface Candidate {
 export type JobKind =
   | 'swapDisk'
   | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel'
+  | 'repairPdu' | 'dualCord' | 'crossConnect'
   | 'replacePsu'
   | 'reboot'
   | 'resetBreaker'
@@ -177,6 +183,7 @@ export interface Job {
   facing?: Facing;
   projectId?: ProjectId;
   walkinId?: string;
+  feed?: 'A' | 'B';
   /** Started by an idle specialist on their own initiative. */
   proactive?: boolean;
   botched?: boolean;
@@ -184,7 +191,7 @@ export interface Job {
 
 export type AlarmKind =
   | 'disk' | 'dataloss' | 'psu' | 'hung' | 'overheat' | 'breaker' | 'powerHigh'
-  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth' | 'malware' | 'gridDown' | 'generator' | 'battery' | 'ats' | 'fuel';
+  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth' | 'malware' | 'gridDown' | 'generator' | 'battery' | 'ats' | 'fuel' | 'feed';
 
 export interface Alarm {
   id: string;
@@ -275,6 +282,8 @@ export interface Walkin {
   reward: number;
   deadline: number;
   status: 'open' | 'done' | 'expired';
+  /** A cross-connect order needs a network engineer and pays more (ticket queue v1). */
+  kind?: 'favor' | 'crossConnect';
 }
 
 export type ShiftGoalKind = 'sla' | 'noCritical' | 'fastFix';

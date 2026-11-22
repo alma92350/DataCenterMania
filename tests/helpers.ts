@@ -8,3 +8,9 @@ export function quietGame(chapter: ChapterId = 'ch1', difficulty: DifficultyId =
   s.progress.firedEvents = ['*all*']; // disable scripted events
   return s;
 }
+
+/** Mirrors the app's overlay cycle (heat -> power -> SPOF -> off) for tests. */
+export function nextOverlayFor(features: string[], current: 'none' | 'heat' | 'power' | 'spof'): 'none' | 'heat' | 'power' | 'spof' {
+  const order: ('none' | 'heat' | 'power' | 'spof')[] = ['none', 'heat', ...(features.includes('power') ? (['power'] as const) : []), ...(features.includes('redundancy') ? (['spof'] as const) : [])];
+  return order[(order.indexOf(current) + 1) % order.length] ?? 'none';
+}

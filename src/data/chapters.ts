@@ -23,7 +23,8 @@ export type ScriptedAction =
   | { type: 'filter'; cooler: number; health: number }
   | { type: 'cutUplink'; uplink: number; text?: string }
   | { type: 'attack'; kind: AttackKind; villain?: Villain }
-  | { type: 'outage'; minutes: number; text?: string };
+  | { type: 'outage'; minutes: number; text?: string }
+  | { type: 'pduFail'; rack: number; feed: 'A' | 'B'; text?: string };
 
 export interface ScriptedEvent {
   id: string;
@@ -391,6 +392,42 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       { label: 'SLA uptime ≥ 99.8% and $6,500 profit', check: (s) => overallUptimePct(s) >= 99.8 && s.cash - s.progress.startCash >= profitGoal(s, 6500) },
       { label: 'No blackout, a tested generator, a second UPS and $10,000 profit', check: (s) => (s.stats.blackoutMin ?? 0) === 0 && s.cash - s.progress.startCash >= profitGoal(s, 10000) && !!s.backup && s.backup.testedAt !== null && s.backup.upsUnits >= 2, progress: (s) => `Blackout ${s.stats.blackoutMin ?? 0} min` },
     ],
+    next: 'ch6',
+  },
+  ch6: {
+    id: 'ch6', number: 6, title: 'Grown-up Infrastructure', subtitle: 'Two feeds, two legs, no single points of failure',
+    intro: 'Your servers each hang by a single power cord. Real data centers feed every rack from two independent sources and give every server two power supplies. Dual-cord your critical servers before a feed fails.',
+    map: COLO_MAP,
+    startMinute: at(0, 8),
+    endMinute: at(3, 22),
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue', 'backup', 'remote', 'redundancy'],
+    startCash: 20000,
+    ambient: 24,
+    rackPowerBudgetW: 3000,
+    mapCooler: 'wallAc',
+    rackFacing: ['S', 'S', 'S', 'S', 'S', 'N', 'N', 'N', 'N', 'N', 'S', 'S', 'S', 'S', 'S'],
+    uplinks: [{ name: 'MetroFiber A', capacityGbps: 8, costPerDay: 150 }, { name: 'SkyLink Fiber B (separate route)', capacityGbps: 15, costPerDay: 220 }],
+    startingRoles: ['hw'],
+    devices: COLO_DEVICES,
+    contracts: LAUNCH_CONTRACTS,
+    inventory: { disk: 2, psu: 6, server1u: 2, filter: 1, switch: 1 },
+    hwTechs: 1,
+    failuresEnabled: true,
+    dailyOffers: true,
+    incidentMult: 0.8,
+    backup: { ups: 2, health: 1, generator: 'idle', fuelMin: 1440 },
+    events: [
+      { id: 'redundancyTip', at: at(0, 8, 5), actions: [{ type: 'tip', key: 'redundancy' }] },
+      { id: 'dualTip', at: at(0, 9), actions: [{ type: 'tip', key: 'dualCord' }] },
+      { id: 'feedDrill', at: at(1, 10), actions: [{ type: 'pduFail', rack: 1, feed: 'A', text: '⚡ 10:00: the utility electrician is testing a PDU and drops feed A on one rack. A planned test, but nobody told you…' }] },
+      { id: 'feedChain', at: at(2, 15), actions: [{ type: 'pduFail', rack: 3, feed: 'B', text: '⚡ 15:00: feed B fails on another rack. Servers with two legs keep running, but now they hang by a single thread…' }] },
+      { id: 'feedChain2', at: at(2, 17), actions: [{ type: 'pduFail', rack: 3, feed: 'A', text: '⚡ 17:00: feed A trips on that same rack. If you did not fix B, this is the chain reaction.' }] },
+    ],
+    objectives: [
+      { label: 'SLA uptime ≥ 97% and $2,000 profit (scaled by difficulty)', check: (s) => overallUptimePct(s) >= 97 && s.cash - s.progress.startCash >= profitGoal(s, 2000), progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 97% · profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 2000))}` },
+      { label: 'SLA uptime ≥ 99.5% and $6,000 profit', check: (s) => overallUptimePct(s) >= 99.5 && s.cash - s.progress.startCash >= profitGoal(s, 6000) },
+      { label: 'Every serving server dual-corded, no blackout, $20,000 profit', check: (s) => (s.stats.blackoutMin ?? 0) === 0 && s.cash - s.progress.startCash >= profitGoal(s, 20000) && s.devices.filter((d) => d.contractId !== null).every((d) => (d.psus ?? 1) === 2), progress: (s) => `Dual-corded ${s.devices.filter((d) => (d.psus ?? 1) === 2).length} / ${s.devices.length}` },
+    ],
     next: null,
   },
   hack: {
@@ -434,6 +471,6 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
 };
 
 /** The campaign, in order. Events (like the Hacker Weekend) are not part of it. */
-export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5'];
+export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6'];
 
 export const EVENT_ORDER: ChapterId[] = ['hack'];

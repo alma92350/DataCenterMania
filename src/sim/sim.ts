@@ -17,6 +17,7 @@ import { updateThermal } from './thermal';
 import { updateCoolers } from './maintenance';
 import { updateNetwork } from './network';
 import { updateNoc } from './noc';
+import { rollFeeds } from './feeds';
 import { updateFatigue } from './fatigue';
 import type { GameState } from './types';
 
@@ -35,6 +36,7 @@ export function step(s: GameState): void {
   updateCoolers(s, dt);
   updateThermal(s, dt);
   rollFailures(s, dt);
+  rollFeeds(s, dt);
   escalateAlarms(s);
   updateNoc(s);
   runAutomation(s);

@@ -7,7 +7,7 @@ import type { GameState } from '../src/sim/types';
 /** A simple bot standing in for a competent player: fix every alarm, keep spares, fill contracts. */
 export type Defend = 'auto' | 'perfect' | 'ignore';
 
-export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean } = {}): void {
+export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean; legs?: 'dual' | 'single' } = {}): void {
   // cyber attacks: skip the micro-game (half strength), play it perfectly, or never answer
   if (s.cyber.attack && opts.defend !== 'ignore') {
     if (opts.defend === 'perfect') applyCommand(s, { type: 'resolveAttack', score: 1, mode: 'played', infected: [] });
@@ -47,6 +47,11 @@ export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend;
       const cand = s.candidates.find((c) => c.role === role);
       if (!s.techs.some((t) => t.role === role) && cand) applyCommand(s, { type: 'hire', candidateId: cand.id });
     }
+  }
+  // redundancy: dual-cord the servers that serve customers, one at a time
+  if (s.features.includes('redundancy') && opts.legs !== 'single' && !s.jobs.some((j) => j.kind === 'dualCord')) {
+    const d = s.devices.find((x) => x.contractId !== null && (x.psus ?? 1) !== 2);
+    if (d) applyCommand(s, { type: 'dispatch', job: 'dualCord', deviceId: d.id, techId: 'best' });
   }
   // NOC: buy remote reboot early, then use it instead of walking to hung servers
   if (opts.noc && s.features.includes('remote')) {

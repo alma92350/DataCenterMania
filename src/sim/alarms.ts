@@ -25,6 +25,7 @@ export const ALARM_TEXT: Record<AlarmKind, string> = {
   battery: 'UPS batteries are worn out',
   ats: 'Transfer switch stuck: the generator is not carrying the load',
   fuel: 'Generator fuel is running low',
+  feed: 'Power feed lost on a rack',
 };
 
 export interface AlarmTarget {

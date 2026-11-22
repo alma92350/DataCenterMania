@@ -3,6 +3,7 @@ import { chance, pick } from '../core/rng';
 import { hourOf } from '../core/time';
 import { WALKINS } from '../data/catalog';
 import { CHAPTERS } from '../data/chapters';
+import { TICKETS } from '../data/catalog';
 import { DIFFICULTIES } from '../data/difficulty';
 import { addFx, addLog, newId } from './state';
 import { activeContracts } from './selectors';
@@ -21,15 +22,18 @@ export function spawnWalkin(s: GameState): Walkin | null {
   const dev = contract ? s.devices.find((d) => d.contractId === contract.id) : undefined;
   const rack = s.racks.find((r) => r.id === dev?.rackId) ?? s.racks[0];
   if (!contract || !rack) return null;
+  const cross = s.features.includes('network') && chance(s.rng, TICKETS.crossConnectShare);
+  const base = Math.round((WALKINS.baseReward + WALKINS.rewardPerChapter * CHAPTERS[s.chapter].number) * DIFFICULTIES[s.difficulty].startingCash);
   const w: Walkin = {
     id: newId(s, 'w'), customer: contractLabel(contract), rackId: rack.id,
-    text: `${contract.customer} (${contract.name}) ${pick(s.rng, ASKS)} Rack ${s.racks.indexOf(rack) + 1}`,
-    reward: Math.round((WALKINS.baseReward + WALKINS.rewardPerChapter * CHAPTERS[s.chapter].number) * DIFFICULTIES[s.difficulty].startingCash),
-    deadline: s.minute + WALKINS.deadlineMin, status: 'open',
+    text: `${contract.customer} (${contract.name}) ${cross ? 'orders a cross-connect to their carrier from' : pick(s.rng, ASKS)} Rack ${s.racks.indexOf(rack) + 1}`,
+    reward: cross ? base * TICKETS.rewardMult : base,
+    deadline: s.minute + (cross ? TICKETS.deadlineMin : WALKINS.deadlineMin), status: 'open',
+    kind: cross ? 'crossConnect' : 'favor',
   };
   s.walkins.push(w);
   if (s.walkins.length > 20) s.walkins.splice(0, s.walkins.length - 20);
-  addLog(s, 'info', `Walk-in request: ${w.text}. $${w.reward} if done within ${WALKINS.deadlineMin} min.`);
+  addLog(s, 'info', `Walk-in request: ${w.text}. $${w.reward} if done within ${w.deadline - s.minute} min.`);
   return w;
 }
 
