@@ -33,7 +33,7 @@ import { isNightHour, rotaPremiumPerDay, scoreIncident } from '../sim/nights';
 import { aiContracts, aiEffective, interruptRatePerMin, lossMinutes } from '../sim/ai';
 import { loopCapacityKw, loopHeatKw } from '../sim/liquid';
 import { capacityReport, fitPreview, formatPower, powerScale } from '../sim/capacity';
-import { droughtActive, facilityW, freeShare, outdoorC, pueAverage, pueNow } from '../sim/site';
+import { containmentOf, droughtActive, facilityW, freeShare, outdoorC, pueAverage, pueNow, setpointOf } from '../sim/site';
 import { feedOk, onOneLeg } from '../sim/selectors';
 import { generatorTested, upsCapacityKwh, upsRuntimeMin } from '../sim/backup';
 import { SANDBOX_FLOORS, sandboxDays, sandboxScore, type SandboxConfig, type SandboxFloor } from '../sim/sandbox';
@@ -475,6 +475,13 @@ export function energyCard(s: GameState): string {
         <div class="row meta">${t('Evaporative: cheap electricity, uses water. Dry: almost no water, more electricity.')}</div>
         <div class="row actions"><button class="opt ${site.cooling === 'evaporative' ? 'on' : ''}" data-action="setCooling" data-mode="evaporative" aria-pressed="${site.cooling === 'evaporative'}" ${drought ? 'disabled' : ''}>💧 ${t('Evaporative')}</button>
           <button class="opt ${site.cooling === 'dry' ? 'on' : ''}" data-action="setCooling" data-mode="dry" aria-pressed="${site.cooling === 'dry'}">🌬️ ${t('Dry')}</button></div></li>
+      <li><div class="row"><b>🌡️ ${t('Supply air')}</b><span class="chip ${setpointOf(s) > 25 ? 'warn' : 'ok'}">${setpointOf(s)}°C</span></div>
+        <div class="row meta">${t('Warmer air saves cooling energy and lets free cooling work more hours, but leaves less margin when something fails.')}</div>
+        <div class="row actions"><button data-action="setSetpoint" data-c="${setpointOf(s) - 1}" ${setpointOf(s) <= ENERGY.setpointMin ? 'disabled' : ''} aria-label="${t('Lower the setpoint')}">− 1°C</button>
+          <button data-action="setSetpoint" data-c="${setpointOf(s) + 1}" ${setpointOf(s) >= ENERGY.setpointMax ? 'disabled' : ''} aria-label="${t('Raise the setpoint')}">+ 1°C</button></div></li>
+      <li><div class="row"><b>🧱 ${t('Aisle containment')}</b><span class="chip ${containmentOf(s) ? 'ok' : 'muted'}">${t(ENERGY.containmentName[containmentOf(s)])}</span></div>
+        <div class="row meta">${t('Keeps hot exhaust away from cold intakes and trims fan energy.')}</div>
+        <div class="row actions">${containmentOf(s) < 2 ? `<button class="primary" data-action="buyContainment" ${cash(ENERGY.containmentPrice[containmentOf(s) + 1]!)}>${t('Upgrade to')} ${t(ENERGY.containmentName[containmentOf(s) + 1]!)} ${money(ENERGY.containmentPrice[containmentOf(s) + 1]!)}</button>` : ''}</div></li>
       <li><div class="row"><b>❄️ ${t('Free cooling')}</b><span class="chip ${site.economizer ? 'ok' : 'muted'}">${site.economizer ? t('Installed') : t('Not installed')}</span></div>
         <div class="row actions">${site.economizer ? '' : `<button class="primary" data-action="buyEconomizer" ${cash(ENERGY.economizerPrice)}>${t('Install')} ${money(ENERGY.economizerPrice)}</button>`}
           <button class="opt ${site.renewable ? 'on' : ''}" data-action="setRenewable" data-on="${site.renewable ? '0' : '1'}" aria-pressed="${site.renewable}">🌱 ${t('Renewable power')} +15%</button>

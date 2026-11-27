@@ -16,12 +16,16 @@ export function outdoorC(s: GameState, minute: number = s.minute): number {
   return 14 + 6 * Math.sin(((hour - 9) / 24) * 2 * Math.PI) + (s.ambient - 24);
 }
 
+export const setpointOf = (s: GameState): number => s.site?.setpointC ?? ENERGY.setpointDefault;
+export const setpointDelta = (s: GameState): number => (s.site ? setpointOf(s) - ENERGY.setpointDefault : 0);
+export const containmentOf = (s: GameState): 0 | 1 | 2 => s.site?.containment ?? 0;
+
 export const itPowerW = (s: GameState): number => s.racks.reduce((w, r) => w + r.loadW, 0);
 
 /** Share of cooling electricity saved by outside air (only with the economiser). */
 export function freeShare(s: GameState): number {
   if (!s.site?.economizer) return 0;
-  return Math.max(0, Math.min(ENERGY.freeMax, (ENERGY.freeStartC - outdoorC(s)) / ENERGY.freeSpanC));
+  return Math.max(0, Math.min(ENERGY.freeMax, (ENERGY.freeStartC + setpointDelta(s) - outdoorC(s)) / ENERGY.freeSpanC));
 }
 
 export function copNow(s: GameState): number {
@@ -35,7 +39,8 @@ export function coolingW(s: GameState): number {
   if (!site) return s.coolers.filter((c) => c.on).reduce((w, c) => w + c.powerW, 0);
   const running = s.coolers.filter((c) => c.on && !c.broken && c.kind !== 'officeAc').length;
   if (!running) return 0;
-  return (itPowerW(s) / copNow(s) + ENERGY.fanW * running) * (1 - freeShare(s));
+  const saving = Math.max(0.5, 1 - ENERGY.coolingPerDeg * setpointDelta(s) - ENERGY.containmentSave[containmentOf(s)]);
+  return (itPowerW(s) / copNow(s) + ENERGY.fanW * running) * (1 - freeShare(s)) * saving;
 }
 
 /** IT plus cooling plus distribution losses. */

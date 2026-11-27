@@ -1,5 +1,7 @@
 import { AI } from '../data/catalog';
 import { liquidTarget } from './liquid';
+import { containmentOf, setpointDelta } from './site';
+import { ENERGY } from '../data/catalog';
 import { AISLES, COOLERS, MAINTENANCE, THERMAL } from '../data/catalog';
 import { clearAlarms, raiseAlarm } from './alarms';
 import { addLog, showTip } from './state';
@@ -39,7 +41,7 @@ export function computeRecirculation(s: GameState): Map<string, number> {
       if (b.facing === a.facing && b.loadW > 0) deg += AISLES.baseDeg + AISLES.perKwDeg * (b.loadW / 1000);
       break; // the nearest rack blocks anything behind it
     }
-    out.set(a.id, Math.min(AISLES.maxDeg, deg));
+    out.set(a.id, Math.min(AISLES.maxDeg, deg) * ENERGY.containmentRecirc[containmentOf(s)]);
   }
   return out;
 }
@@ -69,7 +71,7 @@ export function rackTargetTemp(s: GameState, rack: Rack, cooling: { kw: number; 
   const heatKw = rack.loadW / 1000;
   const excess = Math.max(0, heatKw - cooling.kw);
   const base = cooling.reached ? Math.min(THERMAL.coolTarget, s.ambient) : s.ambient;
-  return base + THERMAL.kPerKw * excess + rack.recirculation;
+  return base + (cooling.reached ? setpointDelta(s) : 0) + THERMAL.kPerKw * excess + rack.recirculation;
 }
 
 export function updateThermal(s: GameState, dt: number): void {

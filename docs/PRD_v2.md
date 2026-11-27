@@ -653,3 +653,10 @@ A second review, inspired by the *Data Centers: Today and Tomorrow* field guide,
 - **Still English**: log lines built from non-literal text (a few scripted event texts, computed messages) are translated only if their pieces are already in the dictionary. The simulation itself is unchanged: this release touches no gameplay and no saves.
 - **Still not done**: a worker thread, a gigawatt tier, setpoint and containment, and the 20-player playtest.
 - **Tests**: 497 unit tests (new: template audit, slot parity, nested-name translation).
+
+## 22. v2.3 "Turn Up the Heat" results
+
+- **Supply-air setpoint (18 to 27°C, default 22).** Each degree above the default cuts cooling electricity by 4%, lets free cooling run when it is 1°C warmer outside, and raises every cooled rack's temperature by 1°C, so a cooling fault reaches the warning and shutdown thresholds sooner. Each degree below does the opposite. The Infra tab has − and + buttons.
+- **Containment (three levels).** Open aisles, blanking panels and curtains ($2,500: recirculation halved, 3% less cooling energy), full containment ($7,000: recirculation down 85%, 8% less cooling energy). It builds on the aisles system from Chapter 3, so rows that face the same way hurt less once contained.
+- **No new chapter system.** Both controls are part of the Energy system of Chapter 7 (no change to the systems-per-chapter rule), use optional site fields (old saves load unchanged), have Handbook, French and tests (7 new), and the balance guardrails still pass with the default bot, which never touches them.
+- **Simplifications**: one supply temperature for the whole hall, no inlet versus exhaust model; failure acceleration comes only from the rack temperature the existing model already uses.

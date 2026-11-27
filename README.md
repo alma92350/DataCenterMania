@@ -49,6 +49,7 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 | Juice (v0.6) | Speech bubbles, SLA-perfect streak, confetti on a clean shift, screen shake on criticals (off for reduced motion and e-ink) |
 | Site visits (v2.1) | From the campus, fly to a remote site and play a full shift there; your stars tune the site up. The summary model is calibrated against the full simulation |
 | Simulation log in French (v2.2) | Every log message translates through wildcard templates; a test fails if a new one has no French |
+| Setpoint and containment (v2.3) | Choose the supply-air temperature and contain the aisles: energy saved against margin when cooling fails |
 | Hyperscale (v2.0) | Chapter 10: a campus of sites with climate, latency and goodwill, loans, investors, spot power and a board that can fire you; Sandbox gets Campus and orbital Frontier floors; hand-over codes; three eras |
 | The Long Night (v1.6) | Chapter 9: customer moods, renewals and churn, a compliance audit, a night rota, a 3 a.m. pager and incident command with honest customer updates |
 | AI Factory (v1.5) | Chapter 8: coolant loop and GPU racks that overheat in minutes, an AI customer judged on effective training time, a density ladder, power spikes, silent corruption and liquid-cooling training |

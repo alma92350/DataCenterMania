@@ -269,6 +269,10 @@ export const ENERGY = {
   waterOnPerKwh: { evaporative: 1.8, dry: 0.05 }, waterOffPerKwh: { grid: 8, renewable: 1 },
   heatReusePrice: 6000, heatReuseEarnPerKwh: 0.5, heatReusePueCredit: 0.1,
   droughtDays: 2,
+  /** Setpoint and containment (v2.3): warmer supply air saves cooling energy, costs margin and failures. */
+  setpointDefault: 22, setpointMin: 18, setpointMax: 27, coolingPerDeg: 0.04,
+  containmentPrice: [0, 2500, 7000], containmentRecirc: [1, 0.5, 0.15], containmentSave: [0, 0.03, 0.08],
+  containmentName: ['Open aisles', 'Blanking panels and curtains', 'Full containment'],
 } as const;
 
 /** Site power cap and the grid-connection queue (addendum P1). Display only: row scale x10 (a tile counts as a row of racks). */

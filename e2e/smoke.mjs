@@ -585,6 +585,9 @@ try {
     await page.tap('[data-action="orderGrid"]');
     await page.waitForFunction(() => document.querySelector('#panel')?.textContent.includes('ETA'), null, { timeout: 4000 });
     check(true, 'ordering a grid upgrade shows an ETA in queue days');
+    await page.tap('[data-action="setSetpoint"][aria-label="Raise the setpoint"]');
+    await page.waitForFunction(() => document.querySelector('#panel')?.textContent.includes('23°C'), null, { timeout: 4000 });
+    check(true, 'raising the supply-air setpoint shows 23°C');
     check(await page.isVisible('#tabs'), 'the tab bar stays visible');
   });
 

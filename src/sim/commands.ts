@@ -58,6 +58,8 @@ export type Command =
   | { type: 'orderCdu' }
   | { type: 'setCooling'; mode: 'evaporative' | 'dry' }
   | { type: 'buyEconomizer' }
+  | { type: 'setSetpoint'; c: number }
+  | { type: 'buyContainment' }
   | { type: 'setRenewable'; on: boolean }
   | { type: 'buyHeatReuse' }
   | { type: 'orderGrid' }
@@ -669,6 +671,27 @@ function exec(s: GameState, cmd: Command): CommandResult {
       if (cmd.mode === 'evaporative' && droughtActive(s)) return fail('A drought is on: evaporative cooling is banned.');
       site.cooling = cmd.mode;
       addLog(s, 'info', cmd.mode === 'evaporative' ? '💧 Evaporative cooling: cheap electricity, but it uses water.' : '🌬️ Dry cooling: almost no water, but more electricity.');
+      return ok();
+    }
+    case 'setSetpoint': {
+      const site = s.site;
+      if (!site) return fail('Setpoints unlock in Chapter 7.');
+      const c = Math.round(cmd.c);
+      if (c < ENERGY.setpointMin || c > ENERGY.setpointMax) return fail(`The setpoint must stay between ${ENERGY.setpointMin} and ${ENERGY.setpointMax}°C.`);
+      site.setpointC = c;
+      addLog(s, 'info', c > ENERGY.setpointDefault ? `🌡️ Supply air raised to ${c}°C: less cooling energy, less margin if something fails.` : c < ENERGY.setpointDefault ? `🌡️ Supply air lowered to ${c}°C: more margin, more cooling energy.` : `🌡️ Supply air back to the default ${c}°C.`);
+      return ok();
+    }
+    case 'buyContainment': {
+      const site = s.site;
+      if (!site) return fail('Containment unlocks in Chapter 7.');
+      const level = site.containment ?? 0;
+      if (level >= 2) return fail('The aisles are already fully contained.');
+      const price = ENERGY.containmentPrice[level + 1]!;
+      if (s.cash < price) return fail('Not enough cash.');
+      s.cash -= price;
+      site.containment = (level + 1) as 1 | 2;
+      addLog(s, 'success', `🧱 ${ENERGY.containmentName[level + 1]} installed: hot and cold air mix less.`);
       return ok();
     }
     case 'buyEconomizer': {

@@ -109,6 +109,9 @@ export interface Site {
   mainTripped: boolean;
   overMin: number;
   droughtUntil: number;
+  /** Supply-air setpoint in °C (default 22) and containment level 0 to 2 (v2.3). */
+  setpointC?: number;
+  containment?: 0 | 1 | 2;
   trips: number;
   /** Cumulative energy (kWh) and water (litres): on-site (cooling) and off-site (embedded in the electricity). */
   itKwh: number;

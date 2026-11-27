@@ -529,6 +529,12 @@ export class App {
       case 'setCooling':
         this.run({ type: 'setCooling', mode: d.mode as 'evaporative' | 'dry' });
         return;
+      case 'setSetpoint':
+        this.run({ type: 'setSetpoint', c: Number(d.c) });
+        return;
+      case 'buyContainment':
+        this.run({ type: 'buyContainment' });
+        return;
       case 'buyEconomizer':
         this.run({ type: 'buyEconomizer' });
         return;
