@@ -27,11 +27,12 @@ describe('release notes (v2.7)', () => {
   });
 
   it('opens the notes once after an update, closed and read-only otherwise', () => {
-    const after = whatsNew({ ...DEFAULT_SETTINGS, seenVersion: '2.4.0' });
+    const after = whatsNew({ ...DEFAULT_SETTINGS, seenVersion: RELEASES[2]!.version });
     expect(after).toContain('open');
     expect(after).toContain('data-action="seenNotes"');
-    expect(after).toContain('Playtest kit');
-    expect(after).not.toContain('Hyperscale');
+    expect(after).toContain(RELEASES[0]!.title);
+    expect(after).toContain(RELEASES[1]!.title);
+    expect(after).not.toContain(`v${RELEASES[2]!.version} `);
     const current = whatsNew({ ...DEFAULT_SETTINGS, seenVersion: APP_VERSION });
     expect(current).not.toContain('seenNotes');
     expect(current).not.toMatch(/<details class="whatsnew" open/);

@@ -33,3 +33,9 @@ Results sections follow, one per release.
 - **Tested, not just styled**: a WCAG contrast function checks that the default palette has text at 7:1 or better and status colours at 4.5:1 on both surfaces, and that high contrast plus colour-blind colours reaches 7:1 for text, muted text and every status colour; a test applies and reverts the settings on the page.
 - All labels in French. Severity is also carried by icons and badges (not colour alone), unchanged from v1.0.
 - 6 new tests.
+
+## 3.2 "The Advisor" results
+
+- **`advice(state)`** (`src/sim/advisor.ts`) reads the reports the game already keeps and returns up to three suggestions, most urgent first, each with the tab where it is done: untested generator, low fuel, worn batteries, no electrician (backup power); servers on a single power cord (redundancy); the most loaded of space, power, cooling and network at 90% or more; dirty cooler filters; high PUE with free cooling affordable or the setpoint at its default; unhappy customers; low community goodwill. Rules only fire when their system exists, so the first chapters show nothing. It is a pure function with no new simulation state.
+- **UI**: an *Advisor* card at the top of the Alarms tab, with ❗ for urgent items and a *Go* button that opens the tab. Numbers and labels are translated through the wildcard templates of v2.2; all text has French.
+- 7 new tests (silence early on, each rule, fixes clearing advice, rendering, French).

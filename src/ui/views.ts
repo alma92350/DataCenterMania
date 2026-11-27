@@ -8,6 +8,7 @@ import { contractLabel } from '../sim/naming';
 import { avatarSvg, partSvg } from './icons';
 import { AUTO } from '../sim/automation';
 import { attackCard, cyberChips, eventCard } from './cyberViews';
+import { advice } from '../sim/advisor';
 import { suggestedCoolerJob, suggestedJob } from '../sim/commands';
 import { bandwidthCapacity } from '../sim/network';
 import { demandFactor } from '../sim/demand';
@@ -226,9 +227,16 @@ export function nightsSection(s: GameState): string {
   return out;
 }
 
+/** The Advisor card: up to three next steps, each a button to the tab where it is done. */
+export function advisorCard(s: GameState): string {
+  const list = advice(s);
+  if (!list.length) return '';
+  return `<div class="advisor" role="region" aria-label="${t('Advisor')}"><h3>🧭 ${t('Advisor')}</h3><ul class="list">${list.map((a) => `<li class="row advice ${a.urgency === 2 ? 'urgent' : ''}"><span>${a.urgency === 2 ? '❗' : '💡'}</span><span>${e(tl(a.text))}</span><button class="ghost" data-action="panel" data-panel="${a.tab}">${t('Go')}</button></li>`).join('')}</ul></div>`;
+}
+
 export function alarmsPanel(s: GameState): string {
   const list = [...s.alarms].sort((a, b) => b.severity - a.severity || a.raisedAt - b.raisedAt);
-  const requests = attackCard(s) + nightsSection(s) + postMortemCard(s) + changesSection(s) + requestsSection(s);
+  const requests = advisorCard(s) + attackCard(s) + nightsSection(s) + postMortemCard(s) + changesSection(s) + requestsSection(s);
   if (!list.length) return `${requests}<div class="empty">✅ All quiet. ${requests ? 'Time for those requests!' : hasFeature(s, 'projects') ? 'Maybe start an ops project (Team tab)?' : 'Enjoy your coffee.'}</div>`;
   return `${requests}${requests ? '<h3>Alarms</h3>' : ''}<ul class="list alarms">${list
     .map((a) => {

@@ -73,12 +73,27 @@ try {
     await page.selectOption('[data-key="textSize"]', 'xlarge');
     const px = await page.evaluate(() => getComputedStyle(document.documentElement).fontSize);
     check(px === '20px', 'extra large text raises the page font size to 20px');
-    if (!(await page.isVisible('[data-key="highContrast"]'))) await page.click('details.settings summary');
-    await page.check('[data-key="highContrast"]');
+    await page.$eval('[data-key="highContrast"]', (el) => el.click()); // the settings list re-renders collapsed, so click the input directly
     check(await page.evaluate(() => document.body.classList.contains('high-contrast')), 'high contrast turns on');
     await page.reload();
     await page.waitForSelector('.start');
     check((await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)) === '20px', 'the text size is remembered after a reload');
+  });
+
+  await session('advisor', { viewport: { width: 390, height: 800 } }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 }, ch3: { sysadmin: 3 }, ch4: { sysadmin: 3 } }));
+    });
+    await page.reload();
+    await page.waitForSelector('[data-chapter="ch5"]');
+    await page.click('[data-chapter="ch5"]');
+    await page.waitForSelector('#topbar .stat');
+    while (await page.isVisible('.tip-card')) await page.click('[data-action="dismissTip"]');
+    await page.click('#tabs [data-panel="alarms"]');
+    await page.waitForSelector('.advisor');
+    check((await page.textContent('.advisor')).includes('generator'), 'the Advisor tells you to test the generator in Chapter 5');
+    await page.click('.advisor [data-action="panel"]');
+    check(await page.isVisible('#tabs'), 'the Advisor button opens a tab and the tab bar stays visible');
   });
 
   await session('keyboard', { viewport: { width: 1200, height: 800 } }, async (page) => {
@@ -99,11 +114,11 @@ try {
 
   await session('release notes', { viewport: { width: 390, height: 800 } }, async (page) => {
     await page.addInitScript(() => {
-      localStorage.setItem('dcm.settings.v1', JSON.stringify({ seenVersion: '2.4.0' }));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ seenVersion: '3.0.0' }));
     });
     await page.reload();
     await page.waitForSelector('.whatsnew[open]');
-    check((await page.textContent('.whatsnew')).includes('Playtest kit'), 'after an update the start screen opens the release notes');
+    check((await page.textContent('.whatsnew')).includes('The Advisor'), 'after an update the start screen opens the release notes');
     await page.click('[data-action="seenNotes"]');
     await page.waitForSelector('.whatsnew:not([open])');
     check(!(await page.isVisible('[data-action="seenNotes"]')), 'dismissing the notes closes them for good');
