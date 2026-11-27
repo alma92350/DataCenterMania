@@ -310,7 +310,7 @@ export const CAMPUS = {
   trainingRate: 1800, inferenceRate: 3200, inferenceShare: 0.6, inferenceLatencyMs: 20, powerPerMwDay: 700, staffPerDay: 200, rentPerMwDay: 30, incidentPerDay: 0.29,
   depreciationDays: 20, loanPrincipal: 50_000, loanInterestPerDay: 0.015, investorCash: 80_000, investorTargetMult: 1.5,
   boardEveryDays: 3, boardProfit: 15_000, boardUptime: 99, boardPue: 1.45, boardGrant: 15_000,
-  staffUpgrade: 3000, helpCost: 1500, communityFund: 5000, communityFundGoodwill: 15,
+  gigawattBoardMult: 5, staffUpgrade: 3000, helpCost: 1500, communityFund: 5000, communityFundGoodwill: 15,
 } as const;
 
 /** The orbital Frontier floor of Sandbox 2.0 (speculative, PRD v2 addendum §5.4): no technicians, launched spares, a falling launch price. */

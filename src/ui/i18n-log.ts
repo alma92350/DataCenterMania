@@ -150,6 +150,13 @@ export const LOG_FR: Record<string, string> = {
   'Setpoint and containment': 'Consigne et confinement',
   'Raise the supply-air setpoint to save cooling energy and give free cooling more hours; lower it for margin when something fails. Containment keeps hot exhaust away from cold intakes.': 'Relevez la consigne d’air soufflé pour économiser du refroidissement et donner plus d’heures au free cooling ; baissez-la pour avoir de la marge en cas de panne. Le confinement éloigne l’air chaud des entrées d’air froid.',
   'ASHRAE allows inlet air of 18 to 27°C, and many operators run near the top. A warmer room cuts energy but leaves less time to react when cooling fails. Hot or cold aisle containment is often the cheapest efficiency upgrade.': 'L’ASHRAE autorise un air d’entrée de 18 à 27 °C, et beaucoup d’exploitants visent le haut de la plage. Une salle plus chaude réduit l’énergie mais laisse moins de temps pour réagir en cas de panne de refroidissement. Le confinement des allées chaudes ou froides est souvent l’amélioration d’efficacité la moins chère.',
+  // v2.4 gigawatt tier
+  'Gigawatt campus': 'Campus gigawatt',
+  'A gigawatt campus needs goodwill of': 'Un campus gigawatt exige une bonne volonté de',
+  'The county will not hear of a gigawatt campus below {s} goodwill.': 'Le comté ne veut pas entendre parler d’un campus gigawatt en dessous de {s} de bonne volonté.',
+  'Gigawatt campuses': 'Campus gigawatt',
+  'A 1 GW site sells wholesale at a lower rate per MW and buys power on a long contract. It needs community goodwill to start, spends some, drains it every day, fills slowly, and makes the board expect five times the profit.': 'Un site de 1 GW vend en gros à un tarif plus bas par MW et achète son électricité sous contrat long. Il exige de la bonne volonté pour démarrer, en consomme, en perd chaque jour, se remplit lentement, et le conseil attend cinq fois plus de bénéfice.',
+  'Hyperscale builders sign power contracts years ahead and negotiate with whole regions. Local opposition over water, noise and grid strain is a real reason projects get delayed or cancelled.': 'Les bâtisseurs d’hyperscale signent des contrats d’énergie des années à l’avance et négocient avec des régions entières. L’opposition locale (eau, bruit, tension sur le réseau) est une vraie raison de retard ou d’annulation des projets.',
   // later additions found by reading the sources
   'Utility power is out! The grid should be back in about {s} h.': 'Le courant est coupé ! Le réseau devrait revenir dans environ {s} h.',
   'The generator is serviced and on standby.': 'Le groupe est entretenu et en veille.',

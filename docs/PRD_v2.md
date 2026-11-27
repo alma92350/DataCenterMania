@@ -660,3 +660,10 @@ A second review, inspired by the *Data Centers: Today and Tomorrow* field guide,
 - **Containment (three levels).** Open aisles, blanking panels and curtains ($2,500: recirculation halved, 3% less cooling energy), full containment ($7,000: recirculation down 85%, 8% less cooling energy). It builds on the aisles system from Chapter 3, so rows that face the same way hurt less once contained.
 - **No new chapter system.** Both controls are part of the Energy system of Chapter 7 (no change to the systems-per-chapter rule), use optional site fields (old saves load unchanged), have Handbook, French and tests (7 new), and the balance guardrails still pass with the default bot, which never touches them.
 - **Simplifications**: one supply temperature for the whole hall, no inlet versus exhaust model; failure acceleration comes only from the rack temperature the existing model already uses.
+
+## 23. v2.4 "Gigawatt" results
+
+- **A fourth site tier**: *Gigawatt campus* (1 GW, $600,000, 8 days to build). It is a decision, not just a bigger number: it needs **60 goodwill** to start and spends 15 of it, **drains 2 goodwill every day** it is live, **fills slowly** (4 points of utilisation a day instead of 8), sells **wholesale** (15% of the per-MW rate) against a **long power contract** (25% of the per-MW power cost), and makes the **board expect five times the profit**. At 50% utilisation it earns far more than a regional hub in total and less per MW.
+- **UI**: the campus panel lists it with the other tiers, reads "1 GW", is disabled with a hint when goodwill is too low; Handbook entry *Gigawatt campuses* in French.
+- **Balance**: the campaign bot does not build it (the chapter is too short for an 8-day build); it is for Sandbox Campus and for players who finish Chapter 10. 5 new tests.
+- **Simplification**: no separate grid-interconnect queue for the gigawatt site; the long build time and goodwill gate stand in for it.

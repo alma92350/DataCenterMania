@@ -342,7 +342,7 @@ describe('campus UI and Handbook', () => {
     expect(campusPanel(s)).toContain('Moratorium');
     expect(campusPanel(createGame('ch9', 'sysadmin', 1))).toBe('');
     expect(handbookSection(['campus', 'finance'])).toContain('Community goodwill');
-    expect(HANDBOOK.filter((h) => h.unlock === 'campus' || h.unlock === 'finance').length).toBe(4);
+    expect(HANDBOOK.filter((h) => h.unlock === 'campus' || h.unlock === 'finance').length).toBe(5);
   });
 });
 

@@ -124,7 +124,7 @@ export interface Site {
 
 /** Coolant loop for liquid racks (PRD v2 F6). */
 export type SiteKind = 'nordic' | 'metro' | 'desert' | 'harbour';
-export type SiteTier = 'edge' | 'enterprise' | 'regional';
+export type SiteTier = 'edge' | 'enterprise' | 'regional' | 'gigawatt';
 
 /** Another site on the campus: simulated by a summary model (PRD v2 F10). */
 export interface CampusSite {

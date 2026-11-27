@@ -13,10 +13,25 @@ export const SITE_KINDS: Record<SiteKind, { name: string; blurb: string; pue: nu
   harbour: { name: 'Harbour Hub', blurb: 'A fibre landing station: good latency and mild weather.', pue: 1.35, power: 1.0, latencyMs: 14, water: -1 },
 };
 
-export const SITE_TIERS: Record<SiteTier, { name: string; mw: number; price: number; days: number }> = {
+export interface TierDef {
+  name: string;
+  mw: number;
+  price: number;
+  days: number;
+  /** Gigawatt tier (v2.4): needs community goodwill, spends some, drains it daily, ramps slowly, sells wholesale. */
+  minGoodwill?: number;
+  goodwillCost?: number;
+  goodwillPerDay?: number;
+  rampPerDay?: number;
+  rateMult?: number;
+  powerMult?: number;
+}
+
+export const SITE_TIERS: Record<SiteTier, TierDef> = {
   edge: { name: 'Edge node', mw: 4, price: 50_000, days: 3 },
   enterprise: { name: 'Enterprise hall', mw: 12, price: 110_000, days: 4 },
   regional: { name: 'Regional hub', mw: 40, price: 250_000, days: 5 },
+  gigawatt: { name: 'Gigawatt campus', mw: 1000, price: 600_000, days: 8, minGoodwill: 60, goodwillCost: 15, goodwillPerDay: -2, rampPerDay: 0.04, rateMult: 0.15, powerMult: 0.25 },
 };
 
 export function createCampus(): Campus {
@@ -38,12 +53,12 @@ export function siteMix(kind: SiteKind): { training: number; inference: number }
 export function siteRevenuePerDay(site: CampusSite): number {
   const mix = siteMix(site.kind);
   const rate = mix.training * CAMPUS.trainingRate + mix.inference * CAMPUS.inferenceRate;
-  return Math.round(site.mw * site.util * rate);
+  return Math.round(site.mw * site.util * rate * (SITE_TIERS[site.tier].rateMult ?? 1));
 }
 
 export function siteCostPerDay(s: GameState, site: CampusSite): number {
   const k = SITE_KINDS[site.kind];
-  const power = site.mw * site.util * CAMPUS.powerPerMwDay * k.pue * k.power * (s.campus?.power === 'spot' ? s.campus.spotMult : 1);
+  const power = site.mw * site.util * CAMPUS.powerPerMwDay * k.pue * k.power * (SITE_TIERS[site.tier].powerMult ?? 1) * (s.campus?.power === 'spot' ? s.campus.spotMult : 1);
   return Math.round(power + CAMPUS.staffPerDay * (site.staff + 1) + site.mw * CAMPUS.rentPerMwDay);
 }
 
@@ -56,8 +71,10 @@ export function buildSite(s: GameState, kind: SiteKind, tier: SiteTier): { ok: t
   if (c.sites.length >= CAMPUS.maxSites) return { ok: false, error: 'The campus has no more sites to offer.' };
   if (c.sites.some((x) => x.kind === kind)) return { ok: false, error: 'You already have a site there.' };
   const def = SITE_TIERS[tier];
+  if (def.minGoodwill && c.goodwill < def.minGoodwill) return { ok: false, error: `The county will not hear of a gigawatt campus below ${def.minGoodwill} goodwill.` };
   if (s.cash < def.price) return { ok: false, error: 'Not enough cash.' };
   s.cash -= def.price;
+  c.goodwill = Math.max(0, c.goodwill - (def.goodwillCost ?? 0));
   c.flows.capex += def.price;
   const permit = c.goodwill >= CAMPUS.fastPermitGoodwill ? -1 : 0;
   c.sites.push({ id: newId(s, 'site'), kind, tier, mw: def.mw, status: 'building', readyAt: s.minute + Math.max(1, def.days + permit) * 1440, staff: 0, util: 0, capex: def.price });
@@ -92,7 +109,7 @@ function campusDay(s: GameState, c: Campus): void {
     if (site.status !== 'live') continue;
     // utilisation grows while customers move in, and drops after a shock
     const shock = site.shockUntil !== undefined && s.minute < site.shockUntil;
-    site.util = Math.max(0.05, Math.min(0.9, site.util + (shock ? -0.15 : 0.08)));
+    site.util = Math.max(0.05, Math.min(0.9, site.util + (shock ? -0.15 : SITE_TIERS[site.tier].rampPerDay ?? 0.08)));
     let rev = siteRevenuePerDay(site);
     // incidents: staff and redundancy cut the chance; help halves the damage
     const tuned = (site.tunedUntil ?? 0) > s.minute;
@@ -111,7 +128,7 @@ function campusDay(s: GameState, c: Campus): void {
     }
     revenue += rev;
     cost += siteCostPerDay(s, site);
-    c.goodwill += SITE_KINDS[site.kind].water + site.staff * CAMPUS.goodwillPerStaff;
+    c.goodwill += SITE_KINDS[site.kind].water + site.staff * CAMPUS.goodwillPerStaff + (SITE_TIERS[site.tier].goodwillPerDay ?? 0);
   }
   if (s.site?.heatReuse) c.goodwill += CAMPUS.goodwillHeatReuse;
   c.goodwill += (CAMPUS.neutralGoodwill - c.goodwill) * CAMPUS.goodwillDrift;
@@ -142,7 +159,7 @@ export function boardProfit(s: GameState): number {
 
 export function boardTargets(s: GameState): { label: string; ok: boolean }[] {
   const c = s.campus!;
-  const mult = c.investor ? CAMPUS.investorTargetMult : 1;
+  const mult = (c.investor ? CAMPUS.investorTargetMult : 1) * (c.sites.some((x) => x.tier === 'gigawatt' && x.status === 'live') ? CAMPUS.gigawattBoardMult : 1);
   const profit = boardProfit(s);
   return [
     { label: `Profit ≥ $${Math.round(CAMPUS.boardProfit * mult).toLocaleString('en-US')} since the last review`, ok: profit >= CAMPUS.boardProfit * mult },

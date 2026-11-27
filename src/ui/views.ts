@@ -151,7 +151,7 @@ export function campusPanel(s: GameState): string {
   const day = dayOf(s.minute);
   const built = new Set(c.sites.map((x) => x.kind));
   const kinds = (Object.keys(SITE_KINDS) as (keyof typeof SITE_KINDS)[]).filter((k) => !built.has(k));
-  const mw = (n: number) => `${n} MW`;
+  const mw = (n: number) => (n >= 1000 ? `${n / 1000} GW` : `${n} MW`);
   const sites = c.sites.map((x) => {
     const k = SITE_KINDS[x.kind];
     const mix = siteMix(x.kind);
@@ -167,7 +167,8 @@ export function campusPanel(s: GameState): string {
     const mix = siteMix(k);
     return `<li><div class="row"><b>${e(t(d.name))}</b><span class="muted">${d.latencyMs} ms · PUE ${d.pue} · ${t('power')} ×${d.power}</span></div>
       <div class="row meta">${e(t(d.blurb))} ${Math.round(mix.inference * 100)}% ${t('inference')}</div>
-      <div class="row actions">${(Object.keys(SITE_TIERS) as (keyof typeof SITE_TIERS)[]).map((tier) => `<button data-action="buildSite" data-kind="${k}" data-tier="${tier}" ${s.cash < SITE_TIERS[tier].price ? 'disabled' : ''}>${mw(SITE_TIERS[tier].mw)} ${money(SITE_TIERS[tier].price)}</button>`).join('')}</div></li>`;
+      <div class="row actions">${(Object.keys(SITE_TIERS) as (keyof typeof SITE_TIERS)[]).map((tier) => `<button data-action="buildSite" data-kind="${k}" data-tier="${tier}" ${s.cash < SITE_TIERS[tier].price || s.campus!.goodwill < (SITE_TIERS[tier].minGoodwill ?? 0) ? 'disabled' : ''}>${mw(SITE_TIERS[tier].mw)} ${money(SITE_TIERS[tier].price)}</button>`).join('')}</div>
+      ${s.campus!.goodwill < (SITE_TIERS.gigawatt.minGoodwill ?? 0) ? `<div class="row meta">${t('A gigawatt campus needs goodwill of')} ${SITE_TIERS.gigawatt.minGoodwill}.</div>` : ''}</li>`;
   }).join('') : '';
   return `<h3>🌍 ${t('Campus')}</h3>
     <div class="report"><span>${t('Goodwill')}</span><b class="${state === 'moratorium' ? 'bad' : state === 'low' ? 'warn' : 'ok'}">${gw}${state === 'moratorium' ? ` · ${t('moratorium')}` : ''}</b>
