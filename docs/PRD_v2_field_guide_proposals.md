@@ -164,9 +164,9 @@ Impact on fun and credibility, effort (S ≈ days, M ≈ a release, L ≈ severa
 
 | # | Proposal | Impact | Effort | Fit | Verdict |
 |---|---|---|:-:|---|---|
-| P1 | Site power cap and grid queue | Very high | M | Chapter 7, pairs with F4/F5 | **Adopt** |
+| P1 | Site power cap and grid queue (row scale, MW labels) | Very high | M | Chapter 7, pairs with F4/F5 | **Adopt (§5.1, §5.2)** |
 | P2 | Long-lead equipment | High | M | Folds into F12 | **Adopt** |
-| P3 | Water ↔ power slider | High | S | Chapter 7 energy | **Adopt** |
+| P3 | Water ↔ power slider (now with off-site water) | High | S → M | Chapter 7 energy | **Adopt, two meters (§5.3)** |
 | P9 | Event card library | High | S per card | Director, any chapter | **Adopt, incrementally** |
 | P13 | Skills by training | Medium | S | Resolves an open question | **Adopt** |
 | P6 | Effective training time | High | M | Chapter 8 | **Adopt** |
@@ -179,7 +179,7 @@ Impact on fun and credibility, effort (S ≈ days, M ≈ a release, L ≈ severa
 | P11 | Boom/bust and stranded assets | Medium | M | Board review | **Adopt with F11** |
 | P12 | Heat reuse | Medium | S | F5 late upgrade | **Adopt** |
 | P15 | Factions | Medium | S | Writing, events | **Adopt, light** |
-| P16 | Era framing and Frontier epilogue | Medium | S / L | Frame now, epilogue later | **Frame now; epilogue parked** |
+| P16 | Era framing and Frontier epilogue | Medium | S / M | Frame now, epilogue as late Sandbox mode | **Frame now; epilogue = Sandbox mode (§5.4)** |
 
 **Not recommended now:** a full real-world site-selection map with real places and prices (brand and accuracy risk), per-chip hardware models by vendor name (real brands are out of scope), and the speculative eras as campaign content.
 
@@ -188,18 +188,68 @@ Impact on fun and credibility, effort (S ≈ days, M ≈ a release, L ≈ severa
 | Release | Existing plan | Additions from this report |
 |---|---|---|
 | **v1.3** Change Advisory Board | Change management, supply-chain events, Chapter 6 | **P2** lead times for big items; **P9** first four event cards; **P14** resilience levels as goals |
-| **v1.4** Efficiency Drive | DCIM capacity, live PUE, free cooling, Chapter 7 | **P1** site power cap and grid queue; **P3** water ↔ power; **P12** heat reuse; **P8** out-of-band network; Handbook entries for water and PUE (rounded, dated figures) |
+| **v1.4** Efficiency Drive | DCIM capacity, live PUE, free cooling, Chapter 7 | **P1** site power cap and grid queue with **row scale** and `formatPower`; **P3** water with **on-site and off-site meters**; **P12** heat reuse; **P8** out-of-band network; Handbook entries for water and PUE (rounded, dated figures) |
 | **v1.5** AI Factory | Liquid cooling and GPU racks, Chapter 8 | **P6** effective training time; **P5** density tree (first two tiers); **P10** battery buffers; **P13** liquid-cooling training; events: spike, silent corruption, winter storm, new chip generation |
 | **v1.6** The Long Night | Customer 2.0, nights, Chapter 9 | **P15** factions as event voices; **P11** tenant walks away (early form) |
 | **v2.0** Hyperscale | Campus, economy 2.0, Chapter 10 | **P4** goodwill and moratoriums; **P7** training vs inference and latency; **P11** stranded assets; **P16** era framing |
-| **v2.x** | Parking lot | Frontier epilogue (orbital sandbox), full tech-tree breadth |
+| **v2.x** | Parking lot | **Frontier floor in Sandbox 2.0** (orbital: radiators, launched spares, launch-price curve), full tech-tree breadth |
 
-## 5. Open questions
+## 5. Decisions (owner, 27 Nov 2026)
 
-1. **Scale labelling.** Do we relabel kW as MW from Chapter 7 on, or keep game units and explain the scale in the Handbook? (Recommendation: keep game units, show a "real scale" line in the Handbook.)
-2. **How long is a "queue day"?** Long-lead items must be felt but not stall a shift-sized session. (Recommendation: 2 to 5 game days, shown in the shift report.)
-3. **Water literacy.** The guide notes much more water is used generating electricity than cooling the site, yet neighbours care about the water they can see. Do we model off-site water? (Recommendation: no; mention it in the Handbook only.)
-4. **Frontier epilogue.** Worth a standalone release, or a late Sandbox mode? Decide after v2.0 playtests.
+| # | Question | Decision | What it means |
+|---|---|---|---|
+| 1 | Relabel kW as MW? | **Yes, relabel** | See §5.1 |
+| 2 | How long is a queue day? | **Explained: one game day** | See §5.2 |
+| 3 | Model off-site water? | **Yes, model it** | See §5.3 |
+| 4 | Orbital epilogue | **A late Sandbox mode, not a release** | See §5.4 |
+
+### 5.1 Power units: kW now, MW from Chapter 8, by *row scale*
+
+Only the **display** changes: the simulation keeps one unit, so tests and saves are untouched.
+
+- **Chapters 0 to 6** keep W and kW (closet, server room, colo floor).
+- **Chapter 7 (Efficiency Drive)** introduces **row scale**: a map tile now stands for a *row* of 10 racks, and power, cooling and the site cap are shown at ×10. A 3 kW rack tile reads as 30 kW; the hall total reads in hundreds of kW, the site cap in MW with one decimal.
+- **Chapter 8 (AI Factory)**: a dense AI tile reads in the hundreds of kW to about 1 MW, and the hall in single-digit MW.
+- **Chapter 10 (Campus)**: sites are labelled by the guide's scale ladder: edge (under 10 MW), enterprise (about 10 to 25 MW), regional hub (about 20 to 100 MW), hyperscale (100 MW and up), gigawatt campus (1 GW and up, as a late unlock).
+- A single `formatPower(value, scale)` function owns all formatting. The Handbook shows a "real scale" line: a typical 2026 rack is about 11 kW and an AI rack 100 to 250 kW (guide figures, approximate).
+- **Acceptance:** one formatter, unit-tested at each scale boundary; a test fails if any view prints a raw watt value outside it; French uses the same units.
+
+### 5.2 What a "queue day" is
+
+A **queue day is one game day**: one shift (06:00 to 22:00) plus the night. At 1× speed that is about **6 to 9 real minutes**, and the night is fast-forwarded when quiet, so it costs seconds. It is *not* a real-world day.
+
+- A lead time of **3 queue days** means the part arrives at the same hour three game days later: three shift reports and roughly 20 to 25 minutes of play.
+- **Recommendation: major items take 2 to 5 queue days**, shown as an ETA ("arrives Thursday 08:00, 2 days") and as a line in each shift report ("Arriving: transformer in 1 day"). An expedite costs extra and saves about one day.
+- **Constraint to respect:** each chapter is its own run of 3 to 5 game days, so a long-lead order cannot span chapters. In campaign chapters the planning layer is therefore days 0 to 2: a forecast on day 0 ("the launch is on day 3") tells you what to order now. Orders spanning many days belong to the persistent **Campus** run (v2.0) and to Sandbox, where the clock does not reset.
+- **Acceptance:** every long-lead item has an ETA in game days; a test checks that in each chapter every item the objectives need can be ordered and delivered inside the chapter; small parts (disks, PSUs, filters) keep their existing minutes-to-hours delivery.
+
+### 5.3 Off-site water: modelled, with two meters
+
+The guide notes that far more water is used *generating* the electricity than *cooling* the site (possibly about ten times more), yet neighbours react to the water they can see. We model both, and let that gap be the lesson.
+
+| Meter | What it counts | Who cares | Effect |
+|---|---|---|---|
+| **On-site water** | Evaporative cooling use | Neighbours | Drives **community goodwill** (P4), drought bans |
+| **Off-site water** | Water embedded in the electricity: per kWh, set by the power source | Green and ESG customers, the board | Drives **ESG contract eligibility**, a **water footprint** line in the board review (F11) |
+
+- **Mechanics (kept simple):** `on-site = heat rejected by evaporative cooling × factor`; `off-site = kWh × source factor`. Source factors (game values, ordered by the guide's logic, not exact): solar and wind lowest, grid mix medium, gas and nuclear higher. Calibrated so that with evaporative cooling on a grid-mix site, off-site is roughly 3 to 10 times on-site. The guide's "about ten times" is shown as "about" in the Handbook, the game uses a range.
+- **The trade-off falls out honestly:** dry or closed-loop cooling cuts on-site water almost to zero but costs more electricity, which *raises* off-site water. The player can please the neighbours and still fail an ESG contract.
+- **UI:** one Water card in the Energy section (two bars), plus a drought event that bans evaporative cooling for a season.
+- **Acceptance:** both meters are pure functions with tests; switching to dry cooling lowers on-site and raises off-site water for the same load; a green contract can be failed by a low on-site / high off-site profile.
+
+### 5.4 Orbital epilogue: a late Sandbox mode
+
+Not a release. After v2.0 and the campus playtest, Sandbox 2.0 gains a **Frontier** floor type, unlocked by finishing Chapter 10. It is labelled speculative.
+
+- **Site:** orbital cluster. Constant solar power; heat can only leave through **radiators**, so a **radiator area** limit replaces cooling units.
+- **No technicians:** physical jobs do not exist. Repairs are spares **launched** at a price per kg; a robot arm upgrade handles simple swaps.
+- **Launch price slider:** starts high and falls over the run (the guide cites break-even near $200/kg against about $2,700/kg today). It is the pacing mechanic.
+- **Latency tier:** workloads that must be close (games, trading) are impossible; archives and training are fine. Round trips are tens of ms to the ground.
+- **Radiation:** higher chip failure; shielding is an upgrade.
+- **Score:** days survived, effective compute and cash, like Sandbox today; same engine (`createSandbox`), new floor and rules, so effort is **M**, not L.
+- **Acceptance:** deterministic, tested like Sandbox; the mode is clearly marked "speculative, not a forecast".
+
+---
 
 ## Appendix: guide figures worth quoting in the Handbook (with the guide's own caveats)
 
