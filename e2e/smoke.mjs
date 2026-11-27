@@ -226,8 +226,11 @@ try {
     check(await page.isVisible('.shift-card'), 'the 22:00 shift report card appears');
     check(sawPop, 'money is credited during the shift (today counter rises)');
     await page.screenshot({ path: `${outDir}/shift-report.png` });
+    let workers = 0;
+    page.on('worker', () => workers++);
     await page.click('[data-action="sleep"]');
     await page.waitForSelector('text=While you slept', { timeout: 10000 });
+    check(workers >= 1, 'the night is simulated in a Web Worker');
     check(true, 'sleeping fast-forwards the night and shows a recap');
     await page.screenshot({ path: `${outDir}/night-recap.png` });
     await page.click('[data-action="closeModal"]');

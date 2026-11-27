@@ -2,6 +2,8 @@ import type { Speed } from '../core/time';
 import { PARTS } from '../data/catalog';
 import { applyCommand, suggestedCoolerJob, suggestedJob, type Command, type DispatchJob } from '../sim/commands';
 import { step } from '../sim/sim';
+import { fastForward, type WakeUp } from '../sim/fastforward';
+import type { FastForwardReply, FastForwardRequest } from '../sim/worker';
 import { createGame } from '../sim/state';
 import { contractAssignedUnits, contractById, firstFreeSlot, rackById } from '../sim/selectors';
 import { tileAt } from '../sim/grid';
@@ -144,7 +146,7 @@ export class App {
     if (s) {
       const paused = this.modal !== null && this.modal.kind !== 'rack' && this.modal.kind !== 'cooler';
       const tipBlocking = this.tips.length > 0; // Sam talks, the world waits
-      const speed = paused || tipBlocking ? 0 : effectiveSpeed(this.speed, s, this.settings.nightSkip);
+      const speed = paused || tipBlocking || this.sleeping ? 0 : effectiveSpeed(this.speed, s, this.settings.nightSkip);
       const { minutes, carry } = minutesToAdvance(dt, speed, this.carry);
       this.carry = carry;
       for (let i = 0; i < minutes && s.progress.status === 'playing'; i++) {
@@ -350,6 +352,7 @@ export class App {
     const d = el.dataset;
     const s = this.state;
     this.sound.unlock();
+    if (this.sleeping) return; // the night is being simulated
     switch (d.action) {
       case 'speed':
         this.speed = Number(d.speed) as Speed;
@@ -372,7 +375,7 @@ export class App {
         this.renderUi(true);
         return;
       case 'sleep':
-        this.sleep();
+        void this.sleep();
         return;
       case 'dismissTip':
         this.tips.shift();
@@ -800,23 +803,48 @@ export class App {
     }
   }
 
-  /** Fast-forwards the night; a critical alarm wakes the player early (PRD §21.1). */
-  private sleep(): void {
-    const s = this.state;
-    if (!s) return;
-    const from = s.logSeq;
-    let woke: string | null = null;
-    s.attention = null;
-    for (let i = 0; i < 1440 && s.progress.status === 'playing' && !s.shift; i++) {
-      step(s);
-      const att = s.attention as GameState['attention']; // step() may raise one
-      if (att && att.severity >= 3) {
-        woke = `${formatClock(s.minute)}: ${att.text}`;
-        s.attention = null;
-        break;
-      }
-      s.attention = null;
+  private worker: Worker | null | undefined;
+  private sleeping = false;
+  private ffId = 0;
+
+  private ffWorker(): Worker | null {
+    if (this.worker !== undefined) return this.worker;
+    try {
+      this.worker = typeof Worker === 'undefined' ? null : new Worker(new URL('../sim/worker.ts', import.meta.url), { type: 'module' });
+    } catch {
+      this.worker = null;
     }
+    return this.worker;
+  }
+
+  /** Runs the night in a Web Worker (the page stays responsive); falls back to the main thread. */
+  private runNight(s: GameState): Promise<{ state: GameState; woke: WakeUp | null }> {
+    const w = this.ffWorker();
+    const local = () => ({ state: s, woke: fastForward(s) });
+    if (!w) return Promise.resolve(local());
+    const id = ++this.ffId;
+    return new Promise((resolve) => {
+      const done = (r: { state: GameState; woke: WakeUp | null }) => { w.removeEventListener('message', onMsg); w.removeEventListener('error', onErr); resolve(r); };
+      const onMsg = (e: MessageEvent<FastForwardReply>) => { if (e.data.id === id) done({ state: e.data.state, woke: e.data.woke }); };
+      const onErr = () => { this.worker = null; done(local()); };
+      w.addEventListener('message', onMsg);
+      w.addEventListener('error', onErr);
+      w.postMessage({ id, state: s, maxMinutes: 1440 } satisfies FastForwardRequest);
+    });
+  }
+
+  /** Fast-forwards the night; a critical alarm wakes the player early (PRD §21.1). */
+  private async sleep(): Promise<void> {
+    const s0 = this.state;
+    if (!s0 || this.sleeping) return;
+    const from = s0.logSeq;
+    this.sleeping = true;
+    this.toast('😴 Sleeping…', 'info', 1500);
+    const { state: s, woke: wake } = await this.runNight(s0);
+    this.sleeping = false;
+    if (this.state !== s0) return; // the player left the game meanwhile
+    this.state = s;
+    const woke = wake ? `${formatClock(wake.minute)}: ${wake.text}` : null;
     const lines = s.log
       .filter((l) => l.id >= from && (l.kind === 'success' || l.kind === 'fail' || l.kind === 'alarm' || l.kind === 'story'))
       .map((l) => `${formatClock(l.minute)} ${l.text}`)

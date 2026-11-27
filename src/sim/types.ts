@@ -586,6 +586,8 @@ export interface GameState {
   aiTech?: AiTech;
   /** Tests: run AI interruptions even when other failures are off. */
   aiForce?: boolean;
+  /** Since when each GPU server has been silently corrupted (device id to minute). In the state so a save, a worker and a replay agree. */
+  corruptSince?: Record<string, number>;
   /** A synchronized power spike from a big training run starting. */
   spike?: { mult: number; until: number };
   /** Site power, cooling mode, water and efficiency (Chapter 7+). */

@@ -157,6 +157,7 @@ export const LOG_FR: Record<string, string> = {
   'Gigawatt campuses': 'Campus gigawatt',
   'A 1 GW site sells wholesale at a lower rate per MW and buys power on a long contract. It needs community goodwill to start, spends some, drains it every day, fills slowly, and makes the board expect five times the profit.': 'Un site de 1 GW vend en gros à un tarif plus bas par MW et achète son électricité sous contrat long. Il exige de la bonne volonté pour démarrer, en consomme, en perd chaque jour, se remplit lentement, et le conseil attend cinq fois plus de bénéfice.',
   'Hyperscale builders sign power contracts years ahead and negotiate with whole regions. Local opposition over water, noise and grid strain is a real reason projects get delayed or cancelled.': 'Les bâtisseurs d’hyperscale signent des contrats d’énergie des années à l’avance et négocient avec des régions entières. L’opposition locale (eau, bruit, tension sur le réseau) est une vraie raison de retard ou d’annulation des projets.',
+  'Sleeping…': 'Nuit en cours…',
   // later additions found by reading the sources
   'Utility power is out! The grid should be back in about {s} h.': 'Le courant est coupé ! Le réseau devrait revenir dans environ {s} h.',
   'The generator is serviced and on standby.': 'Le groupe est entretenu et en veille.',

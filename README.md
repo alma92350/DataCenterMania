@@ -51,6 +51,7 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 | Simulation log in French (v2.2) | Every log message translates through wildcard templates; a test fails if a new one has no French |
 | Setpoint and containment (v2.3) | Choose the supply-air temperature and contain the aisles: energy saved against margin when cooling fails |
 | Gigawatt campus (v2.4) | A 1 GW wholesale site gated by community goodwill; the board expects five times the profit |
+| Night in a Web Worker (v2.5) | Sleeping simulates the night off the main thread and falls back to the same code when workers are unavailable |
 | Hyperscale (v2.0) | Chapter 10: a campus of sites with climate, latency and goodwill, loans, investors, spot power and a board that can fire you; Sandbox gets Campus and orbital Frontier floors; hand-over codes; three eras |
 | The Long Night (v1.6) | Chapter 9: customer moods, renewals and churn, a compliance audit, a night rota, a 3 a.m. pager and incident command with honest customer updates |
 | AI Factory (v1.5) | Chapter 8: coolant loop and GPU racks that overheat in minutes, an AI customer judged on effective training time, a density ladder, power spikes, silent corruption and liquid-cooling training |

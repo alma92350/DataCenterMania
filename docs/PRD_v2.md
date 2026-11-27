@@ -667,3 +667,11 @@ A second review, inspired by the *Data Centers: Today and Tomorrow* field guide,
 - **UI**: the campus panel lists it with the other tiers, reads "1 GW", is disabled with a hint when goodwill is too low; Handbook entry *Gigawatt campuses* in French.
 - **Balance**: the campaign bot does not build it (the chapter is too short for an 8-day build); it is for Sandbox Campus and for players who finish Chapter 10. 5 new tests.
 - **Simplification**: no separate grid-interconnect queue for the gigawatt site; the long build time and goodwill gate stand in for it.
+
+## 24. v2.5 "Night Shift Worker" results
+
+- **The night runs in a Web Worker.** *Sleep* (up to 1,440 simulated minutes) used to run on the page's main thread. It now runs through `src/sim/fastforward.ts` inside `src/sim/worker.ts`: the game state goes to the worker as plain data and comes back updated, with the reason for an early wake-up. The page stays responsive and input is ignored until the night is done. If a worker cannot start, the same function runs on the main thread, so the result is identical either way.
+- **A hidden-state bug found and fixed on the way.** The silent GPU corruption timer lived in a module-level map outside the game state, so a save, a copy, or a worker would have forgotten it. It is now `corruptSince` in the state. A test runs a game and a JSON copy of it through the same night in three chapters and requires identical results.
+- **What stays on the main thread**: the live 1× to 8× clock (a handful of steps per frame, measured well under a millisecond) and every command. Moving those would make every click asynchronous for no measured gain.
+- **Tests**: 4 new (quiet night, state-copy equivalence in Chapters 4, 8 and 10, the corruption timer, wake-up on a critical alarm); e2e confirms a worker is used.
+- **Still open**: the 20-player playtest. All balance is still bot-tuned.

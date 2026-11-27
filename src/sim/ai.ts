@@ -35,29 +35,28 @@ export function updateAi(s: GameState): void {
     // corrupted nodes poison the whole run until someone finds them
     if (gpus.some((d) => d.faults.includes('corrupt'))) c.pausedUntil = Math.max(c.pausedUntil ?? 0, s.minute + 2);
   }
+  const since = (s.corruptSince ??= {});
   for (const d of s.devices) {
-    const at = corruptSince.get(d.id);
+    const at = since[d.id];
     if (d.faults.includes('corrupt')) {
-      if (at === undefined) corruptSince.set(d.id, s.minute);
+      if (at === undefined) since[d.id] = s.minute;
       else if (s.minute - at >= AI.corruptUndetectedMin) {
         d.faults = d.faults.filter((f) => f !== 'corrupt');
-        corruptSince.delete(d.id);
+        delete since[d.id];
         clearAlarms(s, (a) => a.kind === 'corrupt' && a.deviceId === d.id);
         s.reputation = Math.max(0, s.reputation - 0.3);
         addLog(s, 'fail', '🧠 A customer found wrong answers from a corrupted GPU server before you did. Reputation hit, and the run restarted.');
       }
-    } else corruptSince.delete(d.id);
+    } else delete since[d.id];
   }
 }
-
-const corruptSince = new Map<string, number>();
 
 /** Silent data corruption: wrong answers without a crash. Diagnostics (NOC level 2) raises an alarm; otherwise it stays hidden. */
 export function corruptNode(s: GameState, text?: string): void {
   const d = s.devices.find((x) => x.gpu && deviceUp(s, x) && !x.faults.includes('corrupt'));
   if (!d) return;
   d.faults.push('corrupt');
-  corruptSince.set(d.id, s.minute);
+  (s.corruptSince ??= {})[d.id] = s.minute;
   if (text) addLog(s, 'story', text);
   if ((s.noc ?? 0) >= 2) {
     raiseAlarm(s, 'corrupt', d.rackId, d.id, 2, null);
@@ -82,6 +81,3 @@ export function aiEffective(s: GameState): number {
 
 export const gpuPrice = (): number => AI.gpuUpgradePrice + PARTS.server2u.price * 0;
 
-export function resetAiState(): void {
-  corruptSince.clear();
-}
