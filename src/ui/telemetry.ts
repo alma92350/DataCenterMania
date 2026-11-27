@@ -1,4 +1,5 @@
 import type { KeyValueStore } from './storage';
+import { APP_VERSION } from './version';
 
 /**
  * Opt-in local telemetry (PRD v2 F14): a short event log kept in this browser so playtesters can
@@ -11,7 +12,8 @@ export interface TelemetryEvent {
 }
 
 export const TELEMETRY_KEY = 'dcm.telemetry.v1';
-export const TELEMETRY_MAX = 500;
+export const TELEMETRY_MAX = 1000;
+export const BEAT_EVERY_MS = 2 * 60 * 1000;
 
 export class Telemetry {
   constructor(private readonly store: KeyValueStore | null, private enabled: () => boolean, private now: () => number = Date.now) {}
@@ -37,6 +39,21 @@ export class Telemetry {
     }
   }
 
+  private lastBeat = 0;
+
+  /** Called while the game runs: one 'active' event per two minutes is enough to measure session length. */
+  beat(): void {
+    const t = this.now();
+    if (t - this.lastBeat < BEAT_EVERY_MS) return;
+    this.lastBeat = t;
+    this.record('active');
+  }
+
+  /** Tester feedback from the pause menu: a rating from 1 to 5 or a tag such as 'unfair'. */
+  feedback(kind: 'rating' | 'tag', value: number | string): void {
+    this.record('feedback', { kind, value });
+  }
+
   clear(): void {
     try {
       this.store?.removeItem(TELEMETRY_KEY);
@@ -51,6 +68,7 @@ export class Telemetry {
     const starts = events.filter((e) => e.type === 'chapterStart').length;
     const ends = events.filter((e) => e.type === 'chapterEnd');
     return JSON.stringify({
+      version: APP_VERSION,
       exportedAt: this.now(),
       summary: { sessions: events.filter((e) => e.type === 'session').length, chapterStarts: starts, chapterEnds: ends.length, wins: ends.filter((e) => e.data?.won === true).length },
       events,

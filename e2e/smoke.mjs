@@ -52,6 +52,23 @@ try {
     check(!(await page.isVisible('#update')), 'the update banner can be dismissed');
     await browser.close();
   }
+  await session('playtest feedback', { viewport: { width: 1000, height: 800 } }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern', display: 'color', telemetry: true }));
+    });
+    await page.reload();
+    await page.click('[data-chapter="ch0"]');
+    await page.waitForSelector('#topbar .stat');
+    await page.click('[data-action="menu"]');
+    await page.click('details.settings summary');
+    await page.waitForSelector('[data-action="feedback"][data-value="5"]');
+    await page.click('[data-action="feedback"][data-value="5"]');
+    await page.click('[data-action="feedback"][data-value="unfair"]');
+    const log = await page.evaluate(() => JSON.parse(localStorage.getItem('dcm.telemetry.v1') || '[]'));
+    check(log.some((e) => e.type === 'feedback' && e.data.kind === 'rating' && e.data.value === 5), 'a rating tap is saved in the play log');
+    check(log.some((e) => e.type === 'feedback' && e.data.value === 'unfair'), 'an "unfair outage" tag is saved in the play log');
+  });
+
   await session('desktop', { viewport: { width: 1366, height: 820 }, deviceScaleFactor: 1 }, async (page) => {
     await page.waitForSelector('.start');
     check(await page.isVisible('text=DataCenterMania') || (await page.locator('h1').count()) > 0, 'start screen renders');

@@ -826,11 +826,20 @@ export function settingsForm(settings: Settings): string {
         .map(([v, l]) => `<option value="${v}" ${settings.display === v ? 'selected' : ''}>${t(l)}</option>`).join('')}
     </select></label>
     <label><input type="checkbox" data-action="setting" data-key="telemetry" ${settings.telemetry ? 'checked' : ''}> ${t('Keep a play log on this device')}</label>
-    ${settings.telemetry ? `<button class="ghost" data-action="exportTelemetry">${t('Export play log')}</button>` : ''}
+    ${settings.telemetry ? `<button class="ghost" data-action="exportTelemetry">${t('Export play log')}</button>${feedbackBox()}` : ''}
     <label>${t('Language')} <select data-action="setting" data-key="lang">
       ${([['auto', 'Auto'], ['en', 'English'], ['fr', 'Français']] as const).map(([v, l]) => `<option value="${v}" ${settings.lang === v ? 'selected' : ''}>${l}</option>`).join('')}
     </select></label>
   </details>`;
+}
+
+/** Tester feedback, one tap each: how much it feels like the job, and what went wrong. */
+export function feedbackBox(): string {
+  const tags: [string, string][] = [['unfair', 'An outage felt unfair'], ['slow', 'Too slow'], ['hard', 'Too hard'], ['confusing', 'Confusing']];
+  return `<fieldset class="feedback"><legend>💬 ${t('Feedback for the testers')}</legend>
+    <div class="row meta">${t('Does it feel like the job of a data center operator?')}</div>
+    <div class="row actions">${[1, 2, 3, 4, 5].map((n) => `<button data-action="feedback" data-kind="rating" data-value="${n}" aria-label="${n} / 5">${n}</button>`).join('')}</div>
+    <div class="row actions">${tags.map(([v, l]) => `<button class="ghost" data-action="feedback" data-kind="tag" data-value="${v}">${t(l)}</button>`).join('')}</div></fieldset>`;
 }
 
 export function pauseMenu(s: GameState, settings: Settings): string {

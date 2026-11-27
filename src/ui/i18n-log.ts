@@ -161,6 +161,13 @@ export const LOG_FR: Record<string, string> = {
   'A new version is available': 'Une nouvelle version est disponible',
   'Reload': 'Recharger',
   'Later': 'Plus tard',
+  'Feedback for the testers': 'Retour pour les testeurs',
+  'Does it feel like the job of a data center operator?': 'Cela ressemble-t-il au métier d’exploitant de datacenter ?',
+  'An outage felt unfair': 'Une panne m’a semblé injuste',
+  'Too slow': 'Trop lent',
+  'Too hard': 'Trop difficile',
+  'Confusing': 'Confus',
+  'Thanks! Your feedback is saved in the play log.': 'Merci ! Votre retour est enregistré dans le journal de jeu.',
   // later additions found by reading the sources
   'Utility power is out! The grid should be back in about {s} h.': 'Le courant est coupé ! Le réseau devrait revenir dans environ {s} h.',
   'The generator is serviced and on standby.': 'Le groupe est entretenu et en veille.',

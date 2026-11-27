@@ -165,6 +165,7 @@ export class App {
           break;
         }
       }
+      if (speed > 0) this.telemetry.beat();
       this.consumeLog(s);
       this.driveCyber(s, dt, t);
       if (s.pendingShiftReport) {
@@ -494,6 +495,10 @@ export class App {
         return;
       case 'dispatchPower':
         this.run({ type: 'dispatch', job: d.job as 'testGenerator', techId: 'best' });
+        return;
+      case 'feedback':
+        this.telemetry.feedback(d.kind as 'rating' | 'tag', d.kind === 'rating' ? Number(d.value) : String(d.value));
+        this.toast('💬 Thanks! Your feedback is saved in the play log.', 'success', 2500);
         return;
       case 'exportTelemetry': {
         const blob = new Blob([this.telemetry.export()], { type: 'application/json' });

@@ -681,3 +681,12 @@ A second review, inspired by the *Data Centers: Today and Tomorrow* field guide,
 - **Version shown** on the start screen and at the bottom of the pause menu (from `package.json`, injected at build time together with a build stamp).
 - **Update check.** The build publishes `version.json` (version and build stamp). The page fetches it with `no-store` and a timestamp on load, every 30 minutes and when the tab becomes visible; if the published build differs from the running one, a banner offers *Reload* (the game saves first) or dismissal. The service worker never caches `version.json`. Offline or a missing file means no banner. 5 new tests plus an e2e with a mocked newer release.
 - **Convention**: bump `version` in `package.json` with each release (now 2.5.0).
+
+## 26. v2.6 "Playtest Kit" results
+
+The §10 metrics need real players, which a coding session cannot supply. This release makes the playtest cheap to run and cheap to read.
+- **Better play log** (still opt-in, still local, nothing is sent): an *active* heartbeat every two minutes of play (for session length), the game version in every export, room for 1,000 events.
+- **One-tap feedback** in the pause menu when the log is on: a 1 to 5 rating of "does it feel like the job of a data center operator?" and tags *An outage felt unfair / Too slow / Too hard / Confusing*.
+- **Report script.** `npx vite-node scripts/playtest-report.ts a.json b.json …` merges exported logs and prints the §10 metrics that a log can answer, each with its target and a pass or fail: tutorial completion, Ch5 to Ch6 continuation, median session length, Ch10 completion, unfair-outage reports, credibility rating. Metrics without data say "no data". Handbook opens, D7/D30 return and frame rate are not measurable from a local log and stay manual.
+- **Tests**: 6 new (session splitting, every metric, empty data, heartbeat throttle, feedback, UI gating) plus an e2e.
+- **Next step for a human**: send the link to 20 testers, ask them to turn the play log on, and run the script on what comes back.
