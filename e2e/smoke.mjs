@@ -52,6 +52,18 @@ try {
     check(!(await page.isVisible('#update')), 'the update banner can be dismissed');
     await browser.close();
   }
+  await session('release notes', { viewport: { width: 390, height: 800 } }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ seenVersion: '2.4.0' }));
+    });
+    await page.reload();
+    await page.waitForSelector('.whatsnew[open]');
+    check((await page.textContent('.whatsnew')).includes('Playtest kit'), 'after an update the start screen opens the release notes');
+    await page.click('[data-action="seenNotes"]');
+    await page.waitForSelector('.whatsnew:not([open])');
+    check(!(await page.isVisible('[data-action="seenNotes"]')), 'dismissing the notes closes them for good');
+  });
+
   await session('playtest feedback', { viewport: { width: 1000, height: 800 } }, async (page) => {
     await page.addInitScript(() => {
       localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern', display: 'color', telemetry: true }));

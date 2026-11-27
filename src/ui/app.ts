@@ -14,6 +14,7 @@ import { CHAPTERS } from '../data/chapters';
 import { spofReport } from '../sim/spof';
 import { tl } from './i18n';
 import { Telemetry } from './telemetry';
+import { APP_VERSION } from './version';
 import { decodeHandover, encodeHandover } from './share';
 import { applyVisit, createVisit } from '../sim/visit';
 import { createSandbox, sandboxDays, sandboxScore, type SandboxConfig } from '../sim/sandbox';
@@ -75,6 +76,12 @@ export class App {
     this.sound.enabled = this.settings.sound;
     this.applyDisplay();
     this.bindInput();
+    if (this.settings.seenVersion === undefined) {
+      // a brand-new player has nothing to catch up on; a returning one sees what changed since 2.0
+      const returning = !!this.store.loadGame() || Object.keys(this.store.loadProgress()).length > 0;
+      this.settings.seenVersion = returning ? '2.0.0' : APP_VERSION;
+      this.store.saveSettings(this.settings);
+    }
     window.addEventListener('dcm:before-reload', () => { if (this.state) this.save(this.state); });
     // the real visible height: older phone browsers lack `dvh`, and `100vh` hides the bottom tab bar behind the toolbar
     const fitHeight = (): void => document.documentElement.style.setProperty('--app-h', `${window.innerHeight}px`);
@@ -382,6 +389,11 @@ export class App {
       case 'dismissTip':
         this.tips.shift();
         this.renderUi(true);
+        return;
+      case 'seenNotes':
+        this.settings.seenVersion = APP_VERSION;
+        this.store.saveSettings(this.settings);
+        this.showStart();
         return;
       case 'difficulty':
         this.settings.difficulty = d.difficulty as Settings['difficulty'];

@@ -690,3 +690,10 @@ The §10 metrics need real players, which a coding session cannot supply. This r
 - **Report script.** `npx vite-node scripts/playtest-report.ts a.json b.json …` merges exported logs and prints the §10 metrics that a log can answer, each with its target and a pass or fail: tutorial completion, Ch5 to Ch6 continuation, median session length, Ch10 completion, unfair-outage reports, credibility rating. Metrics without data say "no data". Handbook opens, D7/D30 return and frame rate are not measurable from a local log and stay manual.
 - **Tests**: 6 new (session splitting, every metric, empty data, heartbeat throttle, feedback, UI gating) plus an e2e.
 - **Next step for a human**: send the link to 20 testers, ask them to turn the play log on, and run the script on what comes back.
+
+## 27. v2.7 "What's New" results
+
+- **Release notes in the game** (`src/data/releases.ts`): each version has a title and short notes, newest first. The start screen shows a *Release notes* list, and **opens it once after an update** with only the releases the player has not seen ("What's new since your last visit") and a *Got it* button that remembers the version in the settings.
+- **New and returning players.** A brand-new player (no save, no progress) is marked as up to date, so they never see a history lesson; a returning player with no recorded version sees what changed since 2.0.
+- **Discipline**: a test requires the newest entry to match `package.json`, entries to be ordered, and every title and note to have French. Add an entry with each version bump.
+- 5 new unit tests and an e2e (opens after an update, dismiss closes it for good).

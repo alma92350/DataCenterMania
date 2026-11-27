@@ -540,3 +540,7 @@ h3.era { grid-column: 1 / -1; margin: 14px 0 4px; font-size: 0.75rem; text-trans
 #update { position: fixed; z-index: 60; top: 8px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 16px); padding: 8px 10px; border-radius: 10px; background: var(--panel, #1e2a38); color: var(--text, #fff); border: 1px solid var(--accent, #4aa3ff); box-shadow: 0 4px 16px rgba(0,0,0,.35); font-size: 14px; }
 #update button { min-height: 36px; }
 .version { text-align: center; opacity: .7; margin: 4px 0; }
+.whatsnew { margin: 8px 0; padding: 6px 10px; border: 1px solid var(--accent, #4aa3ff); border-radius: 10px; text-align: left; }
+.whatsnew summary { cursor: pointer; font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+.whatsnew h3 { margin: 8px 0 2px; font-size: 14px; }
+.whatsnew ul { margin: 0 0 4px 18px; padding: 0; }

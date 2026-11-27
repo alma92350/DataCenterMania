@@ -58,6 +58,8 @@ export interface Settings {
   lang: Lang | 'auto';
   /** Last Sandbox setup. */
   sandbox: SandboxConfig;
+  /** Version whose release notes the player has seen (empty for a brand-new player). */
+  seenVersion?: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = { autoPause: 'critical', nightSkip: true, sound: true, difficulty: 'sysadmin', display: 'auto', lang: 'auto', telemetry: false, sandbox: { ...DEFAULT_SANDBOX } };

@@ -27,6 +27,7 @@ import { spofCount } from '../sim/spof';
 import { changeRisk, changeTitle, openChanges, tonight } from '../sim/changes';
 import { resilience } from '../sim/resilience';
 import { APP_VERSION } from './version';
+import { RELEASES, releasesSince } from '../data/releases';
 import { satisfactionOf } from '../sim/crm';
 import { VISIT_OBJECTIVES, visitResult } from '../sim/visit';
 import { boardProfit, boardTargets, campusBuildable, goodwillState, liveSites, siteCostPerDay, siteMix, siteRevenuePerDay, SITE_KINDS, SITE_TIERS } from '../sim/campus';
@@ -763,12 +764,22 @@ export function unlockedFeatures(progress: Progress): string[] {
   return [...out];
 }
 
+/** Release notes: open and highlighted once after an update, always available as a closed list. */
+export function whatsNew(settings: Settings): string {
+  const unseen = settings.seenVersion !== undefined && settings.seenVersion !== APP_VERSION && releasesSince(settings.seenVersion).length > 0;
+  const list = (unseen ? releasesSince(settings.seenVersion) : RELEASES).slice(0, unseen ? 6 : 8);
+  return `<details class="whatsnew" ${unseen ? 'open' : ''}><summary>🆕 ${unseen ? t('What’s new since your last visit') : t('Release notes')}</summary>
+    ${list.map((r) => `<h3>v${e(r.version)} · ${e(t(r.title))}</h3><ul>${r.notes.map((n) => `<li>${e(t(n))}</li>`).join('')}</ul>`).join('')}
+    ${unseen ? `<button class="primary" data-action="seenNotes">${t('Got it')}</button>` : ''}</details>`;
+}
+
 export function startScreen(progress: Progress, settings: Settings, hasSave: boolean, extras?: StartExtras): string {
   const diffs = Object.values(DIFFICULTIES);
   return `<section class="start" aria-label="${t('Main menu')}">
     <h1>Data<span>Center</span>Mania</h1>
     <p class="tag">${t('Keep the servers humming. Keep the customers happy. Keep your cool.')}</p>
     <p class="muted small version">v${APP_VERSION}</p>
+    ${whatsNew(settings)}
     ${hasSave ? `<button class="primary big" data-action="continue">${t('▶ Continue')}</button>` : ''}
     ${extras ? careerCard(progress) + dailyCard(extras.daily, extras.dailyBest) + eventCard('hack', isUnlocked(progress, 'hack'), bestStars(progress, 'hack')) + sandboxCard(settings.sandbox, isSandboxUnlocked(progress), extras.sandboxBest ?? null) : ''}
     <h2 class="sec">${t('Difficulty')}</h2>
