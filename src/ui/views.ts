@@ -26,6 +26,7 @@ import { bestStars, isDifficultyUnlocked, isSandboxUnlocked, isUnlocked, type Pr
 import { spofCount } from '../sim/spof';
 import { changeRisk, changeTitle, openChanges, tonight } from '../sim/changes';
 import { resilience } from '../sim/resilience';
+import { APP_VERSION } from './version';
 import { satisfactionOf } from '../sim/crm';
 import { VISIT_OBJECTIVES, visitResult } from '../sim/visit';
 import { boardProfit, boardTargets, campusBuildable, goodwillState, liveSites, siteCostPerDay, siteMix, siteRevenuePerDay, SITE_KINDS, SITE_TIERS } from '../sim/campus';
@@ -767,6 +768,7 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
   return `<section class="start" aria-label="${t('Main menu')}">
     <h1>Data<span>Center</span>Mania</h1>
     <p class="tag">${t('Keep the servers humming. Keep the customers happy. Keep your cool.')}</p>
+    <p class="muted small version">v${APP_VERSION}</p>
     ${hasSave ? `<button class="primary big" data-action="continue">${t('▶ Continue')}</button>` : ''}
     ${extras ? careerCard(progress) + dailyCard(extras.daily, extras.dailyBest) + eventCard('hack', isUnlocked(progress, 'hack'), bestStars(progress, 'hack')) + sandboxCard(settings.sandbox, isSandboxUnlocked(progress), extras.sandboxBest ?? null) : ''}
     <h2 class="sec">${t('Difficulty')}</h2>
@@ -843,6 +845,7 @@ export function pauseMenu(s: GameState, settings: Settings): string {
     </div>
     ${handbookSection(s.features)}
     ${settingsForm(settings)}
+    <p class="muted small version">DataCenterMania v${APP_VERSION}</p>
     <p class="muted small">Keys: Space pause · 1/2/3 speed · H heat map · P power map · Esc close</p>
   </div>`;
 }

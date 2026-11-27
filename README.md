@@ -52,6 +52,7 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 | Setpoint and containment (v2.3) | Choose the supply-air temperature and contain the aisles: energy saved against margin when cooling fails |
 | Gigawatt campus (v2.4) | A 1 GW wholesale site gated by community goodwill; the board expects five times the profit |
 | Night in a Web Worker (v2.5) | Sleeping simulates the night off the main thread and falls back to the same code when workers are unavailable |
+| Version and update check (v2.5.1) | The start screen and pause menu show the version; the game checks `version.json` on load, every 30 minutes and when the tab returns, and offers a Reload banner when a newer build is live (it saves first). Bump `version` in `package.json` for each release |
 | Hyperscale (v2.0) | Chapter 10: a campus of sites with climate, latency and goodwill, loans, investors, spot power and a board that can fire you; Sandbox gets Campus and orbital Frontier floors; hand-over codes; three eras |
 | The Long Night (v1.6) | Chapter 9: customer moods, renewals and churn, a compliance audit, a night rota, a 3 a.m. pager and incident command with honest customer updates |
 | AI Factory (v1.5) | Chapter 8: coolant loop and GPU racks that overheat in minutes, an AI customer judged on effective training time, a density ladder, power spikes, silent corruption and liquid-cooling training |

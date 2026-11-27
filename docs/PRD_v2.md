@@ -675,3 +675,9 @@ A second review, inspired by the *Data Centers: Today and Tomorrow* field guide,
 - **What stays on the main thread**: the live 1× to 8× clock (a handful of steps per frame, measured well under a millisecond) and every command. Moving those would make every click asynchronous for no measured gain.
 - **Tests**: 4 new (quiet night, state-copy equivalence in Chapters 4, 8 and 10, the corruption timer, wake-up on a critical alarm); e2e confirms a worker is used.
 - **Still open**: the 20-player playtest. All balance is still bot-tuned.
+
+## 25. v2.5.1 version display and update check
+
+- **Version shown** on the start screen and at the bottom of the pause menu (from `package.json`, injected at build time together with a build stamp).
+- **Update check.** The build publishes `version.json` (version and build stamp). The page fetches it with `no-store` and a timestamp on load, every 30 minutes and when the tab becomes visible; if the published build differs from the running one, a banner offers *Reload* (the game saves first) or dismissal. The service worker never caches `version.json`. Offline or a missing file means no banner. 5 new tests plus an e2e with a mocked newer release.
+- **Convention**: bump `version` in `package.json` with each release (now 2.5.0).

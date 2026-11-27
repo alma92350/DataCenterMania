@@ -535,3 +535,8 @@ h3.era { grid-column: 1 / -1; margin: 14px 0 4px; font-size: 0.75rem; text-trans
 .handover { margin: 16px 0; text-align: left; }
 .handover summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
 .handover textarea { width: 100%; min-height: 72px; background: var(--panel-2); color: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 8px; font-family: monospace; margin: 6px 0; }
+
+/* new-release banner */
+#update { position: fixed; z-index: 60; top: 8px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 16px); padding: 8px 10px; border-radius: 10px; background: var(--panel, #1e2a38); color: var(--text, #fff); border: 1px solid var(--accent, #4aa3ff); box-shadow: 0 4px 16px rgba(0,0,0,.35); font-size: 14px; }
+#update button { min-height: 36px; }
+.version { text-align: center; opacity: .7; margin: 4px 0; }

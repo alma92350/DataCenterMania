@@ -38,6 +38,20 @@ async function session(name, contextOptions, fn) {
 }
 
 try {
+  {
+    const browser = await chromium.launch();
+    const page = await (await browser.newContext({ viewport: { width: 390, height: 800 } })).newPage();
+    await page.route('**/version.json*', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ version: '99.0.0', build: '999912312359' }) }));
+    await page.goto(base);
+    await page.waitForSelector('.start');
+    check(/v\d+\.\d+\.\d+/.test(await page.textContent('.start .version')), 'the start screen shows the game version');
+    await page.waitForSelector('#update', { timeout: 5000 });
+    check((await page.textContent('#update')).includes('v99.0.0'), 'a newer published release shows an update banner');
+    await page.screenshot({ path: `${outDir}/update-banner.png` });
+    await page.click('[data-update="later"]');
+    check(!(await page.isVisible('#update')), 'the update banner can be dismissed');
+    await browser.close();
+  }
   await session('desktop', { viewport: { width: 1366, height: 820 }, deviceScaleFactor: 1 }, async (page) => {
     await page.waitForSelector('.start');
     check(await page.isVisible('text=DataCenterMania') || (await page.locator('h1').count()) > 0, 'start screen renders');

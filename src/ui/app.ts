@@ -75,6 +75,7 @@ export class App {
     this.sound.enabled = this.settings.sound;
     this.applyDisplay();
     this.bindInput();
+    window.addEventListener('dcm:before-reload', () => { if (this.state) this.save(this.state); });
     // the real visible height: older phone browsers lack `dvh`, and `100vh` hides the bottom tab bar behind the toolbar
     const fitHeight = (): void => document.documentElement.style.setProperty('--app-h', `${window.innerHeight}px`);
     fitHeight();
