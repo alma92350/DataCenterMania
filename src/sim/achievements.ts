@@ -1,5 +1,8 @@
 import { CHAPTER_ORDER } from '../data/chapters';
 import { overallUptimePct } from './selectors';
+import { aiEffective } from './ai';
+import { spofReport } from './spof';
+import { pueAverage } from './site';
 import type { ChapterId, DifficultyId, GameState } from './types';
 
 /** Best stars per chapter and difficulty (same shape as the UI's saved progress). */
@@ -35,6 +38,17 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'lean', icon: '🪶', name: 'Lean and Mean', description: 'Win a chapter with only the starting team.', check: (s) => won(s) && s.chapter !== 'ch0' && s.progress.maxTechs <= (s.chapter === 'ch1' ? 1 : 2) },
   { id: 'onCallLegend', icon: '🔥', name: 'On-Call Legend', description: 'Win any chapter on On-Call Nightmare.', check: (s) => won(s) && s.difficulty === 'nightmare' },
   { id: 'dailyGrind', icon: '📅', name: 'Daily Grind', description: 'Complete a Daily Challenge.', check: (s) => s.progress.status !== 'playing' && !!s.dailyId },
+  // v2.8: the enterprise, AI and campus chapters
+  { id: 'greenMachine', icon: '🌱', name: 'Green Machine', description: 'Win with an average PUE of 1.35 or better.', check: (s) => won(s) && !!s.site && pueAverage(s) <= 1.35 },
+  { id: 'circularEconomy', icon: '♻️', name: 'Circular Economy', description: 'Run free cooling, heat reuse and renewable power together.', check: (s) => !!s.site && s.site.economizer && s.site.heatReuse && s.site.renewable },
+  { id: 'noSingleStrand', icon: '🧵', name: 'No Single Strand', description: 'Win with no single point of failure in power or cooling.', check: (s) => won(s) && s.racks.length > 0 && s.features.includes('redundancy') && Object.values(spofReport(s)).every((r) => r.power.length === 0 && !r.singleCooler) },
+  { id: 'lightsStayedOn', icon: '🔋', name: 'The Lights Stayed On', description: 'Ride out a utility outage with no blackout.', check: (s) => (s.stats.outages ?? 0) >= 1 && (s.stats.blackoutMin ?? 0) === 0 },
+  { id: 'byTheBook', icon: '📝', name: 'By the Book', description: 'Finish five planned changes without one going wrong.', check: (s) => (s.stats.changeDone ?? 0) >= 5 && (s.stats.changeFailed ?? 0) === 0 },
+  { id: 'trainedToPerfection', icon: '🧠', name: 'Trained to Perfection', description: 'Win the AI Factory with 95% effective training time.', check: (s) => won(s) && s.chapter === 'ch8' && aiEffective(s) >= 95 },
+  { id: 'coolCommander', icon: '🚨', name: 'Cool Commander', description: 'Close a major incident with a perfect score.', check: (s) => (s.incidentScores ?? []).some((x) => x >= 3) },
+  { id: 'goodNeighbour', icon: '🌳', name: 'Good Neighbour', description: 'Win Hyperscale with community goodwill of 75 or more.', check: (s) => won(s) && !!s.campus && s.campus.goodwill >= 75 && !s.campus.moratorium },
+  { id: 'worldTour', icon: '🌍', name: 'World Tour', description: 'Have four live campus sites at once.', check: (s) => (s.campus?.sites.filter((x) => x.status === 'live').length ?? 0) >= 4 },
+  { id: 'gigawatt', icon: '🏭', name: 'One Point Twenty-One Gigawatts', description: 'Bring a gigawatt campus live.', check: (s) => !!s.campus?.sites.some((x) => x.tier === 'gigawatt' && x.status === 'live') },
   {
     id: 'architect', icon: '🏛️', name: 'Architect', description: 'Three stars on every chapter.',
     check: (_s, p) => CHAPTER_ORDER.every((ch) => Math.max(0, ...Object.values(p[ch] ?? {}).map((v) => v ?? 0)) >= 3),

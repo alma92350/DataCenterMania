@@ -697,3 +697,10 @@ The §10 metrics need real players, which a coding session cannot supply. This r
 - **New and returning players.** A brand-new player (no save, no progress) is marked as up to date, so they never see a history lesson; a returning player with no recorded version sees what changed since 2.0.
 - **Discipline**: a test requires the newest entry to match `package.json`, entries to be ordered, and every title and note to have French. Add an entry with each version bump.
 - 5 new unit tests and an e2e (opens after an update, dismiss closes it for good).
+
+## 28. v2.8 "Trophy Room" results
+
+The achievements stopped at the v0.7 systems. Ten new ones reward skill and curiosity (never power) in the later chapters, all derived from the game state and checked at shift reports and chapter ends:
+*Green Machine* (average PUE ≤ 1.35), *Circular Economy* (free cooling, heat reuse and renewable power together), *No Single Strand* (no single point of failure at the win), *The Lights Stayed On* (a utility outage with no blackout), *By the Book* (five clean changes), *Trained to Perfection* (95% effective training in Chapter 8), *Cool Commander* (a perfect incident score), *Good Neighbour* (goodwill ≥ 75 at the Hyperscale win), *World Tour* (four live sites) and *One Point Twenty-One Gigawatts* (a live gigawatt campus).
+- Every name and description has French, enforced by a test. 6 new tests.
+- They count toward the achievements total on the start screen; the career title still comes from stars only.
