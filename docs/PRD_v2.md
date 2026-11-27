@@ -637,3 +637,12 @@ A second review, inspired by the *Data Centers: Today and Tomorrow* field guide,
 - **No save v7.** The campus fields are optional, so existing saves load unchanged.
 - **Not built**: a gigawatt site tier, the full density tech tree beyond the first tiers, setpoint and containment settings, translatable simulation messages, and the 20-player playtest that gates the §10 metrics.
 
+## 20. v2.1 "Site Visit" results
+
+- **Hands-on switching, in the form that fits the architecture.** Each live campus site now has a **Visit: play a shift** button. It flies you to a full simulated hall for that site: one shift (06:00 to 22:00), shaped by the site's climate (desert halls run hotter, Nordic ones cooler), its local team (each staff level cuts incident pressure), and sharing your cash. The headquarters is **frozen** while you are away (its clock does not move), so there is no two-timeline merge. The autosave always stores the headquarters, never the temporary hall.
+- **Result.** Up to three stars: ★ uptime above 95%, ★★ uptime ≥ 99% with no critical alarm, ★★★ uptime ≥ 99.8% with no critical alarm and every incident fixed. On return the money you spent or earned carries over, the site is **tuned up** for one day per star (half the incident risk), its utilisation rises 3 points per star, goodwill rises, and pending incident alerts there are cleared. A bad shift changes nothing but your cash. *Come back early* from the pause menu leaves everything as it was.
+- **Calibration against the full simulation.** The plan asked the summary model to match the full simulation. The measurable quantity is the chance of a serious incident per day: in a full hall played by the bot (6 seeds, 7 game days, no local team) 29% of days contain a critical alarm, while the summary model used 12%. It is now **29%**, and a test fails if the two ever drift apart by more than 10%. Revenue per megawatt is not calibrated, because the game-scale hall and the campus MW units are different scales by design.
+- **Balance check.** With the higher incident rate the campus bot still wins Chapter 10 (staff upgrades and sending help matter more now).
+- **Still not done**: a worker thread (not needed at current hall sizes), translatable simulation messages, a gigawatt tier, and the 20-player playtest.
+- **Tests**: 493 unit tests (new: visit shape, isolation of the headquarters, result and tune-up, bad shift, tuned incidents, calibration, UI).
+

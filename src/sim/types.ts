@@ -136,6 +136,8 @@ export interface CampusSite {
   capex: number;
   shockUntil?: number;
   incident?: boolean;
+  /** A recent visit made this site run better until this minute (v2.1). */
+  tunedUntil?: number;
 }
 
 export interface Campus {
@@ -561,6 +563,8 @@ export interface GameState {
     changeFailed?: number;
     rmaCredit?: number;
   };
+  /** A site visit in progress: this state is the remote hall, the headquarters is frozen elsewhere. */
+  visit?: { siteId: string; hqCash: number; startCash: number };
   /** Frontier floor: orbital cluster with no technicians (Sandbox only). */
   frontier?: { launchPerKg: number; startMin: number };
   /** The campus: other sites, finance and the board (Chapter 10). */

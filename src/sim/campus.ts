@@ -95,7 +95,8 @@ function campusDay(s: GameState, c: Campus): void {
     site.util = Math.max(0.05, Math.min(0.9, site.util + (shock ? -0.15 : 0.08)));
     let rev = siteRevenuePerDay(site);
     // incidents: staff and redundancy cut the chance; help halves the damage
-    const risk = CAMPUS.incidentPerDay * (1 - 0.25 * site.staff);
+    const tuned = (site.tunedUntil ?? 0) > s.minute;
+    const risk = CAMPUS.incidentPerDay * (1 - 0.25 * site.staff) * (tuned ? 0.5 : 1);
     if (chance(s.rng, risk)) {
       c.alerts.push({ id: newId(s, 'al'), siteId: site.id, day: dayOf(s.minute) - 1, text: `${SITE_KINDS[site.kind].name}: a cooling fault is hurting customers.`, helped: false });
       showTip(s, 'campusAlert');

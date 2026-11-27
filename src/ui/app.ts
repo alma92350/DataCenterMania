@@ -13,6 +13,7 @@ import { spofReport } from '../sim/spof';
 import { tl } from './i18n';
 import { Telemetry } from './telemetry';
 import { decodeHandover, encodeHandover } from './share';
+import { applyVisit, createVisit } from '../sim/visit';
 import { createSandbox, sandboxDays, sandboxScore, type SandboxConfig } from '../sim/sandbox';
 import { createDaily, dailyIdFor, dailyScore, dailySpec, shareLine } from '../sim/daily';
 import { clampCamera, createCamera, panBy, pickNearest, screenToWorld, touchFitCamera, zoomAt } from '../render/camera';
@@ -148,7 +149,7 @@ export class App {
       this.carry = carry;
       for (let i = 0; i < minutes && s.progress.status === 'playing'; i++) {
         step(s);
-        if (s.minute % 60 === 0) this.store.saveGame(s);
+        if (s.minute % 60 === 0) this.save(s);
         if (s.attention) {
           if (s.attention.kind !== 'attack' && shouldAutoPause(s, this.settings.autoPause)) {
             this.speed = 0;
@@ -170,7 +171,7 @@ export class App {
         }
         this.modal = { kind: 'shift', report: s.pendingShiftReport };
         s.pendingShiftReport = null;
-        this.store.saveGame(s);
+        this.save(s);
         this.sound.success();
         this.renderUi(true);
       }
@@ -199,9 +200,23 @@ export class App {
     requestAnimationFrame((n) => this.frame(n));
   }
 
+  /** The headquarters while a site visit is in progress (its time is frozen). */
+  private hq: GameState | null = null;
+
+  /** Autosave: during a visit the headquarters is what gets saved, never the temporary hall. */
+  private save(s: GameState): void {
+    this.store.saveGame(this.hq && s.visit ? this.hq : s);
+  }
+
   private endExtras: { newAchievements: string[]; share?: string; newBest?: boolean } = { newAchievements: [] };
 
   private finish(s: GameState): void {
+    if (s.visit) {
+      this.endExtras = { newAchievements: [] };
+      this.modal = { kind: 'end' };
+      this.renderUi(true);
+      return;
+    }
     let progress = this.store.loadProgress();
     if (s.sandbox) {
       const newBest = this.store.recordSandbox({ score: sandboxScore(s), days: sandboxDays(s) });
@@ -403,7 +418,7 @@ export class App {
         else if (s) this.newGame(s.chapter);
         return;
       case 'quit':
-        if (s && s.progress.status === 'playing') this.store.saveGame(s);
+        if (s && s.progress.status === 'playing') this.save(s);
         this.showStart();
         return;
       case 'setting': {
@@ -538,6 +553,25 @@ export class App {
       case 'launchRepair':
         this.run({ type: 'launchRepair', deviceId: d.device || undefined, rackId: d.rack || undefined });
         return;
+      case 'visitSite': {
+        const site = s.campus?.sites.find((x) => x.id === d.site);
+        if (!site || site.status !== 'live') return;
+        this.save(s);
+        this.hq = s;
+        this.startGame(createVisit(s, site, (Date.now() ^ (Math.random() * 1e9)) >>> 0));
+        return;
+      }
+      case 'returnHq':
+      case 'abandonVisit': {
+        if (!this.hq || !s.visit) return;
+        const hq = this.hq;
+        const res = d.action === 'returnHq' ? applyVisit(hq, s) : null;
+        this.hq = null;
+        this.startGame(hq);
+        this.save(hq);
+        this.toast(res ? `✈️ Back at headquarters: ${'★'.repeat(res.stars)}${'☆'.repeat(3 - res.stars)}` : '✈️ You came back early. Nothing changed.', res && res.stars ? 'success' : 'info', 5000);
+        return;
+      }
       case 'copyCode': {
         void encodeHandover(s).then(async (code) => {
           try {
@@ -782,7 +816,7 @@ export class App {
       .map((l) => `${formatClock(l.minute)} ${l.text}`)
       .slice(-12);
     this.seenLog = s.logSeq - 1;
-    this.store.saveGame(s);
+    this.save(s);
     this.modal = s.progress.status === 'playing' ? { kind: 'recap', lines, woke } : null;
     this.speed = 1;
     this.renderUi(true);
@@ -915,7 +949,7 @@ export class App {
 
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && this.state?.progress.status === 'playing') {
-        this.store.saveGame(this.state);
+        this.save(this.state);
         this.speed = 0;
       }
     });

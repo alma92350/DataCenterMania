@@ -303,7 +303,7 @@ export const NIGHTS = {
 /** The campus layer and economy 2.0 (PRD v2 F10/F11, addendum P4/P7/P11). The home hall is simulated in full; other sites run a summary model. */
 export const CAMPUS = {
   maxSites: 4, startGoodwill: 60, neutralGoodwill: 50, goodwillDrift: 0.05, goodwillPerStaff: 1, goodwillHeatReuse: 2, moratoriumBelow: 25, moratoriumEndsAt: 35, fastPermitGoodwill: 75,
-  trainingRate: 1800, inferenceRate: 3200, inferenceShare: 0.6, inferenceLatencyMs: 20, powerPerMwDay: 700, staffPerDay: 200, rentPerMwDay: 30, incidentPerDay: 0.12,
+  trainingRate: 1800, inferenceRate: 3200, inferenceShare: 0.6, inferenceLatencyMs: 20, powerPerMwDay: 700, staffPerDay: 200, rentPerMwDay: 30, incidentPerDay: 0.29,
   depreciationDays: 20, loanPrincipal: 50_000, loanInterestPerDay: 0.015, investorCash: 80_000, investorTargetMult: 1.5,
   boardEveryDays: 3, boardProfit: 15_000, boardUptime: 99, boardPue: 1.45, boardGrant: 15_000,
   staffUpgrade: 3000, helpCost: 1500, communityFund: 5000, communityFundGoodwill: 15,

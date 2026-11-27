@@ -650,6 +650,11 @@ export const FR: Record<string, string> = {
   'Copy hand-over code': 'Copier le code de relève', 'Resume from a hand-over code': 'Reprendre avec un code de relève', 'Hand-over code': 'Code de relève', 'Load the game': 'Charger la partie',
   'Paste the code a friend copied from their pause menu to take over their shift.': 'Collez le code qu’un ami a copié depuis son menu pause pour reprendre son service.',
   'Launch a spare': 'Lancer une pièce de rechange', 'Frontier (speculative)': 'Frontière (spéculatif)',
+  // v2.1: site visits
+  'Visit: play a shift': 'Visite : jouer un service', 'Site visit over': 'Visite terminée', 'Return to headquarters': 'Retour au siège', 'Come back early': 'Rentrer plus tôt',
+  'Keep the site above 95% uptime through the shift': 'Garder le site au-dessus de 95 % de disponibilité pendant le service', 'Uptime ≥ 99% and no critical alarm': 'Disponibilité ≥ 99 % et aucune alarme critique',
+  'Uptime ≥ 99.8%, no critical alarm and every incident fixed': 'Disponibilité ≥ 99,8 %, aucune alarme critique et chaque incident résolu',
+  'Stars tune the site up for that many days (fewer incidents), raise its utilisation and win goodwill.': 'Les étoiles règlent le site pour autant de jours (moins d’incidents), augmentent son taux d’occupation et gagnent de la bonne volonté.',
   // tips
   'Welcome to the closet! That humming box is the whole company. Tap the rack to look inside.': 'Bienvenue dans le placard ! Cette boîte qui ronronne, c’est toute l’entreprise. Touchez la baie pour regarder dedans.',
   'An alarm! Tap it in the alarm list, then send someone. Amber = warning, red = trouble.': 'Une alarme ! Touchez-la dans la liste, puis envoyez quelqu’un. Orange = avertissement, rouge = problème.',

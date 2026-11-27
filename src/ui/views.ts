@@ -27,6 +27,7 @@ import { spofCount } from '../sim/spof';
 import { changeRisk, changeTitle, openChanges, tonight } from '../sim/changes';
 import { resilience } from '../sim/resilience';
 import { satisfactionOf } from '../sim/crm';
+import { VISIT_OBJECTIVES, visitResult } from '../sim/visit';
 import { boardProfit, boardTargets, campusBuildable, goodwillState, liveSites, siteCostPerDay, siteMix, siteRevenuePerDay, SITE_KINDS, SITE_TIERS } from '../sim/campus';
 import { isNightHour, rotaPremiumPerDay, scoreIncident } from '../sim/nights';
 import { aiContracts, aiEffective, interruptRatePerMin, lossMinutes } from '../sim/ai';
@@ -159,7 +160,7 @@ export function campusPanel(s: GameState): string {
       <div class="row meta">${e(t(SITE_TIERS[x.tier].name))} · ${mw(x.mw)} · ${k.latencyMs} ms · PUE ${k.pue} · ${Math.round(mix.inference * 100)}% ${t('inference')}</div>
       ${x.status === 'live' ? `<div class="row meta">${t('Utilisation')} ${Math.round(x.util * 100)}% · +${money(siteRevenuePerDay(x))}/${t('day')} · −${money(siteCostPerDay(s, x))}/${t('day')} · ${t('team')} ${x.staff}</div>
       ${alert ? `<div class="banner bad"><span>📟 ${t('Incident')}</span>${alert.helped ? `<span class="busy">🚁 …</span>` : `<button class="primary" data-action="siteHelp" data-alert="${e(alert.id)}" ${s.cash < CAMPUS.helpCost ? 'disabled' : ''}>${t('Send help')} ${money(CAMPUS.helpCost)}</button>`}</div>` : ''}
-      <div class="row actions">${x.staff < 2 ? `<button data-action="siteStaff" data-site="${e(x.id)}" ${s.cash < CAMPUS.staffUpgrade ? 'disabled' : ''}>${t('Bigger team')} ${money(CAMPUS.staffUpgrade)}</button>` : `<span class="muted small">${t('Fully staffed')}</span>`}</div>` : ''}</li>`;
+      <div class="row actions"><button class="primary" data-action="visitSite" data-site="${e(x.id)}">✈️ ${t('Visit: play a shift')}</button>${x.staff < 2 ? `<button data-action="siteStaff" data-site="${e(x.id)}" ${s.cash < CAMPUS.staffUpgrade ? 'disabled' : ''}>${t('Bigger team')} ${money(CAMPUS.staffUpgrade)}</button>` : `<span class="muted small">${t('Fully staffed')}</span>`}</div>` : ''}</li>`;
   }).join('');
   const options = campusBuildable(s) ? kinds.map((k) => {
     const d = SITE_KINDS[k];
@@ -828,7 +829,7 @@ export function pauseMenu(s: GameState, settings: Settings): string {
     <p class="muted">${s.sandbox ? `Sandbox: ${e(SANDBOX_FLOORS[s.sandbox.floor].name)}, day ${sandboxDays(s)}` : `Chapter ${CHAPTERS[s.chapter].number}: ${e(CHAPTERS[s.chapter].title)}`} · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
     <div class="stack">
       <button class="primary" data-action="closeModal">${t('Resume')}</button>
-      <button data-action="restart">${t('Restart chapter')}</button>
+      ${s.visit ? `<button data-action="abandonVisit">✈️ ${t('Come back early')}</button>` : `<button data-action="restart">${t('Restart chapter')}</button>`}
       <button data-action="copyCode">📋 ${t('Copy hand-over code')}</button>
       <button data-action="quit">${t('Save & quit to menu')}</button>
     </div>
@@ -864,7 +865,19 @@ export function sandboxEnd(s: GameState, extras: EndExtras): string {
     <div class="stack"><button class="primary big" data-action="sandbox">↻ Go again</button><button class="ghost" data-action="quit">Menu</button></div></div>`;
 }
 
+export function visitEnd(s: GameState): string {
+  const res = visitResult(s);
+  return `<div class="modal-card end ${res.stars ? 'won' : 'lost'}" role="dialog" aria-modal="true">
+    <h2>✈️ ${t('Site visit over')}</h2>
+    <div class="big-stars">${'★'.repeat(res.stars)}${'☆'.repeat(3 - res.stars)}</div>
+    <ul class="list goals">${VISIT_OBJECTIVES.map((o, i) => `<li class="row"><span>${i < res.stars ? '✅' : '❌'}</span><span>${e(t(o.label))}</span></li>`).join('')}</ul>
+    <div class="report"><span>Uptime</span><b>${res.uptime.toFixed(2)}%</b><span>${t('Critical alarms')}</span><b>${res.criticals}</b><span>${t('Profit')}</span><b class="${res.profit < 0 ? 'neg' : 'pos'}">${money(res.profit)}</b></div>
+    <p class="muted small">${t('Stars tune the site up for that many days (fewer incidents), raise its utilisation and win goodwill.')}</p>
+    <div class="stack"><button class="primary big" data-action="returnHq">✈️ ${t('Return to headquarters')}</button></div></div>`;
+}
+
 export function endScreen(s: GameState, extras: EndExtras = { newAchievements: [] }): string {
+  if (s.visit) return visitEnd(s);
   if (s.sandbox) return sandboxEnd(s, extras);
   const ch = CHAPTERS[s.chapter];
   const won = s.progress.status === 'won';
