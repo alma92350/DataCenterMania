@@ -14,6 +14,7 @@ import { CHAPTERS } from '../data/chapters';
 import { spofReport } from '../sim/spof';
 import { tl } from './i18n';
 import { Telemetry } from './telemetry';
+import { serialize, deserialize } from '../sim/save';
 import { applyAccessibility, DEFAULT_A11Y, type A11ySettings, type TextSize } from './a11y';
 import { APP_VERSION } from './version';
 import { decodeHandover, encodeHandover } from './share';
@@ -120,7 +121,7 @@ export class App {
     const today = dailyIdFor(new Date());
     const best = this.store.loadDaily()[today] ?? null;
     this.html('#screen', startScreen(this.store.loadProgress(), this.settings, this.store.loadGame()?.progress.status === 'playing', {
-      daily: dailySpec(today), dailyBest: best, sandboxBest: this.store.loadSandboxBest(), achievements: this.store.loadAchievements(),
+      daily: dailySpec(today), dailyBest: best, sandboxBest: this.store.loadSandboxBest(), achievements: this.store.loadAchievements(), slots: this.store.listSlots(),
     }), true);
   }
 
@@ -295,7 +296,7 @@ export class App {
     let modal = '';
     if (this.modal?.kind === 'rack') modal = rackModal(s, this.modal.id);
     else if (this.modal?.kind === 'cooler') modal = coolerModal(s, this.modal.id);
-    else if (this.modal?.kind === 'menu') modal = pauseMenu(s, this.settings);
+    else if (this.modal?.kind === 'menu') modal = pauseMenu(s, this.settings, this.store.listSlots());
     else if (this.modal?.kind === 'keys') modal = shortcutsModal();
     else if (this.modal?.kind === 'end') modal = endScreen(s, this.endExtras);
     else if (this.modal?.kind === 'shift') modal = shiftReportModal(s, this.modal.report);
@@ -396,6 +397,20 @@ export class App {
       case 'dismissTip':
         this.tips.shift();
         this.renderUi(true);
+        return;
+      case 'slotLoad': {
+        const game = this.store.loadSlot(Number(d.slot));
+        if (!game) return;
+        this.modal = null;
+        this.hq = null;
+        this.startGame(game);
+        this.save(game);
+        return;
+      }
+      case 'slotDelete':
+        this.store.deleteSlot(Number(d.slot));
+        if (this.state) this.renderUi(true);
+        else this.showStart();
         return;
       case 'seenNotes':
         this.settings.seenVersion = APP_VERSION;
@@ -614,6 +629,23 @@ export class App {
         this.startGame(hq);
         this.save(hq);
         this.toast(res ? `✈️ Back at headquarters: ${'★'.repeat(res.stars)}${'☆'.repeat(3 - res.stars)}` : '✈️ You came back early. Nothing changed.', res && res.stars ? 'success' : 'info', 5000);
+        return;
+      }
+      case 'slotSave': {
+        if (!s) return;
+        const ok = this.store.saveSlot(Number(d.slot), s);
+        this.toast(ok ? `💾 Saved to slot ${Number(d.slot) + 1}.` : '⚠️ Could not save: the browser storage is full.', ok ? 'success' : 'fail', 3000);
+        this.renderUi(true);
+        return;
+      }
+      case 'downloadSave': {
+        if (!s) return;
+        const blob = new Blob([serialize(this.hq && s.visit ? this.hq : s)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'datacentermania-save.json';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
         return;
       }
       case 'copyCode': {
@@ -984,6 +1016,23 @@ export class App {
     document.addEventListener('pointerup', release, { capture: true, passive: true });
     document.addEventListener('pointercancel', release, { capture: true, passive: true });
     document.addEventListener('change', handler);
+    document.addEventListener('change', (ev) => {
+      const input = ev.target as HTMLInputElement;
+      const file = input.id === 'save-file' ? input.files?.[0] : undefined;
+      if (!file) return;
+      void file.text().then((text) => {
+        try {
+          const game = deserialize(text);
+          this.modal = null;
+          this.hq = null;
+          this.startGame(game);
+          this.save(game);
+          this.toast('📂 Save file loaded.', 'success', 3000);
+        } catch {
+          this.toast('⚠️ That file is not a DataCenterMania save.', 'fail', 5000);
+        }
+      });
+    });
     $('#modal').addEventListener('click', (ev) => {
       const sticky = ['end', 'attack', 'mini', 'miniResult', 'shift', 'recap'];
       if (ev.target === ev.currentTarget && !sticky.includes(this.modal?.kind ?? '')) {

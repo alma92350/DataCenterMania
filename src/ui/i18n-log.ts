@@ -257,6 +257,13 @@ export const LOG_FR: Record<string, string> = {
   'Community goodwill is low. A community fund or heat reuse wins it back before the county blocks new builds.': 'La bonne volonté locale est faible. Un fonds communautaire ou la récupération de chaleur la regagne avant que le comté ne bloque les nouveaux chantiers.',
   'The Advisor': 'Le Conseiller',
   'An Advisor card on the Alarms tab suggests up to three next steps: backup power, single points of failure, capacity, filters, efficiency and customers.': 'Une carte Conseiller dans l’onglet Alarmes suggère jusqu’à trois prochaines étapes : alimentation de secours, points de défaillance uniques, capacité, filtres, efficacité et clients.',
+  // v3.3 save slots
+  'Save slots and files': 'Emplacements et fichiers de sauvegarde', 'Slot': 'Emplacement', 'Empty': 'Vide', 'Save here': 'Sauvegarder ici', 'Overwrite': 'Écraser', 'Load': 'Charger', 'Delete': 'Supprimer',
+  'Download save file': 'Télécharger le fichier de sauvegarde', 'Load a save file': 'Charger un fichier de sauvegarde',
+  'Saved to slot {s}.': 'Sauvegardé dans l’emplacement {s}.', 'Could not save: the browser storage is full.': 'Sauvegarde impossible : le stockage du navigateur est plein.',
+  'Save file loaded.': 'Fichier de sauvegarde chargé.', 'That file is not a DataCenterMania save.': 'Ce fichier n’est pas une sauvegarde DataCenterMania.',
+  'Save slots': 'Emplacements de sauvegarde',
+  'Three save slots in the pause menu, and download or load a save file to keep it or move it to another device.': 'Trois emplacements de sauvegarde dans le menu pause, et téléchargement ou chargement d’un fichier de sauvegarde pour le conserver ou le déplacer vers un autre appareil.',
   // later additions found by reading the sources
   'Utility power is out! The grid should be back in about {s} h.': 'Le courant est coupé ! Le réseau devrait revenir dans environ {s} h.',
   'The generator is serviced and on standby.': 'Le groupe est entretenu et en veille.',

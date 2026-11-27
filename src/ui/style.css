@@ -556,3 +556,5 @@ body.high-contrast .muted, body.high-contrast .meta { color: #e0e0e0; }
 .advisor { margin: 8px 0; padding: 4px 10px 8px; border: 1px solid var(--accent); border-radius: var(--radius); }
 .advisor h3 { margin: 6px 0; }
 .advice.urgent span:last-of-type { font-weight: 600; }
+.filebtn { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 14px; border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; }
+.slots ul { margin: 6px 0; }

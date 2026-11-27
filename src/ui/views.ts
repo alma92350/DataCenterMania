@@ -28,6 +28,7 @@ import { spofCount } from '../sim/spof';
 import { changeRisk, changeTitle, openChanges, tonight } from '../sim/changes';
 import { resilience } from '../sim/resilience';
 import { APP_VERSION } from './version';
+import type { SlotInfo } from './storage';
 import { RELEASES, releasesSince } from '../data/releases';
 import { satisfactionOf } from '../sim/crm';
 import { VISIT_OBJECTIVES, visitResult } from '../sim/visit';
@@ -762,6 +763,7 @@ export interface StartExtras {
   daily: DailySpec;
   dailyBest: { stars: number; share: string } | null;
   achievements: Record<string, number>;
+  slots?: (SlotInfo | null)[];
 }
 
 /** Feature flags of every chapter the player has reached (the Handbook grows with them). */
@@ -824,7 +826,7 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
         <span class="best">${open ? `${'★'.repeat(best)}${'☆'.repeat(3 - best)}` : '🔒'}</span></button>`;
     }).join('')}
     </div>
-    ${extras ? achievementsGrid(extras.achievements) + handbookSection(unlockedFeatures(progress)) + handoverBox() : ''}
+    ${extras ? achievementsGrid(extras.achievements) + handbookSection(unlockedFeatures(progress)) + slotsBox(extras.slots ?? [], false) + handoverBox() : ''}
     ${settingsForm(settings)}
     <p class="muted small">${t('Free, no ads, works offline. Saves stay in this browser.')}</p>
   </section>`;
@@ -832,6 +834,17 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
 
 /** The campaign in three eras (PRD v2 addendum P16): where each begins. */
 const ERA_STARTS: Record<number, string> = { 0: 'Era 1: Cloud warehouse', 6: 'Era 2: The AI factory approaches', 9: 'Era 3: Energy-integrated compute' };
+
+/** Save slots and save files (v3.3). In the pause menu a game can be saved into a slot; on the start screen a slot can be loaded. */
+export function slotsBox(slots: (SlotInfo | null)[], canSave: boolean): string {
+  const label = (x: SlotInfo) => `${x.sandbox ? t('Sandbox') : e(t(CHAPTERS[x.chapter]?.title ?? x.chapter))} · ${t('day')} ${Math.floor(x.minute / 1440) + 1} · ${new Date(x.savedAt).toISOString().slice(0, 16).replace('T', ' ')}`;
+  return `<details class="slots"><summary>💾 ${t('Save slots and files')}</summary>
+    <ul class="list">${slots.map((x, i) => `<li><div class="row"><b>${t('Slot')} ${i + 1}</b><span class="muted small">${x ? label(x) : t('Empty')}</span></div>
+      <div class="row actions">${canSave ? `<button data-action="slotSave" data-slot="${i}">${x ? t('Overwrite') : t('Save here')}</button>` : ''}
+        ${x ? `<button class="primary" data-action="slotLoad" data-slot="${i}">${t('Load')}</button><button class="ghost" data-action="slotDelete" data-slot="${i}" aria-label="${t('Delete')} ${t('Slot')} ${i + 1}">🗑️</button>` : ''}</div></li>`).join('')}</ul>
+    <div class="row actions">${canSave ? `<button data-action="downloadSave">⬇️ ${t('Download save file')}</button>` : ''}
+      <label class="filebtn">⬆️ ${t('Load a save file')}<input type="file" id="save-file" accept=".json,application/json" hidden></label></div></details>`;
+}
 
 export function handoverBox(): string {
   return `<details class="handover"><summary>📥 ${t('Resume from a hand-over code')}</summary>
@@ -884,7 +897,7 @@ export function feedbackBox(): string {
     <div class="row actions">${tags.map(([v, l]) => `<button class="ghost" data-action="feedback" data-kind="tag" data-value="${v}">${t(l)}</button>`).join('')}</div></fieldset>`;
 }
 
-export function pauseMenu(s: GameState, settings: Settings): string {
+export function pauseMenu(s: GameState, settings: Settings, slots: (SlotInfo | null)[] = []): string {
   return `<div class="modal-card small-card" role="dialog" aria-modal="true" aria-label="Menu">
     <header role="group"><h2>${t('⏸ Paused')}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
     <p class="muted">${s.sandbox ? `Sandbox: ${e(SANDBOX_FLOORS[s.sandbox.floor].name)}, day ${sandboxDays(s)}` : `Chapter ${CHAPTERS[s.chapter].number}: ${e(CHAPTERS[s.chapter].title)}`} · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
@@ -895,6 +908,7 @@ export function pauseMenu(s: GameState, settings: Settings): string {
       <button data-action="copyCode">📋 ${t('Copy hand-over code')}</button>
       <button data-action="quit">${t('Save & quit to menu')}</button>
     </div>
+    ${s.visit ? '' : slotsBox(slots, true)}
     ${handbookSection(s.features)}
     ${settingsForm(settings)}
     <p class="muted small version">DataCenterMania v${APP_VERSION}</p>

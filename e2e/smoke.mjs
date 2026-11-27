@@ -96,6 +96,21 @@ try {
     check(await page.isVisible('#tabs'), 'the Advisor button opens a tab and the tab bar stays visible');
   });
 
+  await session('save slots', { viewport: { width: 1000, height: 800 } }, async (page) => {
+    await page.click('[data-chapter="ch0"]');
+    await page.waitForSelector('#topbar .stat');
+    await page.click('[data-action="menu"]');
+    await page.$eval('[data-action="slotSave"][data-slot="0"]', (el) => el.click());
+    const saved = await page.evaluate(() => !!localStorage.getItem('dcm.slot.0.game.v1') && !!localStorage.getItem('dcm.slot.0.meta.v1'));
+    check(saved, 'saving into slot 1 stores the game');
+    await page.$eval('[data-action="quit"]', (el) => el.click());
+    await page.waitForSelector('.start');
+    check(!!(await page.$('.start [data-action="slotLoad"][data-slot="0"]')), 'the start screen offers the saved slot');
+    await page.$eval('.start [data-action="slotLoad"][data-slot="0"]', (el) => el.click());
+    await page.waitForSelector('#topbar .stat');
+    check(true, 'loading the slot resumes the game');
+  });
+
   await session('keyboard', { viewport: { width: 1200, height: 800 } }, async (page) => {
     await page.click('[data-chapter="ch0"]');
     await page.waitForSelector('#topbar .stat');

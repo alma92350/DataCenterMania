@@ -70,6 +70,19 @@ export const DEFAULT_SETTINGS: Settings = { autoPause: 'critical', nightSkip: tr
 /** Best stars per chapter and difficulty. */
 export type Progress = Partial<Record<ChapterId, Partial<Record<DifficultyId, number>>>>;
 
+export const SLOT_COUNT = 3;
+const slotKey = (i: number, part: 'meta' | 'game') => `dcm.slot.${i}.${part}.v1`;
+
+/** What the slot list shows without loading a whole game. */
+export interface SlotInfo {
+  index: number;
+  savedAt: number;
+  chapter: ChapterId;
+  /** Game minute at the time of saving. */
+  minute: number;
+  sandbox: boolean;
+}
+
 export class Persistence {
   get kv(): KeyValueStore | null {
     return this.store;
@@ -89,6 +102,47 @@ export class Persistence {
     } catch {
       return null;
     }
+  }
+
+  /** Named save slots (v3.3): independent of the autosave. */
+  listSlots(): (SlotInfo | null)[] {
+    return Array.from({ length: SLOT_COUNT }, (_, i) => {
+      try {
+        const raw = read(this.store, slotKey(i, 'meta'));
+        return raw ? ({ ...(JSON.parse(raw) as SlotInfo), index: i }) : null;
+      } catch {
+        return null;
+      }
+    });
+  }
+
+  /** False when the browser refused (storage full): the slot is left as it was. */
+  saveSlot(i: number, s: GameState, now: number = Date.now()): boolean {
+    if (i < 0 || i >= SLOT_COUNT) return false;
+    const meta: SlotInfo = { index: i, savedAt: now, chapter: s.chapter, minute: s.minute, sandbox: !!s.sandbox };
+    try {
+      if (!this.store) return false;
+      this.store.setItem(slotKey(i, 'game'), serialize(s));
+      this.store.setItem(slotKey(i, 'meta'), JSON.stringify(meta));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  loadSlot(i: number): GameState | null {
+    const raw = read(this.store, slotKey(i, 'game'));
+    if (!raw) return null;
+    try {
+      return deserialize(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  deleteSlot(i: number): void {
+    write(this.store, slotKey(i, 'game'), null);
+    write(this.store, slotKey(i, 'meta'), null);
   }
 
   clearGame(): void {
