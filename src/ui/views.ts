@@ -860,6 +860,7 @@ export function pauseMenu(s: GameState, settings: Settings): string {
     <div class="stack">
       <button class="primary" data-action="closeModal">${t('Resume')}</button>
       ${s.visit ? `<button data-action="abandonVisit">✈️ ${t('Come back early')}</button>` : `<button data-action="restart">${t('Restart chapter')}</button>`}
+      <button data-action="showKeys">⌨️ ${t('Keyboard shortcuts')}</button>
       <button data-action="copyCode">📋 ${t('Copy hand-over code')}</button>
       <button data-action="quit">${t('Save & quit to menu')}</button>
     </div>
@@ -997,6 +998,19 @@ export function shiftReportModal(s: GameState, r: ShiftReport): string {
       <button class="primary big" data-action="sleep">😴 Sleep until 06:00</button>
       <button data-action="closeModal">Keep working through the night</button>`}</div>
     <p class="muted small">Progress saved. A good place to take a break.</p>
+  </div>`;
+}
+
+export const SHORTCUTS: [string, string][] = [
+  ['Space', 'Pause or resume'], ['1 2 3', 'Speed 1× 2× 4×'], ['A', 'Alarms tab'], ['T', 'Team tab'], ['C', 'Clients tab'], ['I', 'Infra tab'], ['S', 'Shop tab'], ['G', 'Goals tab'],
+  ['H', 'Heat overlay'], ['P', 'Power overlay'], ['O', 'Single points of failure overlay'], ['M', 'Menu'], ['?', 'This list'], ['Esc', 'Close a window or cancel building'],
+];
+
+export function shortcutsModal(): string {
+  return `<div class="modal-card small-card" role="dialog" aria-modal="true" aria-label="${t('Keyboard shortcuts')}">
+    <header role="group"><h2>⌨️ ${t('Keyboard shortcuts')}</h2><button class="ghost" data-action="closeModal" aria-label="${t('Close')}">✕</button></header>
+    <dl class="keys">${SHORTCUTS.map(([k, d]) => `<dt><kbd>${e(k)}</kbd></dt><dd>${e(t(d))}</dd>`).join('')}</dl>
+    <div class="stack"><button class="primary" data-action="closeModal">${t('Close')}</button></div>
   </div>`;
 }
 

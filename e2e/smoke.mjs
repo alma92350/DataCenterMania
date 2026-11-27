@@ -52,6 +52,22 @@ try {
     check(!(await page.isVisible('#update')), 'the update banner can be dismissed');
     await browser.close();
   }
+  await session('keyboard', { viewport: { width: 1200, height: 800 } }, async (page) => {
+    await page.click('[data-chapter="ch0"]');
+    await page.waitForSelector('#topbar .stat');
+    while (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+    await page.keyboard.press('?');
+    await page.waitForSelector('.keys');
+    check(true, 'the ? key opens the shortcut list');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('t');
+    await page.waitForSelector('#tabs [data-panel="team"][aria-pressed="true"]', { timeout: 4000 });
+    check(true, 'the T key switches to the Team tab');
+    await page.keyboard.press('m');
+    await page.waitForSelector('[data-action="showKeys"]');
+    check(true, 'the M key opens the menu');
+  });
+
   await session('release notes', { viewport: { width: 390, height: 800 } }, async (page) => {
     await page.addInitScript(() => {
       localStorage.setItem('dcm.settings.v1', JSON.stringify({ seenVersion: '2.4.0' }));

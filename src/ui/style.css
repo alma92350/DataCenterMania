@@ -544,3 +544,6 @@ h3.era { grid-column: 1 / -1; margin: 14px 0 4px; font-size: 0.75rem; text-trans
 .whatsnew summary { cursor: pointer; font-weight: 600; min-height: 32px; display: flex; align-items: center; }
 .whatsnew h3 { margin: 8px 0 2px; font-size: 14px; }
 .whatsnew ul { margin: 0 0 4px 18px; padding: 0; }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 8px 0; }
+.keys dt { text-align: right; } .keys dd { margin: 0; }
+kbd { padding: 1px 6px; border: 1px solid currentColor; border-radius: 4px; font: 600 12px monospace; opacity: .9; }

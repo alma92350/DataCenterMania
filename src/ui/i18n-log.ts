@@ -204,6 +204,13 @@ export const LOG_FR: Record<string, string> = {
   'One Point Twenty-One Gigawatts': 'Un virgule vingt et un gigawatts', 'Bring a gigawatt campus live.': 'Mettez un campus gigawatt en service.',
   'Trophy room': 'Salle des trophées',
   'Ten new achievements for the enterprise, AI and campus chapters: efficiency, redundancy, change control, incident command and more.': 'Dix nouveaux succès pour les chapitres entreprise, IA et campus : efficacité, redondance, gestion des changements, commandement d’incident et plus encore.',
+  // v2.9 keyboard
+  'Keyboard control': 'Contrôle au clavier',
+  'Switch tabs with A, T, C, I, S and G, open the menu with M, and press ? for the full list of shortcuts.': 'Changez d’onglet avec A, T, C, I, S et G, ouvrez le menu avec M, et tapez ? pour la liste complète des raccourcis.',
+  'Keyboard shortcuts': 'Raccourcis clavier',
+  'Pause or resume': 'Pause ou reprise', 'Speed 1× 2× 4×': 'Vitesse 1× 2× 4×', 'Alarms tab': 'Onglet Alarmes', 'Team tab': 'Onglet Équipe', 'Clients tab': 'Onglet Clients',
+  'Infra tab': 'Onglet Infra', 'Shop tab': 'Onglet Boutique', 'Goals tab': 'Onglet Objectifs', 'Heat overlay': 'Calque chaleur', 'Power overlay': 'Calque alimentation',
+  'Single points of failure overlay': 'Calque points de défaillance uniques', 'Menu': 'Menu', 'This list': 'Cette liste', 'Close a window or cancel building': 'Fermer une fenêtre ou annuler la construction',
   // later additions found by reading the sources
   'Utility power is out! The grid should be back in about {s} h.': 'Le courant est coupé ! Le réseau devrait revenir dans environ {s} h.',
   'The generator is serviced and on standby.': 'Le groupe est entretenu et en veille.',

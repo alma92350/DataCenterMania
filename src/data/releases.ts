@@ -6,6 +6,7 @@ export interface Release {
 }
 
 export const RELEASES: Release[] = [
+  { version: '2.9.0', title: 'Keyboard control', notes: ['Switch tabs with A, T, C, I, S and G, open the menu with M, and press ? for the full list of shortcuts.'] },
   { version: '2.8.0', title: 'Trophy room', notes: ['Ten new achievements for the enterprise, AI and campus chapters: efficiency, redundancy, change control, incident command and more.'] },
   { version: '2.7.0', title: 'What’s new', notes: ['This page: release notes inside the game, shown once after an update.'] },
   { version: '2.6.0', title: 'Playtest kit', notes: ['One-tap feedback in the pause menu when the play log is on.', 'The play log measures session length and carries the game version.'] },

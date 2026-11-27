@@ -32,11 +32,11 @@ import { createFlood, createPhish, createWorm, Flood, Phish, Worm, type MiniGame
 import { spriteVersion } from '../render/sprites';
 import {
   alarmsPanel, contractsPanel, coolerModal, endScreen, goalBar, goalsPanel, networkPanel, pauseMenu, rackModal, recapModal, shiftReportModal, shopPanel, startScreen, tabs,
-  teamPanel, tipCard, topBar, visiblePanels, type PanelId,
+  shortcutsModal, teamPanel, tipCard, topBar, visiblePanels, type PanelId,
 } from './views';
 
 type Modal =
-  | { kind: 'rack'; id: string } | { kind: 'cooler'; id: string } | { kind: 'menu' } | { kind: 'end' }
+  | { kind: 'rack'; id: string } | { kind: 'cooler'; id: string } | { kind: 'menu' } | { kind: 'keys' } | { kind: 'end' }
   | { kind: 'shift'; report: ShiftReport } | { kind: 'recap'; lines: string[]; woke: string | null }
   | { kind: 'attack' } | { kind: 'mini' } | { kind: 'miniResult'; out: MiniOutcome } | null;
 type BuildMode = { part: Extract<PartId, 'rack' | 'portableAc' | 'wallAc' | 'crac'>; facing: Facing } | null;
@@ -294,6 +294,7 @@ export class App {
     if (this.modal?.kind === 'rack') modal = rackModal(s, this.modal.id);
     else if (this.modal?.kind === 'cooler') modal = coolerModal(s, this.modal.id);
     else if (this.modal?.kind === 'menu') modal = pauseMenu(s, this.settings);
+    else if (this.modal?.kind === 'keys') modal = shortcutsModal();
     else if (this.modal?.kind === 'end') modal = endScreen(s, this.endExtras);
     else if (this.modal?.kind === 'shift') modal = shiftReportModal(s, this.modal.report);
     else if (this.modal?.kind === 'recap') modal = recapModal(this.modal.lines, this.modal.woke);
@@ -374,6 +375,10 @@ export class App {
         this.renderUi(true);
         return;
       }
+      case 'showKeys':
+        this.modal = { kind: 'keys' };
+        this.renderUi(true);
+        return;
       case 'menu':
         this.modal = { kind: 'menu' };
         this.renderUi(true);
@@ -976,12 +981,21 @@ export class App {
     });
 
     document.addEventListener('keydown', (ev) => {
-      if (!this.state || (ev.target as HTMLElement).matches('input, select, textarea')) return;
+      if (!this.state || (ev.target as HTMLElement).matches('input, select, textarea') || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      const state = this.state;
+      const goPanel = (p: PanelId) => () => {
+        if (!visiblePanels(state).includes(p)) return;
+        this.panel = p;
+        this.sheetOpen = true;
+      };
       const keys: Record<string, () => void> = {
         ' ': () => (this.speed = this.speed === 0 ? 1 : 0),
         '1': () => (this.speed = 1),
         '2': () => (this.speed = 2),
         '3': () => (this.speed = 4),
+        a: goPanel('alarms'), t: goPanel('team'), c: goPanel('contracts'), i: goPanel('network'), s: goPanel('shop'), g: goPanel('goals'),
+        m: () => { if (!this.modal) this.modal = { kind: 'menu' }; },
+        '?': () => { this.modal = this.modal?.kind === 'keys' ? null : { kind: 'keys' }; },
         h: () => (this.overlay = this.overlay === 'heat' ? 'none' : 'heat'),
         p: () => (this.overlay = this.overlay === 'power' ? 'none' : 'power'),
         o: () => (this.overlay = this.overlay === 'spof' ? 'none' : 'spof'),

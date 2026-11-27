@@ -704,3 +704,9 @@ The achievements stopped at the v0.7 systems. Ten new ones reward skill and curi
 *Green Machine* (average PUE ≤ 1.35), *Circular Economy* (free cooling, heat reuse and renewable power together), *No Single Strand* (no single point of failure at the win), *The Lights Stayed On* (a utility outage with no blackout), *By the Book* (five clean changes), *Trained to Perfection* (95% effective training in Chapter 8), *Cool Commander* (a perfect incident score), *Good Neighbour* (goodwill ≥ 75 at the Hyperscale win), *World Tour* (four live sites) and *One Point Twenty-One Gigawatts* (a live gigawatt campus).
 - Every name and description has French, enforced by a test. 6 new tests.
 - They count toward the achievements total on the start screen; the career title still comes from stars only.
+
+## 29. v2.9 "Keyboard Control" results
+
+- **More shortcuts** for desktop and e-ink keyboards: **A T C I S G** jump to the Alarms, Team, Clients, Infra, Shop and Goals tabs (only tabs that are unlocked), **M** opens the menu, **?** opens a list of every shortcut. Existing keys stay: Space, 1 2 3, H, P, O, Esc. Combinations with Ctrl, Cmd or Alt are ignored so browser shortcuts keep working.
+- The list is also a button in the pause menu, so touch players and newcomers can find it. Descriptions are in French.
+- 2 new unit tests (list, uniqueness, French) and an e2e that presses ?, T and M.
