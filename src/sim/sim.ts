@@ -20,6 +20,7 @@ import { updateNoc } from './noc';
 import { updateSite } from './site';
 import { updateAi } from './ai';
 import { updateNights } from './nights';
+import { updateCampus } from './campus';
 import { rollFeeds } from './feeds';
 import { updateChanges } from './changes';
 import { updateFatigue } from './fatigue';
@@ -45,6 +46,7 @@ export function step(s: GameState): void {
   rollFeeds(s, dt);
   updateAi(s);
   updateNights(s);
+  updateCampus(s);
   escalateAlarms(s);
   updateNoc(s);
   runAutomation(s);

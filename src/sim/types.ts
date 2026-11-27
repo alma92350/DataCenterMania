@@ -21,11 +21,11 @@ export interface Grid {
 }
 
 export type DifficultyId = 'intern' | 'sysadmin' | 'senior' | 'nightmare';
-export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'ch6' | 'ch7' | 'ch8' | 'ch9' | 'hack';
+export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'ch6' | 'ch7' | 'ch8' | 'ch9' | 'ch10' | 'hack';
 export type FeatureFlag =
   | 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote'
   | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance'
-  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup' | 'redundancy' | 'changes' | 'capacity' | 'energy' | 'liquid' | 'ai' | 'crm' | 'nights';
+  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup' | 'redundancy' | 'changes' | 'capacity' | 'energy' | 'liquid' | 'ai' | 'crm' | 'nights' | 'campus' | 'finance';
 
 export type PartId =
   | 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc'
@@ -120,6 +120,39 @@ export interface Site {
 }
 
 /** Coolant loop for liquid racks (PRD v2 F6). */
+export type SiteKind = 'nordic' | 'metro' | 'desert' | 'harbour';
+export type SiteTier = 'edge' | 'enterprise' | 'regional';
+
+/** Another site on the campus: simulated by a summary model (PRD v2 F10). */
+export interface CampusSite {
+  id: string;
+  kind: SiteKind;
+  tier: SiteTier;
+  mw: number;
+  status: 'building' | 'live';
+  readyAt: number;
+  staff: 0 | 1 | 2;
+  util: number;
+  capex: number;
+  shockUntil?: number;
+  incident?: boolean;
+}
+
+export interface Campus {
+  sites: CampusSite[];
+  goodwill: number;
+  loan: number;
+  investor: boolean;
+  power: 'fixed' | 'spot';
+  spotMult: number;
+  board: { everyDays: number; nextDay: number; strikes: number; reviews: { day: number; met: number; targets: boolean[] }[] };
+  flows: { capex: number; proceeds: number; repaid: number; grants: number };
+  cashAtReview: number;
+  alerts: { id: string; siteId: string; day: number; text: string; helped: boolean }[];
+  depreciationToday: number;
+  moratorium: boolean;
+}
+
 export interface Audit {
   at: number;
   done: boolean;
@@ -528,6 +561,10 @@ export interface GameState {
     changeFailed?: number;
     rmaCredit?: number;
   };
+  /** Frontier floor: orbital cluster with no technicians (Sandbox only). */
+  frontier?: { launchPerKg: number; startMin: number };
+  /** The campus: other sites, finance and the board (Chapter 10). */
+  campus?: Campus;
   /** Customer relationships (Chapter 9): the latest compliance audit. */
   audit?: Audit;
   /** Technicians on the night rota; the others are off duty from 22:00 to 06:00. */

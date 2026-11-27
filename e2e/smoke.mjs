@@ -638,6 +638,33 @@ try {
     check(await page.isVisible('#tabs'), 'the tab bar stays visible');
   });
 
+  await session('campus and hand-over (phone)', { ...devices['Pixel 5'], deviceScaleFactor: 2 }, async (page) => {
+    await page.addInitScript(() => {
+      const all = {}; for (const c of ['ch0','ch1','ch2','ch3','ch4','ch5','ch6','ch7','ch8','ch9']) all[c] = { sysadmin: 3 };
+      localStorage.setItem('dcm.progress.v1', JSON.stringify(all));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern', display: 'color' }));
+    });
+    await page.reload();
+    await page.waitForSelector('[data-chapter="ch10"]');
+    check((await page.textContent('.chapters')).includes('Era 3'), 'the start screen groups chapters into eras');
+    check(await page.isVisible('.handover summary'), 'the start screen offers a hand-over code box');
+    await page.tap('[data-chapter="ch10"]');
+    await page.waitForSelector('#topbar .stat');
+    while (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+    await page.tap('#tabs [data-panel="goals"]');
+    await page.waitForSelector('[data-action="buildSite"]');
+    const txt = await page.textContent('#panel');
+    check(txt.includes('Campus') && txt.includes('Next board review') && txt.includes('Finance'), 'the Goals tab shows the campus, the board and finance');
+    await page.screenshot({ path: `${outDir}/campus.png` });
+    await page.tap('[data-action="buildSite"][data-kind="harbour"][data-tier="edge"]');
+    await page.waitForFunction(() => document.querySelector('#panel')?.textContent.includes('Harbour Hub') && document.querySelector('#panel')?.textContent.includes('ready'), null, { timeout: 4000 });
+    check(true, 'building a site shows it under construction');
+    await page.tap('[data-action="takeLoan"]');
+    await page.waitForFunction(() => document.querySelector('[data-action="repayLoan"]'), null, { timeout: 4000 });
+    check(true, 'a loan can be taken and repaid');
+    check(await page.isVisible('#tabs'), 'the tab bar stays visible');
+  });
+
 } finally {
   server?.kill();
 }

@@ -12,6 +12,7 @@ import { CHAPTERS } from '../data/chapters';
 import { spofReport } from '../sim/spof';
 import { tl } from './i18n';
 import { Telemetry } from './telemetry';
+import { decodeHandover, encodeHandover } from './share';
 import { createSandbox, sandboxDays, sandboxScore, type SandboxConfig } from '../sim/sandbox';
 import { createDaily, dailyIdFor, dailyScore, dailySpec, shareLine } from '../sim/daily';
 import { clampCamera, createCamera, panBy, pickNearest, screenToWorld, touchFitCamera, zoomAt } from '../render/camera';
@@ -533,6 +534,49 @@ export class App {
         return;
       case 'orderCdu':
         this.run({ type: 'orderCdu' });
+        return;
+      case 'launchRepair':
+        this.run({ type: 'launchRepair', deviceId: d.device || undefined, rackId: d.rack || undefined });
+        return;
+      case 'copyCode': {
+        void encodeHandover(s).then(async (code) => {
+          try {
+            await navigator.clipboard.writeText(code);
+            this.toast('📋 Hand-over code copied. Send it to a friend.', 'success', 5000);
+          } catch {
+            window.prompt('Copy this hand-over code:', code);
+          }
+        });
+        return;
+      }
+      case 'loadCode': {
+        const box = document.querySelector<HTMLTextAreaElement>('#code-input');
+        void decodeHandover(box?.value ?? '').then((game) => this.startGame(game)).catch((err: Error) => this.toast(`Could not load that code: ${err.message}`, 'fail', 5000));
+        return;
+      }
+      case 'buildSite':
+        this.run({ type: 'buildSite', kind: d.kind as 'nordic', tier: d.tier as 'edge' });
+        return;
+      case 'siteStaff':
+        this.run({ type: 'siteStaff', siteId: d.site! });
+        return;
+      case 'siteHelp':
+        this.run({ type: 'siteHelp', alertId: d.alert! });
+        return;
+      case 'takeLoan':
+        this.run({ type: 'takeLoan' });
+        return;
+      case 'repayLoan':
+        this.run({ type: 'repayLoan' });
+        return;
+      case 'takeInvestor':
+        this.run({ type: 'takeInvestor' });
+        return;
+      case 'setPower':
+        this.run({ type: 'setPowerContract', mode: d.mode as 'fixed' });
+        return;
+      case 'communityFund':
+        this.run({ type: 'communityFund' });
         return;
       case 'pagerNow':
         this.run({ type: 'answerPager', how: 'now' });

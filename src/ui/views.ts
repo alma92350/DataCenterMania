@@ -1,4 +1,4 @@
-import { AI, CRM, NIGHTS, BACKUP, CHANGES, CONTRACT_GRACE_MIN, COOLERS, ENERGY, LEAD_TIME, NOC, SITE, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
+import { AI, CAMPUS, CRM, FRONTIER, NIGHTS, BACKUP, CHANGES, CONTRACT_GRACE_MIN, COOLERS, ENERGY, LEAD_TIME, NOC, SITE, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
 import { CHAPTERS, CHAPTER_ORDER } from '../data/chapters';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
@@ -27,6 +27,7 @@ import { spofCount } from '../sim/spof';
 import { changeRisk, changeTitle, openChanges, tonight } from '../sim/changes';
 import { resilience } from '../sim/resilience';
 import { satisfactionOf } from '../sim/crm';
+import { boardProfit, boardTargets, campusBuildable, goodwillState, liveSites, siteCostPerDay, siteMix, siteRevenuePerDay, SITE_KINDS, SITE_TIERS } from '../sim/campus';
 import { isNightHour, rotaPremiumPerDay, scoreIncident } from '../sim/nights';
 import { aiContracts, aiEffective, interruptRatePerMin, lossMinutes } from '../sim/ai';
 import { loopCapacityKw, loopHeatKw } from '../sim/liquid';
@@ -140,6 +141,50 @@ export function changesSection(s: GameState): string {
     ${list.length ? `<ul class="list changes">${cards}</ul>` : `<div class="empty">${t('No change requests right now.')}</div>`}`;
 }
 
+export function campusPanel(s: GameState): string {
+  const c = s.campus;
+  if (!c) return '';
+  const gw = Math.round(c.goodwill);
+  const state = goodwillState(c);
+  const targets = boardTargets(s);
+  const day = dayOf(s.minute);
+  const built = new Set(c.sites.map((x) => x.kind));
+  const kinds = (Object.keys(SITE_KINDS) as (keyof typeof SITE_KINDS)[]).filter((k) => !built.has(k));
+  const mw = (n: number) => `${n} MW`;
+  const sites = c.sites.map((x) => {
+    const k = SITE_KINDS[x.kind];
+    const mix = siteMix(x.kind);
+    const alert = c.alerts.find((a) => a.siteId === x.id);
+    return `<li><div class="row"><b>🏢 ${e(t(k.name))}</b><span class="chip ${x.status === 'live' ? 'ok' : 'warn'}">${x.status === 'live' ? t('live') : `${t('ready')} ${formatClock(x.readyAt)}`}</span></div>
+      <div class="row meta">${e(t(SITE_TIERS[x.tier].name))} · ${mw(x.mw)} · ${k.latencyMs} ms · PUE ${k.pue} · ${Math.round(mix.inference * 100)}% ${t('inference')}</div>
+      ${x.status === 'live' ? `<div class="row meta">${t('Utilisation')} ${Math.round(x.util * 100)}% · +${money(siteRevenuePerDay(x))}/${t('day')} · −${money(siteCostPerDay(s, x))}/${t('day')} · ${t('team')} ${x.staff}</div>
+      ${alert ? `<div class="banner bad"><span>📟 ${t('Incident')}</span>${alert.helped ? `<span class="busy">🚁 …</span>` : `<button class="primary" data-action="siteHelp" data-alert="${e(alert.id)}" ${s.cash < CAMPUS.helpCost ? 'disabled' : ''}>${t('Send help')} ${money(CAMPUS.helpCost)}</button>`}</div>` : ''}
+      <div class="row actions">${x.staff < 2 ? `<button data-action="siteStaff" data-site="${e(x.id)}" ${s.cash < CAMPUS.staffUpgrade ? 'disabled' : ''}>${t('Bigger team')} ${money(CAMPUS.staffUpgrade)}</button>` : `<span class="muted small">${t('Fully staffed')}</span>`}</div>` : ''}</li>`;
+  }).join('');
+  const options = campusBuildable(s) ? kinds.map((k) => {
+    const d = SITE_KINDS[k];
+    const mix = siteMix(k);
+    return `<li><div class="row"><b>${e(t(d.name))}</b><span class="muted">${d.latencyMs} ms · PUE ${d.pue} · ${t('power')} ×${d.power}</span></div>
+      <div class="row meta">${e(t(d.blurb))} ${Math.round(mix.inference * 100)}% ${t('inference')}</div>
+      <div class="row actions">${(Object.keys(SITE_TIERS) as (keyof typeof SITE_TIERS)[]).map((tier) => `<button data-action="buildSite" data-kind="${k}" data-tier="${tier}" ${s.cash < SITE_TIERS[tier].price ? 'disabled' : ''}>${mw(SITE_TIERS[tier].mw)} ${money(SITE_TIERS[tier].price)}</button>`).join('')}</div></li>`;
+  }).join('') : '';
+  return `<h3>🌍 ${t('Campus')}</h3>
+    <div class="report"><span>${t('Goodwill')}</span><b class="${state === 'moratorium' ? 'bad' : state === 'low' ? 'warn' : 'ok'}">${gw}${state === 'moratorium' ? ` · ${t('moratorium')}` : ''}</b>
+      <span>${t('Live sites')}</span><b>${liveSites(s).length} / ${CAMPUS.maxSites}</b>
+      <span>${t('Next board review')}</span><b>${t('day')} ${c.board.nextDay + 1} · ${t('strikes')} ${c.board.strikes}/2</b></div>
+    <div class="bar"><div style="width:${gw}%" class="${gw < 40 ? 'bad' : ''}"></div></div>
+    <ul class="list goals">${targets.map((x) => `<li class="row"><span>${x.ok ? '✅' : '▫️'}</span><span>${e(t(x.label.replace(/\d[\d,]*/, '{n}')).replace('{n}', (x.label.match(/\d[\d,]*/) ?? [''])[0]!))}</span></li>`).join('')}</ul>
+    <p class="muted small">${t('Profit this review')}: ${money(boardProfit(s))} · ${t('day')} ${day + 1}</p>
+    <ul class="list">${sites || `<li class="muted small">${t('No other sites yet.')}</li>`}</ul>
+    ${campusBuildable(s) ? (options ? `<h3>🏗️ ${t('Build a site')}</h3><ul class="list">${options}</ul>` : '') : `<div class="banner bad"><span>🚧 ${t('Moratorium: no new builds.')}</span></div>`}
+    <h3>🏦 ${t('Finance')}</h3>
+    <div class="report"><span>${t('Loan')}</span><b>${money(c.loan)}</b><span>${t('Depreciation / day')}</span><b>${money(c.depreciationToday)}</b><span>${t('Power contract')}</span><b>${c.power === 'spot' ? `${t('Spot')} ×${c.spotMult.toFixed(2)}` : t('Fixed')}</b></div>
+    <div class="row actions">${c.loan > 0 ? `<button data-action="repayLoan" ${s.cash < c.loan ? 'disabled' : ''}>${t('Repay loan')}</button>` : `<button data-action="takeLoan">${t('Borrow')} ${money(CAMPUS.loanPrincipal)}</button>`}
+      ${c.investor ? `<span class="chip ok">💼 ${t('Investor')}</span>` : `<button data-action="takeInvestor">💼 ${t('Take an investor')} ${money(CAMPUS.investorCash)}</button>`}
+      <button class="opt ${c.power === 'spot' ? 'on' : ''}" data-action="setPower" data-mode="${c.power === 'spot' ? 'fixed' : 'spot'}" aria-pressed="${c.power === 'spot'}">⚡ ${t('Spot power')}</button>
+      <button data-action="communityFund" ${s.cash < CAMPUS.communityFund ? 'disabled' : ''}>🌳 ${t('Community fund')} ${money(CAMPUS.communityFund)}</button></div>`;
+}
+
 export function resilienceCard(s: GameState): string {
   if (!hasFeature(s, 'redundancy')) return '';
   const r = resilience(s);
@@ -195,6 +240,7 @@ export function alarmsPanel(s: GameState): string {
         action = `<select class="tech-pick" aria-label="Technician">${techOptions(s)}</select>
           <button class="primary" data-action="fix" data-alarm="${e(a.id)}">${e(JOB_LABEL[fix])}</button>${a.kind === 'hung' && (s.noc ?? 0) >= 1 && a.deviceId ? `<button data-action="remoteReboot" data-device="${e(a.deviceId)}">🖥️ ${t('Remote reboot')}</button>` : ''}`;
       } else action = `<span class="hint">${e(ALARM_HINT[a.kind] ?? '')}</span>`;
+      if (s.frontier && (a.deviceId || a.rackId)) action = `<button class="primary" data-action="launchRepair" data-device="${e(a.deviceId ?? '')}" data-rack="${e(a.rackId ?? '')}">🚀 ${t('Launch a spare')} ${money(Math.round(s.frontier.launchPerKg * FRONTIER.kgPerRepair))}</button>`;
       return `<li class="alarm sevrow-${a.severity}">
         <div class="row">${sevBadge(a.severity)}<b>${e(alarmLabel(s, a))}</b></div>
         <div class="row meta"><span>${formatClock(a.raisedAt)}</span>${eta}
@@ -563,6 +609,7 @@ export function goalsPanel(s: GameState): string {
       .join('')}</ul>
     <p class="muted small">${s.sandbox ? `No end date · score ${sandboxScore(s).toLocaleString('en-US')} · milestones` : `Ends ${formatClock(chapterEnd(s))} · goals are checked at the end`} · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
     ${resilienceCard(s)}
+    ${campusPanel(s)}
     ${last ? `<h3>Last day</h3><div class="report">
       <span>Revenue</span><b>${money(last.revenue)}</b><span>Penalties</span><b>${money(-last.penalties)}</b>
       <span>Salaries</span><b>${money(-last.salaries)}</b><span>Electricity</span><b>${money(-last.electricity)}</b>
@@ -724,17 +771,28 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
     <h2 class="sec">${t('Chapters')}</h2>
     <div class="chapters">${CHAPTER_ORDER.map((id) => {
       const ch = CHAPTERS[id];
+      const era = ERA_STARTS[ch.number] ? `<h3 class="era">${t(ERA_STARTS[ch.number]!)}</h3>` : '';
       const open = isUnlocked(progress, id);
       const best = bestStars(progress, id);
-      return `<button class="chapter ${open ? '' : 'locked'}" ${open ? `data-action="newGame" data-chapter="${id}"` : 'disabled'}>
+      return `${era}<button class="chapter ${open ? '' : 'locked'}" ${open ? `data-action="newGame" data-chapter="${id}"` : 'disabled'}>
         <span class="num">${ch.number}</span><span class="ct"><b>${e(ch.title)}</b><span class="small">${e(ch.subtitle)}</span></span>
         <span class="best">${open ? `${'★'.repeat(best)}${'☆'.repeat(3 - best)}` : '🔒'}</span></button>`;
     }).join('')}
     </div>
-    ${extras ? achievementsGrid(extras.achievements) + handbookSection(unlockedFeatures(progress)) : ''}
+    ${extras ? achievementsGrid(extras.achievements) + handbookSection(unlockedFeatures(progress)) + handoverBox() : ''}
     ${settingsForm(settings)}
     <p class="muted small">${t('Free, no ads, works offline. Saves stay in this browser.')}</p>
   </section>`;
+}
+
+/** The campaign in three eras (PRD v2 addendum P16): where each begins. */
+const ERA_STARTS: Record<number, string> = { 0: 'Era 1: Cloud warehouse', 6: 'Era 2: The AI factory approaches', 9: 'Era 3: Energy-integrated compute' };
+
+export function handoverBox(): string {
+  return `<details class="handover"><summary>📥 ${t('Resume from a hand-over code')}</summary>
+    <p class="muted small">${t('Paste the code a friend copied from their pause menu to take over their shift.')}</p>
+    <textarea id="code-input" rows="3" aria-label="${t('Hand-over code')}" placeholder="DCM2:…"></textarea>
+    <button class="primary" data-action="loadCode">${t('Load the game')}</button></details>`;
 }
 
 export function handbookSection(features: readonly string[]): string {
@@ -771,6 +829,7 @@ export function pauseMenu(s: GameState, settings: Settings): string {
     <div class="stack">
       <button class="primary" data-action="closeModal">${t('Resume')}</button>
       <button data-action="restart">${t('Restart chapter')}</button>
+      <button data-action="copyCode">📋 ${t('Copy hand-over code')}</button>
       <button data-action="quit">${t('Save & quit to menu')}</button>
     </div>
     ${handbookSection(s.features)}

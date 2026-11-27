@@ -470,7 +470,7 @@ All v1 guardrails stay in CI. New ones:
 | **v1.4 "Efficiency Drive"** ✅ shipped | Planning | DCIM capacity (F4), live PUE, free cooling, cooling modes, two water meters, grid cap and queue (F5, P1, P3), out-of-band link (P8), heat reuse (P12), Chapter 7, Black Friday event | PUE property tests ✓; Ch7 ★★★ bot-gated ✓ (see §16) |
 | **v1.5 "AI Factory"** ✅ shipped | Density | Liquid cooling and GPU racks (F6), effective training time (P6), density ladder (P5), battery buffer (P10), liquid training (P13), Chapter 8 | Thermal runaway tests ✓ (see §17) |
 | **v1.6 "The Long Night"** ✅ shipped | People | Customer 2.0 (F7), nights, on-call and incident command (F8), Chapter 9 | Renewal/churn tests ✓; ≤ 1 pager per night ✓ (see §18) |
-| **v2.0 "Hyperscale"** | Scale | Campus and multi-site (F10), economy 2.0 (F11), Chapter 10, Sandbox 2.0, share codes, worker sim | Summary-model calibration ±10%; §10 metrics in a 20-player playtest |
+| **v2.0 "Hyperscale"** ✅ shipped (see §19 for what was cut) | Scale | Campus layer (F10), economy 2.0 and board (F11), goodwill (P4), training vs inference (P7), Chapter 10, Sandbox 2.0 with Campus and Frontier floors, hand-over codes, eras (P16) | Summary-model results tested; §10 metrics still need a 20-player playtest |
 
 Each release keeps the v1 discipline: tests first, bot guardrails in CI, phone e2e, auto-deploy, PRD results section.
 
@@ -614,4 +614,26 @@ A second review, inspired by the *Data Centers: Today and Tomorrow* field guide,
 - **Handbook** gains customer satisfaction and renewals, compliance audits, night shifts and on-call, and incident command; all in French. The Alarms tab shows the pager and incident cards, and the Team tab the rota toggle.
 - **Not done**: SLA tiers priced by redundancy, customer tours, and cross-connect orders feeding satisfaction beyond the +4 request bonus.
 - **Tests**: 460 unit tests (new: satisfaction, renewals, audit, rota gating, pager, incident scoring, UI, bot balance) and the phone e2e (new session).
+
+## 19. v2.0 "Hyperscale" results, and what was cut
+
+**Shipped**
+- **Chapter 10 "Campus"** (unlocked by The Long Night; eight game days, two board reviews). Every system of Chapters 0 to 9 is on, plus two new ones: the *campus* and *finance*. Your hall is the headquarters; up to four other sites can be built.
+- **Sites (F10, P7).** Four site types with their own climate (PUE), power price and latency: Nordic Fjord, Metro Edge, Desert Solar, Harbour Hub. Three tiers (edge 4 MW, enterprise 12 MW, regional 40 MW) with a build time in days and a capital cost. **Latency decides what a site sells**: only sites under 20 ms sell inference (60% of the mix, at a higher rate); far sites sell training. Utilisation fills up gradually; a *tenant walks away* event (day 4) knocks a young site back (P11).
+- **Summary model.** Each remote site is simulated once a day: revenue from capacity, utilisation and customer mix; costs from power (climate × price × spot swing), staff and rent; incident chance cut by a bigger local team; an incident costs 65% of the day's revenue unless you *Send help* ($1,500, halves the damage).
+- **Goodwill (P4).** A 0 to 100 meter: thirsty desert and noisy metro sites cost it daily, local staff and heat reuse in the hall earn it, a *community fund* buys 15 points. Below 25 the county declares a **moratorium** (no new builds) until 35; above 75 permits take a day less.
+- **Economy 2.0 (F11).** Capex is booked and depreciated over 20 days; a loan ($50,000, 1.5% a day); an investor ($80,000, targets ×1.5); fixed or **spot** power (cheaper on average, swinging ±daily). Board profit is computed without capex, loans and grants.
+- **Board review every three days**: profit ≥ $15,000, uptime ≥ 99%, PUE ≤ 1.45 or three live sites. All three: $15,000 grant. Two: patience. Fewer: a strike; two strikes end the run ("the board replaced you").
+- **Goals.** ★ survive the first review with a live site; ★★ both reviews with two or more targets met and goodwill ≥ 40; ★★★ every target in both reviews, three live sites and no moratorium (the expanding bot gets ★ to ★★, never ★★★; an idle bot earns nothing).
+- **Sandbox 2.0.** Two new floors: **Campus** (every system, endless, score adds live sites) and the speculative **Frontier** floor (addendum §5.4): an orbital cluster with **no technicians** (every physical command is refused), **launched spares** priced per kilogram (15 kg per repair at a launch price that starts at $2,700 and falls 4% a day to a $200 floor), and double the failure rate from radiation.
+- **Hand-over codes (F14).** *Copy hand-over code* in the pause menu and *Resume from a hand-over code* on the start screen: the save, gzip-compressed when the browser allows, then base64url. A friend pastes it and continues the same deterministic game (tested to continue identically).
+- **Eras (P16).** The chapter list is grouped into *Cloud warehouse* (0 to 5), *The AI factory approaches* (6 to 8) and *Energy-integrated compute* (9 to 10).
+- **Handbook** gains site selection and latency, community goodwill, capex and the board, and fixed versus spot power; all in French.
+- **Tests**: 486 unit tests and the phone e2e (new session).
+
+**Deliberately cut or changed from the plan (honest list)**
+- **No hands-on switching between sites.** The plan had one detailed site at a time with instant switching and a ±10% calibration against the full simulation. v2.0 ships the campus as a *management layer* over one fully simulated hall: remote sites use the summary model only. Switching and calibration would need the state split described in §7 and is the first item for v2.1.
+- **No Web Worker.** Measured halls of 15 to 30 racks stay at 60 fps, so the worker was not needed yet. It stays in the plan for bigger halls.
+- **No save v7.** The campus fields are optional, so existing saves load unchanged.
+- **Not built**: a gigawatt site tier, the full density tech tree beyond the first tiers, setpoint and containment settings, translatable simulation messages, and the 20-player playtest that gates the §10 metrics.
 

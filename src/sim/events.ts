@@ -50,6 +50,12 @@ function run(s: GameState, a: ScriptedAction): void {
     case 'supplyShock':
       supplyShock(s, a.days, a.text);
       break;
+    case 'tenantLeaves': {
+      const site = [...(s.campus?.sites ?? [])].reverse().find((x) => x.status === 'live');
+      if (site) site.shockUntil = s.minute + 3 * 1440;
+      if (a.text) addLog(s, 'alarm', a.text);
+      break;
+    }
     case 'audit':
       runAudit(s);
       break;

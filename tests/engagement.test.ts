@@ -18,7 +18,7 @@ describe('engagement guardrails', () => {
     expect(measure('ch0', 1).state.progress.stars).toBeLessThan(3);
   });
 
-  it.each(['ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8', 'ch9'] as const)('%s: every shift fits a session, and quiet time stays bounded', (ch) => {
+  it.each(['ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8', 'ch9', 'ch10'] as const)('%s: every shift fits a session, and quiet time stays bounded', (ch) => {
     const runs = [1, 2].map((seed) => measure(ch, seed));
     for (const m of runs) {
       for (const minutes of m.shiftRealMinutes) {
@@ -32,7 +32,7 @@ describe('engagement guardrails', () => {
   });
 
   it('★★★ is a real mastery goal: the default bot rarely gets it (PRD v0.5 exit criterion ≤ 20%)', () => {
-    const runs = (['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8', 'ch9'] as const).flatMap((ch) => [1, 2].map((seed) => measure(ch, seed)));
+    const runs = (['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8', 'ch9', 'ch10'] as const).flatMap((ch) => [1, 2].map((seed) => measure(ch, seed)));
     const three = runs.filter((m) => m.state.progress.stars === 3).length;
     expect(runs.every((m) => m.state.progress.status === 'won')).toBe(true);
     expect(three / runs.length).toBeLessThanOrEqual(0.2);

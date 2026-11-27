@@ -35,6 +35,7 @@ export type ScriptedAction =
   | { type: 'drought'; days: number; text?: string }
   | { type: 'pumpFail'; text?: string }
   | { type: 'audit' }
+  | { type: 'tenantLeaves'; text?: string }
   | { type: 'pager'; what: 'feed' | 'cooler'; text: string }
   | { type: 'leak'; rack: number; text?: string }
   | { type: 'spike'; mult: number; minutes: number; text?: string }
@@ -91,6 +92,10 @@ export interface ChapterDef {
   backup?: { ups: number; health: number; generator: 'none' | 'idle'; fuelMin?: number };
   /** Grid connection in watts (Chapter 7+). */
   siteCapW?: number;
+  /** A campus with other sites (Chapter 10). */
+  campus?: boolean;
+  /** Era the chapter belongs to (campaign frame). */
+  era?: 'cloud' | 'ai' | 'energy';
   /** Coolant distribution units at the start (Chapter 8). */
   loopCdus?: number;
   dailyOffers: boolean;
@@ -577,6 +582,44 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       { label: 'Pass the compliance audit and keep average customer satisfaction ≥ 65', check: (s) => !!s.audit?.passed && averageSatisfaction(s) >= 65, progress: (s) => `Audit ${s.audit?.done ? (s.audit.passed ? 'passed' : 'failed') : 'pending'} · mood ${Math.round(averageSatisfaction(s))} / 65` },
       { label: 'Audit passed, satisfaction ≥ 75, incidents scored ≥ 2 on average and $45,000 profit', check: (s) => !!s.audit?.passed && averageSatisfaction(s) >= 75 && (s.incidentScores?.length ? s.incidentScores.reduce((n, x) => n + x, 0) / s.incidentScores.length >= 2 : false) && s.cash - s.progress.startCash >= profitGoal(s, 45000), progress: (s) => `Mood ${Math.round(averageSatisfaction(s))} / 75 · incident score ${(s.incidentScores?.length ? s.incidentScores.reduce((n, x) => n + x, 0) / s.incidentScores.length : 0).toFixed(1)} / 2` },
     ],
+    next: 'ch10',
+  },
+  ch10: {
+    id: 'ch10', number: 10, title: 'Campus', subtitle: 'Several sites, a board and a county that is watching',
+    intro: 'Your hall is only the headquarters now. Build a campus: edge nodes near cities for inference, cold sites for training. Each site has its own climate, power price and latency. The county watches your water and noise, and every three days the board reviews your numbers. Miss them twice and you are out.',
+    map: COLO_MAP,
+    startMinute: at(0, 8),
+    endMinute: at(7, 22),
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue', 'backup', 'remote', 'redundancy', 'changes', 'capacity', 'energy', 'liquid', 'ai', 'crm', 'nights', 'campus', 'finance'],
+    startCash: 60000,
+    ambient: 24,
+    rackPowerBudgetW: 3000,
+    mapCooler: 'wallAc',
+    rackFacing: ['S', 'S', 'S', 'S', 'S', 'N', 'N', 'N', 'N', 'N', 'S', 'S', 'S', 'S', 'S'],
+    uplinks: [{ name: 'MetroFiber A', capacityGbps: 8, costPerDay: 150 }, { name: 'SkyLink Fiber B (separate route)', capacityGbps: 15, costPerDay: 220 }],
+    startingRoles: ['hw'],
+    devices: COLO_DEVICES,
+    contracts: LAUNCH_CONTRACTS,
+    inventory: { disk: 2, psu: 6, server1u: 2, filter: 1, switch: 1 },
+    hwTechs: 1,
+    failuresEnabled: true,
+    dailyOffers: true,
+    incidentMult: 0.65,
+    backup: { ups: 2, health: 1, generator: 'idle', fuelMin: 1440 },
+    siteCapW: 24000,
+    loopCdus: 1,
+    campus: true,
+    era: 'energy',
+    events: [
+      { id: 'campusTip', at: at(0, 8, 5), actions: [{ type: 'tip', key: 'campus' }] },
+      { id: 'financeTip', at: at(0, 8, 40), actions: [{ type: 'tip', key: 'finance' }] },
+      { id: 'tenant', at: at(3, 10), actions: [{ type: 'tenantLeaves', text: '👋 A big tenant cancelled and moved out of your newest site: utilisation there falls for a few days.' }] },
+    ],
+    objectives: [
+      { label: 'Survive the first board review with at least one live site', check: (s) => !!s.campus && s.campus.board.reviews.length >= 1 && (s.campus.sites.some((x) => x.status === 'live')) && s.campus.board.strikes < 2, progress: (s) => `Reviews ${s.campus?.board.reviews.length ?? 0} · live sites ${s.campus?.sites.filter((x) => x.status === 'live').length ?? 0}` },
+      { label: 'Both reviews with two or more targets met, and goodwill ≥ 40', check: (s) => !!s.campus && s.campus.board.reviews.length >= 2 && s.campus.board.reviews.every((r) => r.met >= 2) && s.campus.goodwill >= 40, progress: (s) => `Goodwill ${Math.round(s.campus?.goodwill ?? 0)} / 40` },
+      { label: 'Every target met in both reviews, three live sites and no moratorium', check: (s) => !!s.campus && s.campus.board.reviews.length >= 2 && s.campus.board.reviews.every((r) => r.met === 3) && s.campus.sites.filter((x) => x.status === 'live').length >= 3 && !s.campus.moratorium, progress: (s) => `Live sites ${s.campus?.sites.filter((x) => x.status === 'live').length ?? 0} / 3` },
+    ],
     next: null,
   },
   hack: {
@@ -620,6 +663,6 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
 };
 
 /** The campaign, in order. Events (like the Hacker Weekend) are not part of it. */
-export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8', 'ch9'];
+export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8', 'ch9', 'ch10'];
 
 export const EVENT_ORDER: ChapterId[] = ['hack'];

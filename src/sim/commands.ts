@@ -1,17 +1,19 @@
 import { contractLabel } from './naming';
-import { AI, BACKUP, CONTRACT_GRACE_MIN, ENERGY, EXTRA_UPLINK, JOB_WORK_MIN, LEAD, LEAD_TIME, NOC, PARTS, SITE, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
+import { clearAlarms } from './alarms';
+import { FRONTIER, AI, BACKUP, CAMPUS, CONTRACT_GRACE_MIN, ENERGY, EXTRA_UPLINK, JOB_WORK_MIN, LEAD, LEAD_TIME, NOC, PARTS, SITE, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
 import { dayOf, formatClock } from '../core/time';
 import { deliveryTime } from './economy';
 import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
 import { upsCapacityKwh } from './backup';
 import { droughtActive } from './site';
 import { answerPager, sendUpdate, setCommander } from './nights';
+import { buildSite, SITE_KINDS } from './campus';
 import { changeRisk, changeTitle, orderInfra, scheduleChange } from './changes';
 import { resolveAttack } from './cyber';
 import { isWalkable, nearestTile, tileAt } from './grid';
 import { addLog, homeSpot, homeTile, makeCandidate, newId, showTip, techFromCandidate } from './state';
 import { blockedTiles, contractById, deviceById, hasFeature, rackById, slotFree, techById } from './selectors';
-import type { AlarmKind, Cooler, Facing, GameState, JobKind, PartId, ProjectId, ServerModelId, Vec } from './types';
+import type { SiteKind, SiteTier, AlarmKind, Cooler, Facing, GameState, JobKind, PartId, ProjectId, ServerModelId, Vec } from './types';
 
 type TechChoice = string | 'best';
 
@@ -38,6 +40,15 @@ export type Command =
   | { type: 'skipChange'; changeId: string }
   | { type: 'setFreeze'; on: boolean }
   | { type: 'expediteInfra'; id: string }
+  | { type: 'launchRepair'; deviceId?: string; rackId?: string }
+  | { type: 'buildSite'; kind: SiteKind; tier: SiteTier }
+  | { type: 'siteStaff'; siteId: string }
+  | { type: 'siteHelp'; alertId: string }
+  | { type: 'takeLoan' }
+  | { type: 'repayLoan' }
+  | { type: 'takeInvestor' }
+  | { type: 'setPowerContract'; mode: 'fixed' | 'spot' }
+  | { type: 'communityFund' }
   | { type: 'setNightCrew'; techId: string; on: boolean }
   | { type: 'answerPager'; how: 'now' | 'hold' }
   | { type: 'setCommander'; techId: string | null }
@@ -156,8 +167,11 @@ export function applyCommand(s: GameState, cmd: Command, opts: { auto?: boolean 
   return res;
 }
 
+const PHYSICAL: ReadonlySet<Command['type']> = new Set(['dispatch', 'install', 'buildRack', 'placeCooler', 'serviceCooler', 'repairCooler', 'hire', 'startProject', 'hireLead']);
+
 function exec(s: GameState, cmd: Command): CommandResult {
   if (s.progress.status !== 'playing') return fail('The chapter is over.');
+  if (s.frontier && PHYSICAL.has(cmd.type)) return fail('There are no technicians in orbit. Launch a spare instead.');
   switch (cmd.type) {
     case 'dispatch': {
       if (cmd.job === 'favor') {
@@ -502,6 +516,97 @@ function exec(s: GameState, cmd: Command): CommandResult {
       p.at = Math.max(s.minute + 60, p.at - LEAD_TIME.expediteDays * 1440);
       p.expedited = true;
       addLog(s, 'money', `📦 Expedited ${LEAD_TIME[p.kind].name} order: ${LEAD_TIME.expediteDays} day sooner for $${price}.`);
+      return ok();
+    }
+    case 'launchRepair': {
+      if (!s.frontier) return fail('Only the Frontier floor launches spares.');
+      const cost = Math.round(s.frontier.launchPerKg * FRONTIER.kgPerRepair);
+      if (s.cash < cost) return fail('Not enough cash for the launch.');
+      const dev = deviceById(s, cmd.deviceId ?? null);
+      const rack = rackById(s, cmd.rackId ?? dev?.rackId ?? null);
+      if (!dev && !rack) return fail('Pick a server or a rack.');
+      s.cash -= cost;
+      if (dev) {
+        dev.faults = [];
+        clearAlarms(s, (a) => a.deviceId === dev.id);
+      }
+      if (rack) {
+        rack.tripped = false;
+        rack.switchFailed = false;
+        if (!dev) clearAlarms(s, (a) => a.rackId === rack.id && !a.deviceId);
+      }
+      addLog(s, 'success', `🚀 A spare was launched for $${cost.toLocaleString('en-US')} (${FRONTIER.kgPerRepair} kg at $${Math.round(s.frontier.launchPerKg)}/kg). The robot arm swapped it in.`);
+      return ok();
+    }
+    case 'buildSite': {
+      if (!hasFeature(s, 'campus')) return fail('The campus unlocks in Chapter 10.');
+      return buildSite(s, cmd.kind, cmd.tier);
+    }
+    case 'siteStaff': {
+      const site = s.campus?.sites.find((x) => x.id === cmd.siteId);
+      if (!site) return fail('Unknown site.');
+      if (site.staff >= 2) return fail('That site is fully staffed.');
+      if (s.cash < CAMPUS.staffUpgrade) return fail('Not enough cash.');
+      s.cash -= CAMPUS.staffUpgrade;
+      site.staff = (site.staff + 1) as 1 | 2;
+      addLog(s, 'success', `👷 ${SITE_KINDS[site.kind].name}: a bigger local team. Fewer incidents, a little more goodwill.`);
+      return ok();
+    }
+    case 'siteHelp': {
+      const c = s.campus;
+      const al = c?.alerts.find((x) => x.id === cmd.alertId);
+      if (!c || !al) return fail('That alert is gone.');
+      if (al.helped) return fail('Help is already on the way.');
+      if (s.cash < CAMPUS.helpCost) return fail('Not enough cash.');
+      s.cash -= CAMPUS.helpCost;
+      al.helped = true;
+      addLog(s, 'info', '🚁 You flew a team in: the damage will be much smaller.');
+      return ok();
+    }
+    case 'takeLoan': {
+      const c = s.campus;
+      if (!c || !hasFeature(s, 'finance')) return fail('Financing unlocks in Chapter 10.');
+      if (c.loan > 0) return fail('Repay the current loan first.');
+      c.loan = CAMPUS.loanPrincipal;
+      s.cash += CAMPUS.loanPrincipal;
+      c.flows.proceeds += CAMPUS.loanPrincipal;
+      addLog(s, 'money', `🏦 Loan of $${CAMPUS.loanPrincipal.toLocaleString('en-US')} at ${CAMPUS.loanInterestPerDay * 100}% a day.`);
+      return ok();
+    }
+    case 'repayLoan': {
+      const c = s.campus;
+      if (!c || c.loan <= 0) return fail('There is no loan.');
+      if (s.cash < c.loan) return fail('Not enough cash to repay it.');
+      s.cash -= c.loan;
+      c.flows.repaid += c.loan;
+      c.loan = 0;
+      addLog(s, 'money', '🏦 Loan repaid.');
+      return ok();
+    }
+    case 'takeInvestor': {
+      const c = s.campus;
+      if (!c || !hasFeature(s, 'finance')) return fail('Financing unlocks in Chapter 10.');
+      if (c.investor) return fail('You already have an investor.');
+      c.investor = true;
+      s.cash += CAMPUS.investorCash;
+      c.flows.proceeds += CAMPUS.investorCash;
+      addLog(s, 'money', `💼 An investor puts in $${CAMPUS.investorCash.toLocaleString('en-US')}. The board now expects ${CAMPUS.investorTargetMult}× the profit.`);
+      return ok();
+    }
+    case 'setPowerContract': {
+      const c = s.campus;
+      if (!c || !hasFeature(s, 'finance')) return fail('Power contracts unlock in Chapter 10.');
+      c.power = cmd.mode;
+      addLog(s, 'info', cmd.mode === 'spot' ? '⚡ Spot power: cheaper on average, but the price swings every day.' : '⚡ Fixed-price power: predictable.');
+      return ok();
+    }
+    case 'communityFund': {
+      const c = s.campus;
+      if (!c) return fail('There is no campus.');
+      if (s.cash < CAMPUS.communityFund) return fail('Not enough cash.');
+      s.cash -= CAMPUS.communityFund;
+      c.goodwill = Math.min(100, c.goodwill + CAMPUS.communityFundGoodwill);
+      addLog(s, 'success', '🌳 A community fund for the neighbours: goodwill goes up.');
       return ok();
     }
     case 'setNightCrew': {

@@ -8,7 +8,7 @@ import type { GameState } from '../src/sim/types';
 /** A simple bot standing in for a competent player: fix every alarm, keep spares, fill contracts. */
 export type Defend = 'auto' | 'perfect' | 'ignore';
 
-export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean; energy?: 'planned' | 'passive'; legs?: 'dual' | 'single'; changes?: 'careful' | 'reckless'; ai?: 'planned' | 'passive'; night?: 'ready' | 'asleep' } = {}): void {
+export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean; energy?: 'planned' | 'passive'; legs?: 'dual' | 'single'; changes?: 'careful' | 'reckless'; ai?: 'planned' | 'passive'; night?: 'ready' | 'asleep'; campus?: 'expand' | 'idle' } = {}): void {
   // cyber attacks: skip the micro-game (half strength), play it perfectly, or never answer
   if (s.cyber.attack && opts.defend !== 'ignore') {
     if (opts.defend === 'perfect') applyCommand(s, { type: 'resolveAttack', score: 1, mode: 'played', infected: [] });
@@ -48,6 +48,16 @@ export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend;
       const cand = s.candidates.find((c) => c.role === role);
       if (!s.techs.some((t) => t.role === role) && cand) applyCommand(s, { type: 'hire', candidateId: cand.id });
     }
+  }
+  // campus: expand site by site, staff them, fly help to incidents, keep the neighbours happy
+  if (s.campus && opts.campus !== 'idle') {
+    const c = s.campus;
+    const order = [['harbour', 'edge'], ['nordic', 'edge'], ['metro', 'edge']] as const;
+    const next = order.find(([k]) => !c.sites.some((x) => x.kind === k));
+    if (next && !c.moratorium && c.sites.filter((x) => x.status === 'building').length < 1 && s.cash > 50000 + 18000) applyCommand(s, { type: 'buildSite', kind: next[0], tier: next[1] });
+    for (const site of c.sites) if (site.status === 'live' && site.staff < 1 && s.cash > 12000) applyCommand(s, { type: 'siteStaff', siteId: site.id });
+    for (const a of c.alerts) if (!a.helped && s.cash > 4000) applyCommand(s, { type: 'siteHelp', alertId: a.id });
+    if (c.goodwill < 40 && s.cash > 9000) applyCommand(s, { type: 'communityFund' });
   }
   // nights: a rota of one, answer the pager, run the incident honestly
   if (s.features.includes('nights') && opts.night !== 'asleep') {
