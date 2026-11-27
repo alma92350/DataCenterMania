@@ -1,5 +1,6 @@
 import { createBackup } from './backup';
 import { createSite } from './site';
+import { createLoop } from './liquid';
 import { createRng, pick, randInt, rand } from '../core/rng';
 import { dayOf } from '../core/time';
 import { COOLERS, MORALE, RACK_CAPACITY_U } from '../data/catalog';
@@ -181,6 +182,7 @@ export function createGame(chapterId: ChapterId, difficulty: DifficultyId, seed:
   s.progress.peakCash = s.cash;
   s.progress.startCash = s.cash;
   if (ch.siteCapW) s.site = createSite(ch.siteCapW);
+  if (ch.loopCdus) s.loop = createLoop(ch.loopCdus);
   if (ch.backup) s.backup = createBackup(ch.backup.ups, ch.backup.health, ch.backup.generator, ch.backup.fuelMin);
 
   map.racks.forEach((pos, i) => s.racks.push(makeRack(s, pos, ch.rackPowerBudgetW, ch.rackFacing?.[i] ?? 'S')));

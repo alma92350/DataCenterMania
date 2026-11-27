@@ -60,7 +60,7 @@ export function updateDemand(s: GameState, dt: number): void {
         ? `${contractLabel(c)} is live! SLA measurement starts now.`
         : `${contractLabel(c)}: setup time is over. SLA measurement starts now, ready or not!`);
     }
-    const ok = capacity + 1e-9 >= needed && (bandwidthOk || c.bandwidthPerUnit === 0) && esgOk(s, c.pueMax);
+    const ok = capacity + 1e-9 >= needed && (bandwidthOk || c.bandwidthPerUnit === 0) && esgOk(s, c.pueMax) && !((c.pausedUntil ?? 0) > s.minute);
     const load = capacity > 0 ? Math.min(1, needed / capacity) : 0;
     for (const d of live) d.load = Math.max(IDLE_LOAD, load);
     c.minutesToday += dt;

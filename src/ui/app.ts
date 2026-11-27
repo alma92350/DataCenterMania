@@ -525,6 +525,15 @@ export class App {
       case 'orderGrid':
         this.run({ type: 'orderGrid' });
         return;
+      case 'buyAiTech':
+        this.run({ type: 'buyAiTech', tech: d.tech as 'rearDoor' });
+        return;
+      case 'trainLiquid':
+        this.run({ type: 'trainLiquid', techId: d.tech! });
+        return;
+      case 'orderCdu':
+        this.run({ type: 'orderCdu' });
+        return;
       case 'upgradeNoc':
         this.run({ type: 'upgradeNoc' });
         return;

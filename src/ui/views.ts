@@ -1,4 +1,4 @@
-import { BACKUP, CHANGES, CONTRACT_GRACE_MIN, COOLERS, ENERGY, LEAD_TIME, NOC, SITE, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
+import { AI, BACKUP, CHANGES, CONTRACT_GRACE_MIN, COOLERS, ENERGY, LEAD_TIME, NOC, SITE, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
 import { CHAPTERS, CHAPTER_ORDER } from '../data/chapters';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
@@ -26,6 +26,8 @@ import { bestStars, isDifficultyUnlocked, isSandboxUnlocked, isUnlocked, type Pr
 import { spofCount } from '../sim/spof';
 import { changeRisk, changeTitle, openChanges, tonight } from '../sim/changes';
 import { resilience } from '../sim/resilience';
+import { aiContracts, aiEffective, interruptRatePerMin, lossMinutes } from '../sim/ai';
+import { loopCapacityKw, loopHeatKw } from '../sim/liquid';
 import { capacityReport, fitPreview, formatPower, powerScale } from '../sim/capacity';
 import { droughtActive, facilityW, freeShare, outdoorC, pueAverage, pueNow } from '../sim/site';
 import { feedOk, onOneLeg } from '../sim/selectors';
@@ -325,6 +327,41 @@ export function backupPanel(s: GameState): string {
     <p class="muted small">Only an <b>electrician</b> works at full speed on power jobs. Hire one in the Team tab.</p>`;
 }
 
+export function aiCard(s: GameState): string {
+  const loop = s.loop;
+  if (!loop || !hasFeature(s, 'liquid')) return '';
+  const sc = powerScale(s);
+  const heat = loopHeatKw(s);
+  const cap = loopCapacityKw(s);
+  const queued = (s.pendingInfra ?? []).filter((p) => p.kind === 'cdu');
+  const tech = s.aiTech;
+  const specialists = s.techs.filter((x) => x.role === 'hvac' || x.role === 'elec');
+  const ai = aiContracts(s);
+  const tiers = (Object.keys(AI.tech) as (keyof typeof AI.tech)[]).map((k) => {
+    const def = AI.tech[k];
+    const have = !!tech?.[k];
+    const blocked = k === 'coldPlates' && !tech?.rearDoor;
+    return `<li><div class="row"><b>${e(t(def.name))}</b><span class="chip ${have ? 'ok' : 'muted'}">${have ? t('Installed') : money(def.price)}</span></div>
+      <div class="row meta">${e(t(def.blurb))}</div>
+      ${have ? '' : `<div class="row actions"><button class="primary" data-action="buyAiTech" data-tech="${k}" ${s.cash < def.price || blocked ? 'disabled' : ''}>${t('Buy')}${blocked ? ` · ${t('needs')} ${t(AI.tech.rearDoor.name)}` : ''}</button></div>`}</li>`;
+  }).join('');
+  return `<h3>🧊 ${t('Liquid loop and AI')}</h3>
+    <div class="report"><span>${t('Coolant units')}</span><b>${loop.cdusOk} / ${loop.cdus} ${t('working')}</b>
+      <span>${t('Loop heat / capacity')}</span><b class="${heat > cap ? 'bad' : heat > cap * 0.8 ? 'warn' : 'ok'}">${heat.toFixed(1)} / ${cap.toFixed(0)} kW</b>
+      ${ai.length ? `<span>${t('Effective training time')}</span><b class="${aiEffective(s) >= 90 ? 'ok' : 'warn'}">${aiEffective(s).toFixed(1)}%</b>
+      <span>${t('Interruptions')}</span><b>${ai.reduce((n, c) => n + (c.aiInterrupts ?? 0), 0)} · ${t('each costs')} ${lossMinutes(s)} min</b>` : ''}</div>
+    <div class="bar big"><div style="width:${cap > 0 ? Math.min(100, (heat / cap) * 100) : 100}%" class="${heat > cap ? 'bad' : ''}"></div></div>
+    ${loop.cdusOk < loop.cdus ? `<div class="banner bad"><span>💧 ${t('A coolant pump failed')}</span>${s.jobs.some((j) => j.kind === 'repairPump') ? '<span class="busy">🔧 …</span>' : `<button class="primary" data-action="dispatchPower" data-job="repairPump">${t('Repair coolant pump')}</button>`}</div>` : ''}
+    ${loop.leakRackId ? `<div class="banner bad"><span>💧 ${t('Coolant leak: a rack is isolated')}</span>${s.jobs.some((j) => j.kind === 'repairLeak') ? '<span class="busy">🔧 …</span>' : `<button class="primary" data-action="dispatchPower" data-job="repairLeak">${t('Repair coolant leak')}</button>`}</div>` : ''}
+    <div class="row actions">${loop.cdus + queued.length < 4 ? `<button data-action="orderCdu" ${s.cash < AI.cduPrice ? 'disabled' : ''}>${t('Order coolant unit')} ${money(AI.cduPrice)} · ${LEAD_TIME.cdu.days} ${t('days')}</button>` : ''}
+      ${queued.map((p) => `<span class="chip warn">📦 ${t('ETA')} ${formatClock(p.at)}</span>${p.expedited ? '' : `<button class="ghost" data-action="expediteInfra" data-id="${e(p.id)}">${t('Expedite')}</button>`}`).join('')}</div>
+    <ul class="list">${tiers}</ul>
+    <h3>🎓 ${t('Liquid-cooling training')}</h3>
+    <ul class="list">${specialists.length ? specialists.map((x) => `<li><div class="row"><b>${e(x.name)}</b><span class="chip ${x.liquid ? 'ok' : 'muted'}">${x.liquid ? ((x.lockedUntil ?? 0) > s.minute ? t('In training') : t('Trained')) : t('Untrained: liquid work takes twice as long')}</span></div>
+      ${x.liquid ? '' : `<div class="row actions"><button data-action="trainLiquid" data-tech="${e(x.id)}" ${s.cash < AI.trainPrice ? 'disabled' : ''}>${t('Train')} ${money(AI.trainPrice)} · ${AI.trainMin / 60} h</button></div>`}</li>`).join('') : `<li class="muted small">${t('Hire an HVAC technician or an electrician first.')}</li>`}</ul>
+    <p class="muted small">${t('Interruption rate for a cluster of 4:')} ${(interruptRatePerMin(s, 4) * 1440).toFixed(1)} ${t('per day')}</p>`;
+}
+
 export function siteChip(s: GameState): string {
   const site = s.site;
   if (!site) return '';
@@ -414,7 +451,7 @@ export function networkPanel(s: GameState): string {
   const used = s.bandwidthUsed;
   const pct = cap > 0 ? (used / cap) * 100 : 100;
   const failed = s.racks.filter((r) => r.switchFailed);
-  return `${energyCard(s)}${capacityCard(s)}${backupPanel(s)}${redundancyCard(s)}
+  return `${aiCard(s)}${energyCard(s)}${capacityCard(s)}${backupPanel(s)}${redundancyCard(s)}
     <h3>${t('Uplink traffic')}</h3>
     <div class="report"><span>Using</span><b class="${used > cap ? 'bad' : pct > 90 ? 'warn' : ''}">${used.toFixed(1)} / ${cap} Gbps</b></div>
     <div class="bar big"><div style="width:${Math.min(100, pct)}%" class="${pct > 90 ? 'bad' : ''}"></div></div>
@@ -542,12 +579,14 @@ function deviceRow(s: GameState, d: Device): string {
     .map((c) => `<option value="${e(c.id)}" ${c.id === d.contractId ? 'selected' : ''}>${e(contractLabel(c))}</option>`)
     .join('')}`;
   const legs = hasFeature(s, 'redundancy') ? ((d.psus ?? 1) === 2 ? (onOneLeg(s, d) ? `<span class="chip warn">${t('one leg')}</span>` : `<span class="chip ok">${t('two legs')}</span>`) : `<span class="chip bad">${t('one leg')}</span>`) : '';
+  const rackOf = rackById(s, d.rackId);
+  const gpuBtn = hasFeature(s, 'liquid') && rackOf?.liquid && !d.gpu && d.model === 'server2u' && !job ? `<button class="primary" data-action="dispatchDevice" data-job="gpuUpgrade" data-device="${e(d.id)}" ${s.cash < AI.gpuUpgradePrice ? 'disabled' : ''}>${t('Fit GPUs')} ${money(AI.gpuUpgradePrice)}</button>` : '';
   const dual = hasFeature(s, 'redundancy') && (d.psus ?? 1) !== 2 && !job ? `<button data-action="dispatchDevice" data-job="dualCord" data-device="${e(d.id)}" ${s.inventory.psu < 1 ? 'disabled' : ''}>${t('Dual-cord')}</button>` : '';
   return `<li class="slot dev ${cls}" style="--u:${m.u}">
-    <div class="row"><span class="u">U${d.slot + 1}${m.u > 1 ? `-${d.slot + m.u}` : ''}</span><span class="ico xs">${partSvg(d.model)}</span><b>${e(m.name)}</b><span class="chip ${cls}">${status}</span>${legs}</div>
+    <div class="row"><span class="u">U${d.slot + 1}${m.u > 1 ? `-${d.slot + m.u}` : ''}</span><span class="ico xs">${partSvg(d.model)}</span><b>${e(m.name)}</b><span class="chip ${cls}">${status}</span>${legs}${d.gpu ? '<span class="chip ok">GPU</span>' : ''}${d.faults.includes('corrupt') ? `<span class="chip bad">${t('corrupted')}</span>` : ''}</div>
     <div class="row meta">${d.faults.map((f) => `⚠ ${e(f)}`).join(' ')} ${up ? `Load ${(d.load * 100).toFixed(0)}%` : ''} ${contract ? `· for ${e(contractLabel(contract))}` : ''}</div>
     <div class="row actions">
-      ${job ? `<span class="busy">🔧 ${e(JOB_LABEL[job.kind])}…</span>` : fixes}${dual}
+      ${job ? `<span class="busy">🔧 ${e(JOB_LABEL[job.kind])}…</span>` : fixes}${gpuBtn}${dual}
       <select data-action="assign" data-device="${e(d.id)}" aria-label="Customer">${contractOptions}</select>
       <button data-action="power" data-device="${e(d.id)}" data-on="${d.poweredOn ? '0' : '1'}">${d.poweredOn ? 'Power off' : 'Power on'}</button>
       ${job ? '' : `<button class="ghost danger" data-action="dispatchDevice" data-job="remove" data-device="${e(d.id)}">Remove</button>`}
@@ -578,6 +617,7 @@ export function rackModal(s: GameState, rackId: string): string {
         : `<button data-action="dispatchRack" data-job="rotateRack" data-rack="${e(rack.id)}">↻ Rotate (servers offline ~1h)</button>`}</div>` : ''}
     ${rack.switchFailed ? `<div class="banner bad">🔀 Top-of-rack switch failed: every server here is offline.
       ${s.jobs.some((j) => j.kind === 'replaceSwitch' && j.rackId === rack.id) ? '<span class="busy">🔧 On it</span>' : `<button class="primary" data-action="dispatchRack" data-job="replaceSwitch" data-rack="${e(rack.id)}">Replace switch</button>`}</div>` : ''}
+    ${hasFeature(s, 'liquid') ? `<div class="banner ${rack.liquid ? 'info' : 'warn'}"><span>${rack.liquid ? `🧊 ${t('On the liquid loop')}` : `🌬️ ${t('Air-cooled')}`}</span>${rack.liquid || !s.aiTech?.coldPlates ? '' : (s.jobs.some((j) => j.kind === 'convertLiquid' && j.rackId === rack.id) ? '<span class="busy">🔧 …</span>' : `<button data-action="dispatchRack" data-job="convertLiquid" data-rack="${e(rack.id)}">${t('Convert to liquid')} ${money(AI.convertPrice)}</button>`)}</div>` : ''}
     ${hasFeature(s, 'redundancy') ? (['A', 'B'] as const).map((f) => `<div class="banner ${feedOk(rack, f) ? 'info' : 'bad'}"><span>⚡ ${t('Feed')} ${f}: <b>${feedOk(rack, f) ? 'OK' : t('FAILED')}</b></span>${feedOk(rack, f) ? '' : (s.jobs.some((j) => j.kind === 'repairPdu' && j.rackId === rack.id) ? '<span class="busy">🔧 …</span>' : `<button class="primary" data-action="dispatchFeed" data-rack="${e(rack.id)}" data-feed="${f}">${t('Repair power feed')}</button>`)}</div>`).join('') : ''}
     ${rack.tripped ? `<div class="banner bad">⚡ Breaker tripped. The whole rack is down. ${breakerJob ? '🔧 Someone is on the way.' : `<button class="primary" data-action="dispatchRack" data-job="resetBreaker" data-rack="${e(rack.id)}">Reset breaker</button>`}
       <div class="small">Tip: if the rack still draws more than its budget, it will trip again. Remove or power off servers first.</div></div>` : ''}

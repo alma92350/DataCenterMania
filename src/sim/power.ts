@@ -1,4 +1,4 @@
-import { SERVER_MODELS } from '../data/catalog';
+import { AI, SERVER_MODELS } from '../data/catalog';
 import { clearAlarms, raiseAlarm } from './alarms';
 import { addLog, showTip } from './state';
 import { facilityW } from './site';
@@ -11,8 +11,10 @@ export function devicePowerW(s: GameState, d: Device): number {
   const legs = legsUp(s, d);
   if (!legs.a && !legs.b) return 0;
   const m = SERVER_MODELS[d.model];
-  if (d.faults.includes('hung')) return m.idleW;
-  return m.idleW + (m.maxW - m.idleW) * d.load;
+  const k = d.gpu ? AI.gpuPowerMult : 1;
+  if (d.faults.includes('hung')) return m.idleW * k;
+  const spike = d.gpu && s.spike && s.minute < s.spike.until ? s.spike.mult : 1;
+  return (m.idleW + (m.maxW - m.idleW) * d.load) * k * spike;
 }
 
 export function updatePower(s: GameState): void {

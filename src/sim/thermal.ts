@@ -1,3 +1,5 @@
+import { AI } from '../data/catalog';
+import { liquidTarget } from './liquid';
 import { AISLES, COOLERS, MAINTENANCE, THERMAL } from '../data/catalog';
 import { clearAlarms, raiseAlarm } from './alarms';
 import { addLog, showTip } from './state';
@@ -77,8 +79,8 @@ export function updateThermal(s: GameState, dt: number): void {
   const alpha = 1 - Math.exp(-dt / THERMAL.tau);
   for (const rack of s.racks) {
     rack.recirculation = recirculation.get(rack.id) ?? 0;
-    const target = rackTargetTemp(s, rack, cooling.get(rack.id)!);
-    rack.temp += (target - rack.temp) * alpha;
+    if (rack.liquid) rack.temp += (liquidTarget(s, rack) - rack.temp) * (1 - Math.exp(-dt / AI.loopTau));
+    else rack.temp += (rackTargetTemp(s, rack, cooling.get(rack.id)!) - rack.temp) * alpha;
     s.stats.peakTemp = Math.max(s.stats.peakTemp, rack.temp);
     const devices = devicesInRack(s, rack.id);
     const rackNo = s.racks.indexOf(rack) + 1;

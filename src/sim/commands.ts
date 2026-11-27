@@ -1,5 +1,5 @@
 import { contractLabel } from './naming';
-import { BACKUP, CONTRACT_GRACE_MIN, ENERGY, EXTRA_UPLINK, JOB_WORK_MIN, LEAD, LEAD_TIME, NOC, PARTS, SITE, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
+import { AI, BACKUP, CONTRACT_GRACE_MIN, ENERGY, EXTRA_UPLINK, JOB_WORK_MIN, LEAD, LEAD_TIME, NOC, PARTS, SITE, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
 import { dayOf, formatClock } from '../core/time';
 import { deliveryTime } from './economy';
 import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
@@ -37,6 +37,9 @@ export type Command =
   | { type: 'skipChange'; changeId: string }
   | { type: 'setFreeze'; on: boolean }
   | { type: 'expediteInfra'; id: string }
+  | { type: 'buyAiTech'; tech: keyof typeof AI.tech }
+  | { type: 'trainLiquid'; techId: string }
+  | { type: 'orderCdu' }
   | { type: 'setCooling'; mode: 'evaporative' | 'dry' }
   | { type: 'buyEconomizer' }
   | { type: 'setRenewable'; on: boolean }
@@ -51,7 +54,7 @@ export type Command =
   | { type: 'setAutoDispatch'; on: boolean }
   | { type: 'startProject'; project: ProjectId; techId?: TechChoice };
 
-export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor' | 'reimage' | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel' | 'repairPdu' | 'dualCord' | 'resetMain' | 'repairOob'>;
+export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor' | 'reimage' | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel' | 'repairPdu' | 'dualCord' | 'resetMain' | 'repairOob' | 'convertLiquid' | 'gpuUpgrade' | 'repairPump' | 'repairLeak'>;
 
 export type CommandResult = { ok: true } | { ok: false; error: string };
 
@@ -85,6 +88,12 @@ export function suggestedJob(kind: AlarmKind): DispatchJob | null {
       return 'repairPdu';
     case 'siteCap':
       return 'resetMain';
+    case 'pump':
+      return 'repairPump';
+    case 'leak':
+      return 'repairLeak';
+    case 'corrupt':
+      return 'reboot';
     case 'oob':
       return 'repairOob';
     case 'fuel':
@@ -97,7 +106,7 @@ export function suggestedJob(kind: AlarmKind): DispatchJob | null {
 const REPAIR_NEEDS: Record<string, { fault?: string[]; part: PartId | null }> = {
   swapDisk: { fault: ['disk', 'dataloss'], part: 'disk' },
   replacePsu: { fault: ['psu'], part: 'psu' },
-  reboot: { fault: ['hung'], part: null },
+  reboot: { fault: ['hung', 'corrupt'], part: null },
   remove: { part: null },
 };
 
@@ -185,6 +194,37 @@ function exec(s: GameState, cmd: Command): CommandResult {
         if (s.jobs.some((j) => j.kind === 'repairUplink' && j.uplinkId === u.id)) return fail('Someone is already on it.');
         const site = nearestTile(s.grid, 'dock', homeTile(s)) ?? homeTile(s);
         return dispatchJob(s, { kind: 'repairUplink', uplinkId: u.id, part: null, site }, cmd.techId);
+      }
+      if (cmd.job === 'repairPump' || cmd.job === 'repairLeak') {
+        const loop = s.loop;
+        if (!loop) return fail('This site has no coolant loop.');
+        if (cmd.job === 'repairPump' && loop.cdusOk >= loop.cdus) return fail('Every pump is working.');
+        if (cmd.job === 'repairLeak' && !loop.leakRackId) return fail('There is no leak.');
+        if (s.jobs.some((j) => j.kind === cmd.job)) return fail('Someone is already on it.');
+        const where = rackById(s, loop.leakRackId)?.pos ?? nearestTile(s.grid, 'dock', homeTile(s)) ?? homeTile(s);
+        return dispatchJob(s, { kind: cmd.job, rackId: loop.leakRackId, part: null, site: where }, cmd.techId);
+      }
+      if (cmd.job === 'convertLiquid') {
+        if (!s.aiTech?.coldPlates || !s.loop) return fail('Buy the Cold plates upgrade first.');
+        const rack = rackById(s, cmd.rackId ?? null);
+        if (!rack) return fail('Unknown rack.');
+        if (rack.liquid) return fail('That rack is already on the loop.');
+        if (s.jobs.some((j) => j.kind === 'convertLiquid' && j.rackId === rack.id)) return fail('Someone is already on it.');
+        if (s.cash < AI.convertPrice) return fail('Not enough cash.');
+        s.cash -= AI.convertPrice;
+        return dispatchJob(s, { kind: 'convertLiquid', rackId: rack.id, part: null, site: rack.pos }, cmd.techId);
+      }
+      if (cmd.job === 'gpuUpgrade') {
+        const dev = deviceById(s, cmd.deviceId ?? null);
+        if (!dev) return fail('Unknown server.');
+        const rack = rackById(s, dev.rackId);
+        if (!rack?.liquid) return fail('GPU servers need a liquid-cooled rack.');
+        if (dev.gpu) return fail('That server already has GPUs.');
+        if (dev.model !== 'server2u') return fail('Only 2U servers can take GPUs.');
+        if (pendingFor(s, 'gpuUpgrade', dev.id)) return fail('Someone is already on it.');
+        if (s.cash < AI.gpuUpgradePrice) return fail('Not enough cash.');
+        s.cash -= AI.gpuUpgradePrice;
+        return dispatchJob(s, { kind: 'gpuUpgrade', rackId: rack.id, deviceId: dev.id, part: null, site: rack.pos }, cmd.techId);
       }
       if (cmd.job === 'resetMain' || cmd.job === 'repairOob') {
         const site = s.site;
@@ -451,12 +491,47 @@ function exec(s: GameState, cmd: Command): CommandResult {
       const p = s.pendingInfra?.find((x) => x.id === cmd.id);
       if (!p) return fail('That order is not pending.');
       if (p.expedited) return fail('Already expedited.');
-      const price = Math.round((p.kind === 'ups' ? BACKUP.upsPrice : p.kind === 'grid' ? SITE.stepPrice : BACKUP.generatorPrice) * LEAD_TIME.expediteShare);
+      const price = Math.round((p.kind === 'ups' ? BACKUP.upsPrice : p.kind === 'grid' ? SITE.stepPrice : p.kind === 'cdu' ? AI.cduPrice : BACKUP.generatorPrice) * LEAD_TIME.expediteShare);
       if (s.cash < price) return fail('Not enough cash.');
       s.cash -= price;
       p.at = Math.max(s.minute + 60, p.at - LEAD_TIME.expediteDays * 1440);
       p.expedited = true;
       addLog(s, 'money', `📦 Expedited ${LEAD_TIME[p.kind].name} order: ${LEAD_TIME.expediteDays} day sooner for $${price}.`);
+      return ok();
+    }
+    case 'buyAiTech': {
+      if (!hasFeature(s, 'ai')) return fail('The AI technology ladder unlocks in Chapter 8.');
+      const def = AI.tech[cmd.tech];
+      s.aiTech ??= { rearDoor: false, coldPlates: false, checkpoint: false, autoRestart: false, battery: false };
+      if (s.aiTech[cmd.tech]) return fail('You already have that.');
+      if (cmd.tech === 'coldPlates' && !s.aiTech.rearDoor) return fail('Fit rear-door coolers first: each tier builds on the last.');
+      if (s.cash < def.price) return fail('Not enough cash.');
+      s.cash -= def.price;
+      s.aiTech[cmd.tech] = true;
+      if (cmd.tech === 'rearDoor') for (const r of s.racks) if (!r.liquid) r.powerBudgetW = Math.round(r.powerBudgetW * 1.4);
+      addLog(s, 'success', `🧰 ${def.name}: ${def.blurb}`);
+      return ok();
+    }
+    case 'trainLiquid': {
+      if (!hasFeature(s, 'liquid')) return fail('Liquid cooling unlocks in Chapter 8.');
+      const t = techById(s, cmd.techId);
+      if (!t || t.role === 'manager' || t.role === 'lead') return fail('Pick a specialist.');
+      if (t.liquid) return fail('Already trained.');
+      if (s.cash < AI.trainPrice) return fail('Not enough cash.');
+      s.cash -= AI.trainPrice;
+      t.liquid = true;
+      t.lockedUntil = s.minute + AI.trainMin;
+      addLog(s, 'success', `🎓 ${t.name} is on a liquid-cooling course for ${AI.trainMin / 60} hours.`);
+      return ok();
+    }
+    case 'orderCdu': {
+      if (!s.loop) return fail('This site has no coolant loop.');
+      const queued = (s.pendingInfra ?? []).filter((p) => p.kind === 'cdu').length;
+      if (s.loop.cdus + queued >= 4) return fail('The plant room is full.');
+      if (s.cash < AI.cduPrice) return fail('Not enough cash.');
+      s.cash -= AI.cduPrice;
+      orderInfra(s, 'cdu');
+      addLog(s, 'success', `📦 Coolant unit ordered: arrives in ${LEAD_TIME.cdu.days} days.`);
       return ok();
     }
     case 'setCooling': {

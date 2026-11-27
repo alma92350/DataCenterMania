@@ -21,18 +21,18 @@ export interface Grid {
 }
 
 export type DifficultyId = 'intern' | 'sysadmin' | 'senior' | 'nightmare';
-export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'ch6' | 'ch7' | 'hack';
+export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'ch6' | 'ch7' | 'ch8' | 'hack';
 export type FeatureFlag =
   | 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote'
   | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance'
-  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup' | 'redundancy' | 'changes' | 'capacity' | 'energy';
+  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup' | 'redundancy' | 'changes' | 'capacity' | 'energy' | 'liquid' | 'ai';
 
 export type PartId =
   | 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc'
   | 'crac' | 'filter' | 'switch' | 'coffee';
 export type ServerModelId = 'server1u' | 'server2u';
 
-export type FaultKind = 'disk' | 'dataloss' | 'psu' | 'hung' | 'malware';
+export type FaultKind = 'disk' | 'dataloss' | 'psu' | 'hung' | 'malware' | 'corrupt';
 
 export interface Device {
   id: string;
@@ -44,6 +44,8 @@ export interface Device {
   thermalShutdown: boolean;
   /** Power supplies: 1 = single-corded on feed A, 2 = dual-corded on A and B. Missing means 1. */
   psus?: 1 | 2;
+  /** GPU server: five times the power, two and a half times the compute (v1.5). */
+  gpu?: boolean;
   contractId: string | null;
   load: number; // 0..1, computed each tick
 }
@@ -73,6 +75,8 @@ export interface Rack {
   fw?: boolean;
   /** PDU maintenance was done: feed failures are much rarer here (v1.3). */
   pduHardened?: boolean;
+  /** Direct-to-chip liquid cooling on the loop (v1.5). */
+  liquid?: boolean;
 }
 
 export type ChangeKind = 'firmware' | 'pduMaintenance' | 'coolerSwap' | 'capacityInstall';
@@ -115,9 +119,26 @@ export interface Site {
   waterOffToday: number;
 }
 
+/** Coolant loop for liquid racks (PRD v2 F6). */
+export interface Loop {
+  cdus: number;
+  /** Working coolant distribution units. */
+  cdusOk: number;
+  /** A leak: this rack is isolated (shut down) until repaired. */
+  leakRackId: string | null;
+}
+
+export interface AiTech {
+  rearDoor: boolean;
+  coldPlates: boolean;
+  checkpoint: boolean;
+  autoRestart: boolean;
+  battery: boolean;
+}
+
 export interface PendingInfra {
   id: string;
-  kind: 'ups' | 'generator' | 'grid';
+  kind: 'ups' | 'generator' | 'grid' | 'cdu';
   at: number;
   expedited: boolean;
 }
@@ -178,6 +199,8 @@ export interface Tech {
   onBreak: boolean;
   /** Phished: locked out of their account until this minute (v0.7). */
   lockedUntil?: number;
+  /** Trained on liquid cooling (v1.5). */
+  liquid?: boolean;
 }
 
 export interface Candidate {
@@ -193,7 +216,7 @@ export interface Candidate {
 export type JobKind =
   | 'swapDisk'
   | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel'
-  | 'repairPdu' | 'dualCord' | 'crossConnect' | 'change' | 'resetMain' | 'repairOob'
+  | 'repairPdu' | 'dualCord' | 'crossConnect' | 'change' | 'resetMain' | 'repairOob' | 'convertLiquid' | 'gpuUpgrade' | 'repairPump' | 'repairLeak'
   | 'replacePsu'
   | 'reboot'
   | 'resetBreaker'
@@ -236,6 +259,8 @@ export interface Job {
   walkinId?: string;
   feed?: 'A' | 'B';
   changeId?: string;
+  /** Liquid work by someone not trained on it takes twice as long. */
+  slowed?: boolean;
   /** Started by an idle specialist on their own initiative. */
   proactive?: boolean;
   botched?: boolean;
@@ -243,7 +268,7 @@ export interface Job {
 
 export type AlarmKind =
   | 'disk' | 'dataloss' | 'psu' | 'hung' | 'overheat' | 'breaker' | 'powerHigh'
-  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth' | 'malware' | 'gridDown' | 'generator' | 'battery' | 'ats' | 'fuel' | 'feed' | 'siteCap' | 'siteCapHigh' | 'oob';
+  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth' | 'malware' | 'gridDown' | 'generator' | 'battery' | 'ats' | 'fuel' | 'feed' | 'siteCap' | 'siteCapHigh' | 'oob' | 'pump' | 'leak' | 'corrupt';
 
 export interface Alarm {
   id: string;
@@ -288,6 +313,11 @@ export interface Contract {
   totalOkMinutes: number;
   /** ESG clause: the SLA also fails while the site PUE is above this (v1.4). */
   pueMax?: number;
+  /** AI training contract: the SLA is effective training time (v1.5). */
+  kind?: 'ai';
+  /** The cluster is restarting from an interruption until this minute. */
+  pausedUntil?: number;
+  aiInterrupts?: number;
 }
 
 export interface Uplink {
@@ -472,6 +502,13 @@ export interface GameState {
     changeFailed?: number;
     rmaCredit?: number;
   };
+  /** Liquid loop and the AI technology ladder (Chapter 8). */
+  loop?: Loop;
+  aiTech?: AiTech;
+  /** Tests: run AI interruptions even when other failures are off. */
+  aiForce?: boolean;
+  /** A synchronized power spike from a big training run starting. */
+  spike?: { mult: number; until: number };
   /** Site power, cooling mode, water and efficiency (Chapter 7+). */
   site?: Site;
   /** A demand surge such as Black Friday. */

@@ -468,7 +468,7 @@ All v1 guardrails stay in CI. New ones:
 | **v1.2 "Two Legs"** ✅ shipped | Redundancy | Dual PSU, A/B feeds, SPOF view (F1); cross-connect tickets (F7 partial); Chapter 6 arrives early with redundancy only | SPOF property tests ✓; bot feed-failure test ✓ (see §13) |
 | **v1.3 "Change Advisory Board"** ✅ shipped | Risk | Change management (F2), supply chain events (F12), long-lead equipment (P2), resilience levels (P14), Chapter 6 gets its second system | Change-risk tests ✓; guardrails hold in Ch6 ✓ (see §15) |
 | **v1.4 "Efficiency Drive"** ✅ shipped | Planning | DCIM capacity (F4), live PUE, free cooling, cooling modes, two water meters, grid cap and queue (F5, P1, P3), out-of-band link (P8), heat reuse (P12), Chapter 7, Black Friday event | PUE property tests ✓; Ch7 ★★★ bot-gated ✓ (see §16) |
-| **v1.5 "AI Factory"** | Density | Liquid cooling and GPU racks (F6), Chapter 8 | Thermal runaway tests; 60 fps on throttled phone |
+| **v1.5 "AI Factory"** ✅ shipped | Density | Liquid cooling and GPU racks (F6), effective training time (P6), density ladder (P5), battery buffer (P10), liquid training (P13), Chapter 8 | Thermal runaway tests ✓ (see §17) |
 | **v1.6 "The Long Night"** | People | Customer 2.0 complete (F7), nights and incident command (F8), Chapter 9 | Renewal/churn tests; ≤ 1 pager per night |
 | **v2.0 "Hyperscale"** | Scale | Campus and multi-site (F10), economy 2.0 (F11), Chapter 10, Sandbox 2.0, share codes, worker sim | Summary-model calibration ±10%; §10 metrics in a 20-player playtest |
 
@@ -586,4 +586,18 @@ A second review, inspired by the *Data Centers: Today and Tomorrow* field guide,
 - **Handbook** gains PUE, on-site and off-site water, free cooling and heat reuse, grid connection and the queue, and out-of-band management; all translated into French.
 - **Not done**: setpoint and containment settings, goodwill and moratoriums (campus), translatable simulation messages (now v1.5).
 - **Tests**: 425 unit tests (new: formatting, PUE and water model, breaker, grid queue, drought, out-of-band, ESG, capacity, UI, bot balance) and the phone e2e (new session).
+
+## 17. v1.5 "AI Factory" results
+
+- **Chapter 8 "AI Factory"** (unlocked by The Efficiency Drive). Two new systems: *liquid cooling* and *AI customers*.
+- **Liquid loop.** Racks can be converted to a coolant loop; each **coolant unit** carries 8 kW of heat. While the loop keeps up, liquid racks sit near 35°C. With too little capacity the target temperature climbs by 12°C per missing kW with a 4-minute time constant, so a pump failure with no spare shuts GPU racks down within a few minutes (tested). With a spare unit (N+1) nothing happens. A **leak** isolates and shuts down its rack until repaired. Pump and leak repairs by an untrained specialist take twice as long; a *Train* action (a few hundred dollars, a few hours) fixes that, resolving open question 1 as a skill, not a role.
+- **GPU servers.** A *Fit GPUs* job turns a 2U server in a liquid rack into a GPU server: five times the power, two and a half times the compute (no new model or art needed, so the slot layout and installs stay unchanged).
+- **Effective training time (P6).** The AI contract (*Neuron Labs*, $12,000 a day) is judged on the share of time the cluster did useful work. Interruptions arrive faster than linearly with cluster size and each costs 20 minutes. **Checkpointing** cuts the cost to 6 minutes, **auto-restart** makes interruptions 40% rarer.
+- **Density ladder (P5, first tiers).** *Rear-door coolers* (air racks carry 40% more) then *Cold plates* (unlocks liquid racks), plus *Checkpointing*, *Auto-restart* and the **Battery buffer** (soaks up 60% of a synchronized power spike, P10).
+- **Events.** A coolant pump seizes (day 2), a synchronized spike (day 2 and 4), a winter storm leaks a liquid line (day 3), and silent data corruption on a GPU server (day 3): remote diagnostics (NOC level 2) catches it, otherwise the customer finds it first and reputation drops. Reboot clears it. A new chip generation event is deferred.
+- **UI.** The Infra tab gets a *Liquid loop and AI* card (units, heat against capacity, effective time, interruptions, repair banners, coolant-unit order with ETA and expedite, the ladder, training), rack view shows *On the liquid loop* with *Convert* and *Fit GPUs*, and GPU or corrupted chips on servers.
+- **Goals.** ★ take the AI contract with 97% uptime and 85% training time; ★★ 90% training time and $6,000; ★★★ 95%, no thermal shutdown, two coolant units and $40,000 profit (the planned bot gets ★★ and never ★★★; a bot that ignores the AI customer loses).
+- **Handbook** gains *Liquid cooling*, *Training, inference and effective time*, *Synchronized power spikes* and *Silent data corruption*; all in French.
+- **Balance note.** The default "manual" bot earns far more profit than the Shift-Lead bot, so the ★★★ profit targets of Chapters 7 and 8 were raised ($25,000 and $40,000) to keep the ≤ 20% rule.
+- **Tests**: 442 unit tests and the phone e2e (new session). Test chapter lists now derive from `CHAPTER_ORDER` so adding a chapter no longer churns the achievement and title tests.
 

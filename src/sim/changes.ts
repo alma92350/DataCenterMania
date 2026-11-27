@@ -208,12 +208,20 @@ export function finishChange(s: GameState, changeId: string | undefined): void {
 
 // ---------------------------------------------------------------- long-lead equipment, supply events
 
-export function orderInfra(s: GameState, kind: 'ups' | 'generator' | 'grid'): void {
+export function orderInfra(s: GameState, kind: 'ups' | 'generator' | 'grid' | 'cdu'): void {
   const days = LEAD_TIME[kind].days;
   (s.pendingInfra ??= []).push({ id: newId(s, 'inf'), kind, at: s.minute + days * 1440, expedited: false });
 }
 
-export function deliverInfra(s: GameState, kind: 'ups' | 'generator' | 'grid'): void {
+export function deliverInfra(s: GameState, kind: 'ups' | 'generator' | 'grid' | 'cdu'): void {
+  if (kind === 'cdu') {
+    if (s.loop) {
+      s.loop.cdus++;
+      s.loop.cdusOk++;
+      addLog(s, 'success', `📦 A coolant distribution unit arrived: the loop now has ${s.loop.cdus}.`);
+    }
+    return;
+  }
   if (kind === 'grid') {
     if (s.site) {
       s.site.gridCapW += SITE.stepW;

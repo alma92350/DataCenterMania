@@ -18,6 +18,7 @@ import { updateCoolers } from './maintenance';
 import { updateNetwork } from './network';
 import { updateNoc } from './noc';
 import { updateSite } from './site';
+import { updateAi } from './ai';
 import { rollFeeds } from './feeds';
 import { updateChanges } from './changes';
 import { updateFatigue } from './fatigue';
@@ -41,6 +42,7 @@ export function step(s: GameState): void {
   updateThermal(s, dt);
   rollFailures(s, dt);
   rollFeeds(s, dt);
+  updateAi(s);
   escalateAlarms(s);
   updateNoc(s);
   runAutomation(s);

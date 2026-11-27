@@ -3,6 +3,7 @@ import { DIFFICULTIES } from './difficulty';
 import type { AttackKind, ChapterId, Contract, Facing, FaultKind, FeatureFlag, GameState, PartId, ServerModelId, TechRole, Uplink, Villain } from '../sim/types';
 import { resilience } from '../sim/resilience';
 import { pueAverage } from '../sim/site';
+import { aiEffective } from '../sim/ai';
 import { overallUptimePct, servingDeviceCount, activeContracts } from '../sim/selectors';
 
 /** Money goals shrink with the difficulty's starting cash, so harder levels stay fair. */
@@ -13,7 +14,7 @@ const money = (n: number) => `${n < 0 ? '-' : ''}$${Math.round(Math.abs(n)).toLo
 export type ContractSeed = Pick<
   Contract,
   'customer' | 'description' | 'units' | 'slaPct' | 'revenuePerDay' | 'penaltyPerBreach' | 'durationDays' | 'profile'
-> & Partial<Pick<Contract, 'bandwidthPerUnit' | 'name' | 'pueMax'>>;
+> & Partial<Pick<Contract, 'bandwidthPerUnit' | 'name' | 'pueMax' | 'kind'>>;
 
 export type ScriptedAction =
   | { type: 'say'; text: string }
@@ -31,6 +32,10 @@ export type ScriptedAction =
   | { type: 'supplyShock'; days: number; text?: string }
   | { type: 'delayInfra'; days: number; text?: string }
   | { type: 'drought'; days: number; text?: string }
+  | { type: 'pumpFail'; text?: string }
+  | { type: 'leak'; rack: number; text?: string }
+  | { type: 'spike'; mult: number; minutes: number; text?: string }
+  | { type: 'corrupt'; text?: string }
   | { type: 'oobCut'; text?: string }
   | { type: 'surge'; mult: number; hours: number; text?: string }
   | { type: 'freeze'; on: boolean; text?: string };
@@ -83,6 +88,8 @@ export interface ChapterDef {
   backup?: { ups: number; health: number; generator: 'none' | 'idle'; fuelMin?: number };
   /** Grid connection in watts (Chapter 7+). */
   siteCapW?: number;
+  /** Coolant distribution units at the start (Chapter 8). */
+  loopCdus?: number;
   dailyOffers: boolean;
   events: ScriptedEvent[];
   objectives: [Objective, Objective, Objective]; // ★ pass, ★★ pro, ★★★ legend
@@ -483,7 +490,50 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     objectives: [
       { label: 'SLA uptime ≥ 97% and $2,000 profit (scaled by difficulty)', check: (s) => overallUptimePct(s) >= 97 && s.cash - s.progress.startCash >= profitGoal(s, 2000), progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 97% · PUE ${pueAverage(s).toFixed(2)} · profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 2000))}` },
       { label: 'SLA uptime ≥ 99.5%, average PUE ≤ 1.5 and $5,000 profit', check: (s) => overallUptimePct(s) >= 99.5 && pueAverage(s) <= 1.5 && s.cash - s.progress.startCash >= profitGoal(s, 5000) },
-      { label: 'Average PUE ≤ 1.35, the main breaker never trips and $12,000 profit', check: (s) => pueAverage(s) <= 1.35 && (s.site?.trips ?? 0) === 0 && s.cash - s.progress.startCash >= profitGoal(s, 12000), progress: (s) => `PUE ${pueAverage(s).toFixed(2)} / 1.35 · trips ${s.site?.trips ?? 0}` },
+      { label: 'Average PUE ≤ 1.35, the main breaker never trips and $25,000 profit', check: (s) => pueAverage(s) <= 1.35 && (s.site?.trips ?? 0) === 0 && s.cash - s.progress.startCash >= profitGoal(s, 25000), progress: (s) => `PUE ${pueAverage(s).toFixed(2)} / 1.35 · trips ${s.site?.trips ?? 0}` },
+    ],
+    next: 'ch8',
+  },
+  ch8: {
+    id: 'ch8', number: 8, title: 'AI Factory', subtitle: 'Liquid cooling, GPU racks and clusters that fail every few hours',
+    intro: 'An AI lab wants to train on your floor. GPU racks draw several times the power and need liquid cooling. Their contract is not about uptime but about effective training time: every interruption costs them minutes. Build the loop, keep it redundant, and keep the cluster running.',
+    map: COLO_MAP,
+    startMinute: at(0, 8),
+    endMinute: at(4, 22),
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue', 'backup', 'remote', 'redundancy', 'changes', 'capacity', 'energy', 'liquid', 'ai'],
+    startCash: 32000,
+    ambient: 24,
+    rackPowerBudgetW: 3000,
+    mapCooler: 'wallAc',
+    rackFacing: ['S', 'S', 'S', 'S', 'S', 'N', 'N', 'N', 'N', 'N', 'S', 'S', 'S', 'S', 'S'],
+    uplinks: [{ name: 'MetroFiber A', capacityGbps: 8, costPerDay: 150 }, { name: 'SkyLink Fiber B (separate route)', capacityGbps: 15, costPerDay: 220 }],
+    startingRoles: ['hw'],
+    devices: COLO_DEVICES,
+    contracts: LAUNCH_CONTRACTS,
+    inventory: { disk: 2, psu: 4, server1u: 2, server2u: 4, filter: 1, switch: 1 },
+    hwTechs: 1,
+    failuresEnabled: true,
+    dailyOffers: true,
+    incidentMult: 0.65,
+    backup: { ups: 2, health: 1, generator: 'idle', fuelMin: 1440 },
+    siteCapW: 24000,
+    loopCdus: 1,
+    events: [
+      { id: 'liquidTip', at: at(0, 8, 5), actions: [{ type: 'tip', key: 'liquid' }] },
+      { id: 'aiOffer', at: at(0, 9), actions: [
+        { type: 'say', text: 'Neuron Labs wants two GPU servers for a training run. They pay a fortune, but they judge you on effective training time: at least 90%.' },
+        { type: 'offer', contract: { customer: 'Neuron Labs', name: 'Training Run', description: 'AI training cluster. Judged on effective training time.', units: 10, slaPct: 90, revenuePerDay: 12000, penaltyPerBreach: 4000, durationDays: 5, profile: 'flat', bandwidthPerUnit: 0.5, kind: 'ai' } },
+      ] },
+      { id: 'pump', at: at(1, 14), actions: [{ type: 'pumpFail', text: '💧 14:00: a coolant pump seizes. With no spare unit on the loop, the GPU racks start heating up fast.' }] },
+      { id: 'spike1', at: at(1, 16), actions: [{ type: 'spike', mult: 1.5, minutes: 4 }] },
+      { id: 'winter', at: at(2, 11), actions: [{ type: 'leak', rack: 0, text: '❄️ 11:00: a winter storm damaged an outdoor coolant line. A rack on the loop is leaking.' }] },
+      { id: 'sdc', at: at(2, 16), actions: [{ type: 'corrupt', text: '🧠 16:00: a GPU server starts returning subtly wrong answers.' }] },
+      { id: 'spike2', at: at(3, 15), actions: [{ type: 'spike', mult: 1.6, minutes: 5 }] },
+    ],
+    objectives: [
+      { label: 'Take the AI contract, SLA uptime ≥ 97% and training time ≥ 85%', check: (s) => s.contracts.some((c) => c.kind === 'ai' && c.status !== 'offered') && overallUptimePct(s) >= 97 && aiEffective(s) >= 85, progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 97% · training ${aiEffective(s).toFixed(1)}% / 85%` },
+      { label: 'Effective training time ≥ 90% and $6,000 profit', check: (s) => aiEffective(s) >= 90 && s.cash - s.progress.startCash >= profitGoal(s, 6000), progress: (s) => `Training ${aiEffective(s).toFixed(1)}% / 90% · profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 6000))}` },
+      { label: 'Training ≥ 95%, no thermal shutdown, two coolant units and $40,000 profit', check: (s) => aiEffective(s) >= 95 && s.stats.thermalShutdowns === 0 && (s.loop?.cdus ?? 0) >= 2 && s.cash - s.progress.startCash >= profitGoal(s, 40000), progress: (s) => `Training ${aiEffective(s).toFixed(1)}% / 95% · shutdowns ${s.stats.thermalShutdowns}` },
     ],
     next: null,
   },
@@ -528,6 +578,6 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
 };
 
 /** The campaign, in order. Events (like the Hacker Weekend) are not part of it. */
-export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7'];
+export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8'];
 
 export const EVENT_ORDER: ChapterId[] = ['hack'];

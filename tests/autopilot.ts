@@ -8,7 +8,7 @@ import type { GameState } from '../src/sim/types';
 /** A simple bot standing in for a competent player: fix every alarm, keep spares, fill contracts. */
 export type Defend = 'auto' | 'perfect' | 'ignore';
 
-export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean; energy?: 'planned' | 'passive'; legs?: 'dual' | 'single'; changes?: 'careful' | 'reckless' } = {}): void {
+export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean; energy?: 'planned' | 'passive'; legs?: 'dual' | 'single'; changes?: 'careful' | 'reckless'; ai?: 'planned' | 'passive' } = {}): void {
   // cyber attacks: skip the micro-game (half strength), play it perfectly, or never answer
   if (s.cyber.attack && opts.defend !== 'ignore') {
     if (opts.defend === 'perfect') applyCommand(s, { type: 'resolveAttack', score: 1, mode: 'played', infected: [] });
@@ -48,6 +48,33 @@ export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend;
       const cand = s.candidates.find((c) => c.role === role);
       if (!s.techs.some((t) => t.role === role) && cand) applyCommand(s, { type: 'hire', candidateId: cand.id });
     }
+  }
+  // AI factory: tech ladder, a liquid rack, GPU servers, a spare coolant unit (expedited), trained staff
+  if (s.features.includes('ai') && opts.ai !== 'passive') {
+    const t = s.aiTech;
+    if (!t?.rearDoor && s.cash > 5000) applyCommand(s, { type: 'buyAiTech', tech: 'rearDoor' });
+    if (t?.rearDoor && !t.coldPlates && s.cash > 8000) applyCommand(s, { type: 'buyAiTech', tech: 'coldPlates' });
+    const queued = (s.pendingInfra ?? []).filter((x) => x.kind === 'cdu');
+    if (s.loop && s.loop.cdus + queued.length < 2 && s.cash > 5000) applyCommand(s, { type: 'orderCdu' });
+    for (const q of queued) if (!q.expedited && s.cash > 3000) applyCommand(s, { type: 'expediteInfra', id: q.id });
+    const liquid = s.racks.find((r) => r.liquid);
+    if (t?.coldPlates && !liquid && !s.jobs.some((j) => j.kind === 'convertLiquid')) {
+      const empty = s.racks.find((r) => !s.devices.some((d) => d.rackId === r.id));
+      if (empty) applyCommand(s, { type: 'dispatch', job: 'convertLiquid', rackId: empty.id, techId: 'best' });
+    }
+    const ai = s.contracts.find((c) => c.kind === 'ai');
+    if (ai && ai.status === 'offered' && liquid && s.cash > 4000) applyCommand(s, { type: 'acceptContract', contractId: ai.id });
+    if (ai && ai.status === 'active' && liquid) {
+      const have = s.devices.filter((d) => d.rackId === liquid.id).length + s.jobs.filter((j) => j.kind === 'install' && j.rackId === liquid.id).length;
+      if (have < 2 && s.inventory.server2u > 0) {
+        const slot = firstFreeSlot(s, liquid, 2);
+        if (slot !== null) applyCommand(s, { type: 'install', rackId: liquid.id, slot, model: 'server2u', contractId: ai.id, techId: 'best' });
+      }
+      for (const d of s.devices) if (d.rackId === liquid.id && !d.gpu) applyCommand(s, { type: 'dispatch', job: 'gpuUpgrade', deviceId: d.id, techId: 'best' });
+    }
+    const cool = s.techs.find((x) => (x.role === 'hvac' || x.role === 'elec') && !x.liquid);
+    if (cool && s.cash > 2500) applyCommand(s, { type: 'trainLiquid', techId: cool.id });
+    if (t?.coldPlates && s.cash > 6000) for (const k of ['checkpoint', 'autoRestart', 'battery'] as const) if (!t[k] && applyCommand(s, { type: 'buyAiTech', tech: k }).ok) break;
   }
   // energy: free cooling early, heat reuse once rich, and a grid upgrade ordered well before the cap is reached
   if (s.site && opts.energy !== 'passive') {
@@ -126,11 +153,11 @@ export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend;
   }
   const unfilled = (c: GameState['contracts'][number]) =>
     c.units + 1 - contractAssignedUnits(s, c.id) - s.jobs.filter((j) => j.kind === 'install' && j.contractId === c.id).length;
-  const offer = s.contracts.find((x) => x.status === 'offered');
+  const offer = s.contracts.find((x) => x.status === 'offered' && x.kind !== 'ai');
   if (offer && activeContracts(s).every((c) => unfilled(c) <= 0) && s.cash >= (offer.units + 1) * PARTS.server1u.price + 1500 && activeContracts(s).length < 6) {
     applyCommand(s, { type: 'acceptContract', contractId: offer.id });
   }
-  for (const c of activeContracts(s)) {
+  for (const c of activeContracts(s).filter((x) => x.kind !== 'ai')) {
     let missing = unfilled(c);
     const free = s.devices.find((d) => d.contractId === null);
     if (missing > 0 && free) {

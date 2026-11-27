@@ -1,3 +1,4 @@
+import { CHAPTER_ORDER } from '../src/data/chapters';
 import { at } from '../src/core/time';
 import { BACKUP } from '../src/data/catalog';
 import { CHAPTERS } from '../src/data/chapters';
@@ -222,7 +223,7 @@ describe('Backup power UI', () => {
   });
 
   it('the end screen of the last chapter does not promise a next one', () => {
-    const s = createGame('ch7', 'sysadmin', 1);
+    const s = createGame(CHAPTER_ORDER[CHAPTER_ORDER.length - 1]!, 'sysadmin', 1);
     s.progress.status = 'won';
     s.progress.stars = 1;
     expect(endScreen(s)).not.toContain('Next:');

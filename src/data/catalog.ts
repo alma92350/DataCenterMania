@@ -73,6 +73,10 @@ export const JOB_WORK_MIN: Record<JobKind, number> = {
   change: 60,
   resetMain: 20,
   repairOob: 30,
+  convertLiquid: 90,
+  gpuUpgrade: 40,
+  repairPump: 45,
+  repairLeak: 60,
 };
 
 export const JOB_LABEL: Record<JobKind, string> = {
@@ -104,6 +108,10 @@ export const JOB_LABEL: Record<JobKind, string> = {
   change: 'Planned change',
   resetMain: 'Reset main breaker',
   repairOob: 'Repair management link',
+  convertLiquid: 'Convert rack to liquid cooling',
+  gpuUpgrade: 'Fit GPUs',
+  repairPump: 'Repair coolant pump',
+  repairLeak: 'Repair coolant leak',
 };
 
 /**
@@ -115,7 +123,7 @@ export const JOB_ROLES: Record<JobKind, TechRole[]> = {
   buildRack: ['hw'], rotateRack: ['hw'], placeCooler: ['hw', 'hvac'],
   serviceCooler: ['hvac'], repairCooler: ['hvac'], replaceSwitch: ['net'], repairUplink: ['net'],
   project: ['hw', 'net'], favor: ['hw', 'hvac', 'net'], audit: ['net'], reimage: ['hw', 'net'],
-  startGenerator: ['elec'], testGenerator: ['elec'], replaceBattery: ['elec'], transferAts: ['elec'], refuel: ['elec', 'hw'], repairPdu: ['elec'], dualCord: ['hw', 'elec'], crossConnect: ['net'], change: ['hw', 'hvac', 'elec'], resetMain: ['elec'], repairOob: ['net'],
+  startGenerator: ['elec'], testGenerator: ['elec'], replaceBattery: ['elec'], transferAts: ['elec'], refuel: ['elec', 'hw'], repairPdu: ['elec'], dualCord: ['hw', 'elec'], crossConnect: ['net'], change: ['hw', 'hvac', 'elec'], resetMain: ['elec'], repairOob: ['net'], convertLiquid: ['hvac', 'elec'], gpuUpgrade: ['hw'], repairPump: ['hvac', 'elec'], repairLeak: ['hvac', 'elec'],
 };
 
 export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer', lead: 'Shift Lead', elec: 'Electrician' };
@@ -245,6 +253,7 @@ export const LEAD_TIME = {
   ups: { days: 2, name: 'UPS unit' },
   generator: { days: 3, name: 'Generator' },
   grid: { days: 2, name: 'Grid connection upgrade' },
+  cdu: { days: 2, name: 'Coolant distribution unit' },
   expediteShare: 0.5,
   expediteDays: 1,
 } as const;
@@ -264,3 +273,18 @@ export const ENERGY = {
 
 /** Site power cap and the grid-connection queue (addendum P1). Display only: row scale x10 (a tile counts as a row of racks). */
 export const SITE = { startW: 10000, stepW: 4000, stepPrice: 4000, maxSteps: 3, warnShare: 0.9, tripMin: 5, rowScale: 10, strandedBelowW: 150 } as const;
+
+/** AI factory (PRD v2 F6, addendum P5/P6/P10/P13). Game values. */
+export const AI = {
+  gpuPowerMult: 5, gpuUnitsMult: 2.5, gpuUpgradePrice: 2500,
+  cduKw: 8, cduPrice: 4000, liquidBudgetW: 12000, convertPrice: 2500, loopTau: 4, loopRunawayPerKw: 12, liquidBaseC: 35,
+  interruptPerDay: 2.0, clusterGrowth: 0.15, lossMin: 20, lossCheckpointMin: 6, autoRestartMult: 0.6,
+  corruptUndetectedMin: 180, trainPrice: 800, trainMin: 240, untrainedWorkMult: 2, spikeBatteryMult: 0.4,
+  tech: {
+    rearDoor: { name: 'Rear-door coolers', price: 3000, blurb: 'Air racks can carry 40% more power.' },
+    coldPlates: { name: 'Cold plates', price: 6000, blurb: 'Unlocks liquid-cooled racks for GPU servers.' },
+    checkpoint: { name: 'Checkpointing', price: 4000, blurb: 'An interruption costs 6 minutes instead of 20.' },
+    autoRestart: { name: 'Auto-restart', price: 3500, blurb: 'Interruptions happen 40% less often.' },
+    battery: { name: 'Battery buffer', price: 4000, blurb: 'Soaks up 60% of a synchronized power spike.' },
+  },
+} as const;

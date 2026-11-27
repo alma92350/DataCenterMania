@@ -5,6 +5,8 @@ import { startOutage } from './backup';
 import { failPdu } from './feeds';
 import { delayInfra, offerChange, supplyShock } from './changes';
 import { cutOob, startDrought, surge } from './site';
+import { failPump, leak, spike } from './liquid';
+import { corruptNode } from './ai';
 import { launchAttack } from './cyber';
 import { addLog, makeContract, showTip } from './state';
 import type { GameState } from './types';
@@ -44,6 +46,18 @@ function run(s: GameState, a: ScriptedAction): void {
       break;
     case 'supplyShock':
       supplyShock(s, a.days, a.text);
+      break;
+    case 'pumpFail':
+      failPump(s, a.text);
+      break;
+    case 'leak':
+      leak(s, a.rack, a.text);
+      break;
+    case 'spike':
+      spike(s, a.mult, a.minutes, a.text);
+      break;
+    case 'corrupt':
+      corruptNode(s, a.text);
       break;
     case 'drought':
       startDrought(s, a.days, a.text);

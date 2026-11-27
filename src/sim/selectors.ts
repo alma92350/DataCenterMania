@@ -1,4 +1,4 @@
-import { BASE_PUE, ELECTRICITY_PER_KWH, RACK_RENT_PER_DAY, SERVER_MODELS } from '../data/catalog';
+import { AI, BASE_PUE, ELECTRICITY_PER_KWH, RACK_RENT_PER_DAY, SERVER_MODELS } from '../data/catalog';
 import { devicePowerW } from './power';
 import type { Contract, Device, GameState, Rack, Tech } from './types';
 
@@ -36,7 +36,7 @@ export function deviceUp(s: GameState, d: Device): boolean {
   return !!rack && !rack.tripped && !rack.switchFailed && !rack.maintenance;
 }
 
-export const unitsOf = (d: Device): number => SERVER_MODELS[d.model].units;
+export const unitsOf = (d: Device): number => SERVER_MODELS[d.model].units * (d.gpu ? AI.gpuUnitsMult : 1);
 
 /** Slots [slot, slot+u) are inside the rack and not used by another device. */
 export function slotFree(s: GameState, rack: Rack, slot: number, u: number, ignoreDeviceId?: string): boolean {

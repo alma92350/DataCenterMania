@@ -29,6 +29,9 @@ export const ALARM_TEXT: Record<AlarmKind, string> = {
   siteCap: 'Main breaker tripped: the grid connection is overloaded',
   siteCapHigh: 'Facility power above 90% of the grid connection',
   oob: 'Out-of-band management link is down',
+  pump: 'Coolant pump failed: the liquid loop lost capacity',
+  leak: 'Coolant leak: a liquid rack is isolated',
+  corrupt: 'Silent data corruption on a GPU server',
 };
 
 export interface AlarmTarget {

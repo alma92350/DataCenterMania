@@ -1,5 +1,5 @@
 import { chance } from '../core/rng';
-import { AUDIT, JOB_LABEL, JOB_ROLES, JOB_WORK_MIN, MANAGER_SPECIALIST_RATE, PROJECTS, PROJECT_EFFECT, RACK_CAPACITY_U } from '../data/catalog';
+import { AI, AUDIT, JOB_LABEL, JOB_ROLES, JOB_WORK_MIN, MANAGER_SPECIALIST_RATE, PROJECTS, PROJECT_EFFECT, RACK_CAPACITY_U } from '../data/catalog';
 import { completeWalkin } from './walkins';
 import { say } from './bubbles';
 import { clearMalware } from './cyber';
@@ -12,6 +12,7 @@ import { restoreUplink } from './network';
 import { repairPdu } from './feeds';
 import { finishChange, rmaCredit } from './changes';
 import { repairOob, resetMain } from './site';
+import { repairLeak, repairPump } from './liquid';
 import { refuelGenerator, replaceBatteries, startGenerator, testGenerator, transferAts } from './backup';
 import { addLog, homeSpot, makeCooler, makeRack, newId, showTip } from './state';
 import { blockedTiles, deviceById, isIdle, rackById, techById, techQueueLength } from './selectors';
@@ -70,11 +71,16 @@ export function bestTech(s: GameState, site: Vec, kind: JobKind = 'reboot'): Tec
   return [...pool].sort((a, b) => score(a) - score(b))[0]!;
 }
 
-const SPECIALIST: Partial<Record<JobKind, true>> = { serviceCooler: true, repairCooler: true, replaceSwitch: true, repairUplink: true, startGenerator: true, testGenerator: true, replaceBattery: true, transferAts: true, refuel: true, repairPdu: true, crossConnect: true, resetMain: true, repairOob: true };
+const SPECIALIST: Partial<Record<JobKind, true>> = { serviceCooler: true, repairCooler: true, replaceSwitch: true, repairUplink: true, startGenerator: true, testGenerator: true, replaceBattery: true, transferAts: true, refuel: true, repairPdu: true, crossConnect: true, resetMain: true, repairOob: true, convertLiquid: true, gpuUpgrade: true, repairPump: true, repairLeak: true };
 
 export function assignJob(s: GameState, job: Job, techId: string | 'best'): Tech {
   const tech = techId === 'best' ? bestTech(s, job.site, job.kind) : techById(s, techId);
   if (!tech) throw new Error(`unknown tech ${techId}`);
+  if ((job.kind === 'convertLiquid' || job.kind === 'repairPump' || job.kind === 'repairLeak') && !tech.liquid && !job.slowed) {
+    job.slowed = true;
+    job.workLeft *= AI.untrainedWorkMult;
+    job.workTotal *= AI.untrainedWorkMult;
+  }
   job.techId = tech.id;
   if (tech.jobId === null) startJob(s, tech, job);
   return tech;
@@ -95,7 +101,7 @@ function siteAccess(s: GameState, job: Job): Vec | null {
     const front = { x: rack.pos.x, y: rack.pos.y + (rack.facing === 'S' ? 1 : -1) };
     if (isWalkable(s.grid, blocked, front.x, front.y)) return front;
   }
-  if ((job.kind === 'repairUplink' || job.kind === 'startGenerator' || job.kind === 'testGenerator' || job.kind === 'replaceBattery' || job.kind === 'transferAts' || job.kind === 'refuel' || job.kind === 'crossConnect' || job.kind === 'resetMain' || job.kind === 'repairOob') && isWalkable(s.grid, blocked, job.site.x, job.site.y)) return job.site;
+  if ((job.kind === 'repairUplink' || job.kind === 'startGenerator' || job.kind === 'testGenerator' || job.kind === 'replaceBattery' || job.kind === 'transferAts' || job.kind === 'refuel' || job.kind === 'crossConnect' || job.kind === 'resetMain' || job.kind === 'repairOob' || job.kind === 'repairPump' || job.kind === 'repairLeak') && isWalkable(s.grid, blocked, job.site.x, job.site.y)) return job.site;
   return accessTile(s.grid, blocked, job.site);
 }
 
@@ -259,7 +265,7 @@ function finishWork(s: GameState, tech: Tech, job: Job): void {
   else routeTo(s, tech, home);
 }
 
-const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker', 'replaceSwitch', 'repairCooler', 'repairUplink', 'reimage', 'startGenerator', 'replaceBattery', 'transferAts', 'refuel', 'repairPdu', 'resetMain', 'repairOob']);
+const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker', 'replaceSwitch', 'repairCooler', 'repairUplink', 'reimage', 'startGenerator', 'replaceBattery', 'transferAts', 'refuel', 'repairPdu', 'resetMain', 'repairOob', 'repairPump', 'repairLeak']);
 
 /** Applies a finished job's effect on the world. */
 export function completeJob(s: GameState, job: Job): void {
@@ -280,8 +286,8 @@ export function completeJob(s: GameState, job: Job): void {
       break;
     case 'reboot':
       s.stats.reboots = (s.stats.reboots ?? 0) + 1;
-      if (dev) dev.faults = dev.faults.filter((f) => f !== 'hung');
-      clearFor(['hung']);
+      if (dev) dev.faults = dev.faults.filter((f) => f !== 'hung' && f !== 'corrupt');
+      clearFor(['hung', 'corrupt']);
       break;
     case 'resetBreaker': {
       const rack = rackById(s, job.rackId);
@@ -378,6 +384,27 @@ export function completeJob(s: GameState, job: Job): void {
       break;
     case 'resetMain':
       resetMain(s);
+      break;
+    case 'convertLiquid': {
+      const rack = rackById(s, job.rackId);
+      if (rack) {
+        rack.liquid = true;
+        rack.powerBudgetW = AI.liquidBudgetW;
+        addLog(s, 'success', 'The rack is on the coolant loop: it can now carry GPU servers.');
+      }
+      break;
+    }
+    case 'gpuUpgrade':
+      if (dev) {
+        dev.gpu = true;
+        addLog(s, 'success', 'GPUs fitted: five times the power, two and a half times the compute.');
+      }
+      break;
+    case 'repairPump':
+      repairPump(s);
+      break;
+    case 'repairLeak':
+      repairLeak(s);
       break;
     case 'repairOob':
       repairOob(s);

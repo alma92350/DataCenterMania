@@ -588,6 +588,32 @@ try {
     check(await page.isVisible('#tabs'), 'the tab bar stays visible');
   });
 
+  await session('ai factory (phone)', { ...devices['Pixel 5'], deviceScaleFactor: 2 }, async (page) => {
+    await page.addInitScript(() => {
+      const all = {}; for (const c of ['ch0','ch1','ch2','ch3','ch4','ch5','ch6','ch7']) all[c] = { sysadmin: 3 };
+      localStorage.setItem('dcm.progress.v1', JSON.stringify(all));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern', display: 'color' }));
+    });
+    await page.reload();
+    await page.waitForSelector('[data-chapter="ch8"]');
+    check(true, 'Chapter 8: AI Factory unlocks after The Efficiency Drive');
+    await page.tap('[data-chapter="ch8"]');
+    await page.waitForSelector('#topbar .stat');
+    while (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+    await page.tap('#tabs [data-panel="network"]');
+    await page.waitForSelector('[data-action="buyAiTech"]');
+    const txt = await page.textContent('#panel');
+    check(txt.includes('Liquid loop and AI') && txt.includes('Coolant units'), 'the Infra tab shows the liquid loop and the AI ladder');
+    await page.screenshot({ path: `${outDir}/ai-factory.png` });
+    await page.tap('[data-action="buyAiTech"][data-tech="rearDoor"]');
+    await page.waitForFunction(() => document.querySelector('[data-tech="coldPlates"]') && !document.querySelector('[data-tech="coldPlates"]').disabled, null, { timeout: 4000 });
+    check(true, 'buying rear-door coolers unlocks the next tier');
+    await page.tap('[data-action="orderCdu"]');
+    await page.waitForFunction(() => document.querySelector('#panel')?.textContent.includes('ETA'), null, { timeout: 4000 });
+    check(true, 'ordering a coolant unit shows an ETA');
+    check(await page.isVisible('#tabs'), 'the tab bar stays visible');
+  });
+
 } finally {
   server?.kill();
 }

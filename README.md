@@ -47,6 +47,7 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 | Mastery (v0.5) | Hard ★★★ constraints per chapter, 14 achievements, career title (Intern → CTO), date-seeded Daily Challenge with a modifier and a share line, outage post-mortems with one-tap remedies |
 | Automation (v0.6) | Hire a Shift Lead from Chapter 2: auto-dispatch of routine alarms and requests; idle specialists do preventive work; the bot's workload stays flat from Ch2 to Ch4 |
 | Juice (v0.6) | Speech bubbles, SLA-perfect streak, confetti on a clean shift, screen shake on criticals (off for reduced motion and e-ink) |
+| AI Factory (v1.5) | Chapter 8: coolant loop and GPU racks that overheat in minutes, an AI customer judged on effective training time, a density ladder, power spikes, silent corruption and liquid-cooling training |
 | Efficiency Drive (v1.4) | Chapter 7: live PUE, free cooling, evaporative or dry cooling with on-site and off-site water meters, a grid connection that trips the main breaker, queue-day upgrades, an ESG customer, heat reuse, Black Friday and a capacity view |
 | Change Advisory Board (v1.3) | Planned work as risky change cards (night windows, rollback plans, freezes), long-lead equipment with ETAs, supply shocks, RMA credits and resilience levels I to IV |
 | Two legs (v1.2) | Chapter 6: A/B power feeds, dual power supplies, a single-points-of-failure map overlay, and cross-connect orders from customers |
