@@ -1,5 +1,5 @@
 import { AI, CAMPUS, CRM, FRONTIER, NIGHTS, BACKUP, CHANGES, CONTRACT_GRACE_MIN, COOLERS, ENERGY, LEAD_TIME, NOC, SITE, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
-import { CHAPTERS, CHAPTER_ORDER } from '../data/chapters';
+import { CHAPTERS, CHAPTER_ORDER, SCENARIO_BASE, SCENARIO_ORDER } from '../data/chapters';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
 import { MINUTES_PER_DAY, formatClock, dayOf, type Speed } from '../core/time';
@@ -773,6 +773,21 @@ export function whatsNew(settings: Settings): string {
     ${unseen ? `<button class="primary" data-action="seenNotes">${t('Got it')}</button>` : ''}</details>`;
 }
 
+/** Incident Replays (v3.0): short scenarios, each unlocked by the chapter it replays. */
+export function scenariosSection(progress: Progress): string {
+  return `<h2 class="sec">${t('Incident Replays')}</h2>${SCENARIO_ORDER.map((id) => {
+    const ch = CHAPTERS[id];
+    const unlocked = isUnlocked(progress, id);
+    const best = bestStars(progress, id);
+    const base = CHAPTERS[SCENARIO_BASE[id]];
+    return `<div class="daily-card event-card" data-scenario="${id}">
+      <div class="row"><b>🎬 ${e(t(ch.title))}</b><span class="chip">${t('Replay')}</span></div>
+      <div class="row meta">${e(t(ch.subtitle))} · 2 ${t('shifts')}</div>
+      <div class="row actions"><span class="muted">${unlocked ? `${t('Best')}: ${'★'.repeat(best)}${'☆'.repeat(3 - best)}` : `🔒 ${t('Beat')} ${e(t(base.title))} ${t('to unlock')}`}</span>
+        ${unlocked ? `<button class="primary" data-action="newGame" data-chapter="${id}">${best ? t('Play again') : t('Play')}</button>` : ''}</div></div>`;
+  }).join('')}`;
+}
+
 export function startScreen(progress: Progress, settings: Settings, hasSave: boolean, extras?: StartExtras): string {
   const diffs = Object.values(DIFFICULTIES);
   return `<section class="start" aria-label="${t('Main menu')}">
@@ -781,7 +796,7 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
     <p class="muted small version">v${APP_VERSION}</p>
     ${whatsNew(settings)}
     ${hasSave ? `<button class="primary big" data-action="continue">${t('▶ Continue')}</button>` : ''}
-    ${extras ? careerCard(progress) + dailyCard(extras.daily, extras.dailyBest) + eventCard('hack', isUnlocked(progress, 'hack'), bestStars(progress, 'hack')) + sandboxCard(settings.sandbox, isSandboxUnlocked(progress), extras.sandboxBest ?? null) : ''}
+    ${extras ? careerCard(progress) + dailyCard(extras.daily, extras.dailyBest) + eventCard('hack', isUnlocked(progress, 'hack'), bestStars(progress, 'hack')) + scenariosSection(progress) + sandboxCard(settings.sandbox, isSandboxUnlocked(progress), extras.sandboxBest ?? null) : ''}
     <h2 class="sec">${t('Difficulty')}</h2>
     <div class="diffs">${diffs
       .map((d) => isDifficultyUnlocked(progress, d.id)

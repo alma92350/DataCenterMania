@@ -3,6 +3,7 @@ import { DIFFICULTIES } from './difficulty';
 import type { AttackKind, ChapterId, Contract, Facing, FaultKind, FeatureFlag, GameState, PartId, ServerModelId, TechRole, Uplink, Villain } from '../sim/types';
 import { resilience } from '../sim/resilience';
 import { pueAverage } from '../sim/site';
+import { spofReport } from '../sim/spof';
 import { aiEffective } from '../sim/ai';
 import { averageSatisfaction } from '../sim/crm';
 import { overallUptimePct, servingDeviceCount, activeContracts } from '../sim/selectors';
@@ -151,7 +152,8 @@ const LAUNCH_CONTRACTS: { seed: ContractSeed; active: boolean }[] = [
   { seed: { ...BAKERY, units: 2, revenuePerDay: 350, durationDays: 10, bandwidthPerUnit: 0.1 }, active: true },
 ];
 
-export const CHAPTERS: Record<ChapterId, ChapterDef> = {
+export type ScenarioId = 'sc1' | 'sc2' | 'sc3';
+const CORE: Record<Exclude<ChapterId, ScenarioId>, ChapterDef> = {
   ch0: {
     id: 'ch0', number: 0, title: 'The Closet', subtitle: 'Tutorial',
     intro: 'Your company’s entire IT lives in one rack in a broom closet. It is Friday. Keep it alive until 22:00.',
@@ -666,3 +668,75 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
 export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8', 'ch9', 'ch10'];
 
 export const EVENT_ORDER: ChapterId[] = ['hack'];
+
+/** Incident Replays (v3.0): short stand-alone scenarios built on a chapter's hall, each unlocked by that chapter. */
+export const SCENARIO_ORDER: ScenarioId[] = ['sc1', 'sc2', 'sc3'];
+export const SCENARIO_BASE: Record<ScenarioId, Exclude<ChapterId, ScenarioId | 'hack'>> = { sc1: 'ch6', sc2: 'ch5', sc3: 'ch7' };
+
+const scenario = (id: ScenarioId, o: Pick<ChapterDef, 'title' | 'subtitle' | 'intro' | 'events' | 'objectives'> & Partial<ChapterDef>): ChapterDef => {
+  const base = CORE[SCENARIO_BASE[id]];
+  return { ...base, id, number: base.number, event: true, next: null, startMinute: at(0, 8), endMinute: at(1, 22), dailyOffers: false, ...o };
+};
+const profit = (s: GameState) => s.cash - s.progress.startCash;
+
+export const CHAPTERS: Record<ChapterId, ChapterDef> = {
+  ...CORE,
+  sc1: scenario('sc1', {
+    title: 'Dual-Feed Fiasco', subtitle: 'Replay: a power feed fails, then the utility does',
+    intro: 'Your servers hang by single cords and two power feeds are about to prove why that is a problem. Dual-cord what you can before 10:00, keep the batteries healthy, and ride out two days.',
+    features: [...CORE.ch6.features],
+    incidentMult: 0.8,
+    events: [
+      { id: 'redundancyTip', at: at(0, 8, 5), actions: [{ type: 'tip', key: 'redundancy' }, { type: 'tip', key: 'dualCord' }] },
+      { id: 'feedA', at: at(0, 10), actions: [{ type: 'pduFail', rack: 1, feed: 'A', text: '⚡ 10:00: the A feed on Rack 1 failed. Anything with a single cord on it is down.' }] },
+      { id: 'utility1', at: at(0, 14), actions: [{ type: 'outage', minutes: 60, text: '⚡ 14:00: the utility drops out. Your backup power has to carry the hall.' }] },
+      { id: 'feedB', at: at(1, 9), actions: [{ type: 'pduFail', rack: 3, feed: 'B', text: '⚡ 09:00: the B feed on Rack 3 failed.' }] },
+      { id: 'utility2', at: at(1, 15), actions: [{ type: 'outage', minutes: 25, text: '⚡ 15:00: another short utility cut.' }] },
+    ],
+    objectives: [
+      { label: 'Survive two days: SLA uptime ≥ 93%', check: (s) => overallUptimePct(s) >= 93, progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 93%` },
+      { label: 'Uptime ≥ 98% and no blackout', check: (s) => overallUptimePct(s) >= 98 && (s.stats.blackoutMin ?? 0) === 0, progress: (s) => `Blackout ${s.stats.blackoutMin ?? 0} min` },
+      { label: 'Uptime ≥ 99.7% and no server left on a single power cord', check: (s) => overallUptimePct(s) >= 99.7 && Object.values(spofReport(s)).every((r) => r.power.length === 0) },
+    ],
+  }),
+  sc2: scenario('sc2', {
+    title: 'Ransom Friday', subtitle: 'Replay: attackers strike while the power is out',
+    intro: 'The attackers waited for a storm. Defend in the micro-games while the utility is down, and keep the batteries and the generator ready.',
+    features: [...CORE.ch5.features, 'cyber'],
+    incidentMult: 0.6,
+    backup: { ups: 2, health: 1, generator: 'idle', fuelMin: 1440 },
+    events: [
+      { id: 'cyberTip', at: at(0, 8, 5), actions: [{ type: 'tip', key: 'cyber' }] },
+      { id: 'a1', at: at(0, 10), actions: [{ type: 'attack', kind: 'phish' }] },
+      { id: 'storm', at: at(0, 13), actions: [{ type: 'outage', minutes: 60, text: '⛈️ 13:00: a storm took the substation. Utility power is out.' }] },
+      { id: 'a2', at: at(0, 13, 20), actions: [{ type: 'attack', kind: 'flood' }] },
+      { id: 'a3', at: at(0, 16), actions: [{ type: 'attack', kind: 'worm' }] },
+      { id: 'a4', at: at(1, 10), actions: [{ type: 'attack', kind: 'phish' }] },
+      { id: 'a5', at: at(1, 14), actions: [{ type: 'attack', kind: 'flood' }] },
+    ],
+    objectives: [
+      { label: 'Survive: SLA uptime ≥ 88% and cash ≥ $0', check: (s) => overallUptimePct(s) >= 88 && s.cash >= 0, progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 88% · blocked ${s.cyber.blocked}` },
+      { label: 'Block at least 3 attacks and have no blackout', check: (s) => s.cyber.blocked >= 3 && (s.stats.blackoutMin ?? 0) === 0, progress: (s) => `Blocked ${s.cyber.blocked} / 3` },
+      { label: 'Block every attack and finish with $2,000 profit', check: (s) => s.cyber.hits === 0 && s.cyber.blocked >= 5 && profit(s) >= 2000 },
+    ],
+  }),
+  sc3: scenario('sc3', {
+    title: 'Heat Dome', subtitle: 'Replay: a heatwave, a drought and a grid limit',
+    intro: 'A heat dome sits over the region. Outside air is 36 degrees, evaporative cooling is about to be banned, and your grid connection is small. Cool the hall without tripping the main breaker.',
+    features: [...CORE.ch7.features],
+    siteCapW: 9000,
+    incidentMult: 0.8,
+    events: [
+      { id: 'energyTip', at: at(0, 8, 5), actions: [{ type: 'tip', key: 'energy' }] },
+      { id: 'dome', at: at(0, 10), actions: [{ type: 'ambient', value: 45, text: '🔥 10:00: a heat dome arrives. It is hot outside and your coolers are losing capacity.' }, { type: 'filter', cooler: 0, health: 0.05 }, { type: 'filter', cooler: 1, health: 0.05 }] },
+      { id: 'drought', at: at(0, 12), actions: [{ type: 'drought', days: 2 }] },
+      { id: 'peak', at: at(1, 12), actions: [{ type: 'surge', mult: 2.5, hours: 6, text: '📈 12:00: customers need 2.5× traffic during the peak.' }] },
+      { id: 'cool', at: at(1, 20), actions: [{ type: 'ambient', value: 24, text: '🌤️ 20:00: the heat finally breaks.' }] },
+    ],
+    objectives: [
+      { label: 'Survive: SLA uptime ≥ 94%', check: (s) => overallUptimePct(s) >= 94, progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 94%` },
+      { label: 'Uptime ≥ 98% and the main breaker never trips', check: (s) => overallUptimePct(s) >= 98 && (s.site?.trips ?? 0) === 0, progress: (s) => `Breaker trips ${s.site?.trips ?? 0}` },
+      { label: 'Uptime ≥ 99.5%, no breaker trip and an average PUE of 1.6 or better', check: (s) => overallUptimePct(s) >= 99.5 && (s.site?.trips ?? 0) === 0 && pueAverage(s) <= 1.6, progress: (s) => `PUE ${pueAverage(s).toFixed(2)} / 1.6` },
+    ],
+  }),
+};

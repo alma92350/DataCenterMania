@@ -52,6 +52,19 @@ try {
     check(!(await page.isVisible('#update')), 'the update banner can be dismissed');
     await browser.close();
   }
+  await session('incident replays', { viewport: { width: 390, height: 800 } }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 }, ch3: { sysadmin: 3 }, ch4: { sysadmin: 3 }, ch5: { sysadmin: 1 } }));
+    });
+    await page.reload();
+    await page.waitForSelector('[data-scenario="sc2"]');
+    check(await page.isVisible('[data-scenario="sc2"] [data-action="newGame"]'), 'a replay unlocks once the chapter it replays is won');
+    check(!(await page.isVisible('[data-scenario="sc1"] [data-action="newGame"]')), 'a replay stays locked until then');
+    await page.click('[data-scenario="sc2"] [data-action="newGame"]');
+    await page.waitForSelector('#topbar .stat');
+    check((await page.textContent('#goalbar')).length > 0, 'the replay starts with its goal on screen');
+  });
+
   await session('keyboard', { viewport: { width: 1200, height: 800 } }, async (page) => {
     await page.click('[data-chapter="ch0"]');
     await page.waitForSelector('#topbar .stat');

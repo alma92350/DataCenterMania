@@ -1,4 +1,4 @@
-import { CHAPTER_ORDER } from '../data/chapters';
+import { CHAPTER_ORDER, SCENARIO_BASE } from '../data/chapters';
 import { deserialize, serialize } from '../sim/save';
 import type { ChapterId, DifficultyId, GameState } from '../sim/types';
 import { DEFAULT_SANDBOX, type SandboxConfig } from '../sim/sandbox';
@@ -179,6 +179,8 @@ export const isSandboxUnlocked = (p: Progress): boolean => bestStars(p, 'ch2') >
 
 export function isUnlocked(p: Progress, chapter: ChapterId): boolean {
   if (chapter === 'hack') return bestStars(p, 'ch2') > 0; // events open after Startup Colo
+  const base = (SCENARIO_BASE as Record<string, ChapterId>)[chapter];
+  if (base) return bestStars(p, base) > 0; // a scenario opens once the chapter it replays is won
   const i = CHAPTER_ORDER.indexOf(chapter);
   if (i <= 0) return true;
   const prev = p[CHAPTER_ORDER[i - 1]!];
