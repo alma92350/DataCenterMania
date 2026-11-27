@@ -2,6 +2,7 @@ import { COOLERS, ESCALATION_MIN } from '../data/catalog';
 import { DIFFICULTIES } from '../data/difficulty';
 import { addLog, newId, showTip } from './state';
 import { recordAlarmHistory } from './postmortem';
+import { openIncident } from './nights';
 import { deviceById, rackById } from './selectors';
 import type { Alarm, AlarmKind, GameState, Severity } from './types';
 import { SEVERITY_LABEL } from './types';
@@ -63,7 +64,10 @@ function flag(s: GameState, a: Alarm): void {
   if (a.severity >= 2 && (!s.attention || s.attention.severity < a.severity)) {
     s.attention = { severity: a.severity, text: alarmLabel(s, a) };
   }
-  if (a.severity === 3) s.stats.criticals++;
+  if (a.severity === 3) {
+    s.stats.criticals++;
+    openIncident(s);
+  }
 }
 
 /** Raises an alarm, or updates the severity of the matching open one. */

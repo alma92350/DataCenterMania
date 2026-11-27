@@ -288,3 +288,14 @@ export const AI = {
     battery: { name: 'Battery buffer', price: 4000, blurb: 'Soaks up 60% of a synchronized power spike.' },
   },
 } as const;
+
+/** Customer 2.0 (PRD v2 F7): satisfaction, renewals, audits, nights and incident command (F8). */
+export const CRM = {
+  startSatisfaction: 70, metDay: 3, missedDay: -12, ticketDone: 4, ticketMissed: -6, renewBelow: 40, renewSpan: 50, renewDays: 4, renewPriceMult: 1.1, churnRep: 0.15,
+  auditPassChecks: 3, auditFailRep: 0.2, auditFailSatisfaction: -10,
+} as const;
+
+export const NIGHTS = {
+  startHour: 22, endHour: 6, rotaPremiumShare: 0.5, pagerWakeFatigue: 12, pagerHoldEscalation: 60,
+  incidentQuietMin: 10, goodResolveMin: 120, updateHonest: 3, updateSilent: -5, scoreRep: 0.05,
+} as const;

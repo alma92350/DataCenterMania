@@ -534,6 +534,21 @@ export class App {
       case 'orderCdu':
         this.run({ type: 'orderCdu' });
         return;
+      case 'pagerNow':
+        this.run({ type: 'answerPager', how: 'now' });
+        return;
+      case 'pagerHold':
+        this.run({ type: 'answerPager', how: 'hold' });
+        return;
+      case 'commander':
+        this.run({ type: 'setCommander', techId: d.tech! });
+        return;
+      case 'update':
+        this.run({ type: 'sendUpdate', kind: d.kind as 'honest' });
+        return;
+      case 'nightCrew':
+        this.run({ type: 'setNightCrew', techId: d.tech!, on: d.on === '1' });
+        return;
       case 'upgradeNoc':
         this.run({ type: 'upgradeNoc' });
         return;

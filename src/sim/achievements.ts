@@ -46,7 +46,7 @@ export function earnedAchievements(s: GameState, progress: StarProgress): string
 }
 
 const TITLES: [number, string][] = [
-  [0, 'Intern'], [3, 'Junior Sysadmin'], [6, 'Sysadmin'], [17, 'Senior Engineer'], [27, 'Architect'],
+  [0, 'Intern'], [3, 'Junior Sysadmin'], [6, 'Sysadmin'], [19, 'Senior Engineer'], [30, 'Architect'],
 ];
 
 /** Career title from the best stars of each chapter (PRD §21.7). */

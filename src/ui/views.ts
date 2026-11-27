@@ -1,4 +1,4 @@
-import { AI, BACKUP, CHANGES, CONTRACT_GRACE_MIN, COOLERS, ENERGY, LEAD_TIME, NOC, SITE, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
+import { AI, CRM, NIGHTS, BACKUP, CHANGES, CONTRACT_GRACE_MIN, COOLERS, ENERGY, LEAD_TIME, NOC, SITE, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
 import { CHAPTERS, CHAPTER_ORDER } from '../data/chapters';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
@@ -19,13 +19,15 @@ import {
 } from '../sim/selectors';
 import type { Alarm, Contract, Device, DifficultyId, GameState, LogEntry, PartId, ProjectId, Rack, ShiftReport, Tech } from '../sim/types';
 import { SEVERITY_LABEL } from '../sim/types';
-import { t } from './i18n';
+import { t, tl } from './i18n';
 import { HANDBOOK, handbookFor } from '../data/handbook';
 import { countdown, escapeHtml as e, money, stars } from './format';
 import { bestStars, isDifficultyUnlocked, isSandboxUnlocked, isUnlocked, type Progress, type Settings } from './storage';
 import { spofCount } from '../sim/spof';
 import { changeRisk, changeTitle, openChanges, tonight } from '../sim/changes';
 import { resilience } from '../sim/resilience';
+import { satisfactionOf } from '../sim/crm';
+import { isNightHour, rotaPremiumPerDay, scoreIncident } from '../sim/nights';
 import { aiContracts, aiEffective, interruptRatePerMin, lossMinutes } from '../sim/ai';
 import { loopCapacityKw, loopHeatKw } from '../sim/liquid';
 import { capacityReport, fitPreview, formatPower, powerScale } from '../sim/capacity';
@@ -82,7 +84,7 @@ export function topBar(s: GameState, speed: Speed, effective: Speed): string {
 export function tabs(s: GameState, active: PanelId): string {
   return visiblePanels(s)
     .map((p) => {
-      const badge = p === 'alarms' ? s.alarms.filter((a) => a.kind !== 'powerHigh').length + s.walkins.filter((w) => w.status === 'open').length + (s.changes ?? []).filter((c) => c.status === 'offered').length : p === 'contracts' ? offeredContracts(s).length : 0;
+      const badge = p === 'alarms' ? s.alarms.filter((a) => a.kind !== 'powerHigh').length + s.walkins.filter((w) => w.status === 'open').length + (s.changes ?? []).filter((c) => c.status === 'offered').length + (s.pager && !s.pager.answered ? 1 : 0) : p === 'contracts' ? offeredContracts(s).length : 0;
       const meta = p === 'network' && s.backup ? { icon: '🔌', label: t('Infra') } : PANEL_META[p];
       const alert = p === 'network' && ((s.backup && (!s.backup.grid || s.alarms.some((a) => a.kind === 'generator' || a.kind === 'battery' || a.kind === 'ats' || a.kind === 'fuel'))) || s.alarms.some((a) => a.kind === 'feed' || a.kind === 'siteCap' || a.kind === 'oob'));
       return `<button data-action="panel" data-panel="${p}" class="${p === active ? 'on' : ''}" aria-pressed="${p === active}">
@@ -147,9 +149,37 @@ export function resilienceCard(s: GameState): string {
     <p class="muted small">${t('Level III means you can maintain anything without a shutdown. Level IV survives any single fault.')}</p>`;
 }
 
+export function nightsSection(s: GameState): string {
+  if (!hasFeature(s, 'nights')) return '';
+  let out = '';
+  const p = s.pager;
+  if (p && !p.answered) {
+    out += `<div class="banner bad pager"><span>📟 <b>${t('The pager')}</b>: ${e(t(p.text))}</span>
+      <div class="row actions"><button class="primary" data-action="pagerNow">${t('Call everybody in')}</button><button data-action="pagerHold">${t('Hold until morning')}</button></div></div>`;
+  }
+  const inc = s.incident;
+  if (inc && inc.status === 'open') {
+    const crew = s.techs.filter((x) => x.role !== 'manager');
+    const cmd = s.techs.find((x) => x.id === inc.commanderId);
+    out += `<div class="banner warn incident"><span>🚨 <b>${t('Major incident')}</b> · ${Math.floor((s.minute - inc.startedAt) / 60)}h${String((s.minute - inc.startedAt) % 60).padStart(2, '0')}</span>
+      <div class="row meta">${t('Commander')}: ${cmd ? e(cmd.name) : `<i>${t('nobody yet')}</i>`}</div>
+      <div class="row actions">${crew.map((x) => `<button class="${x.id === inc.commanderId ? 'primary' : 'ghost'}" data-action="commander" data-tech="${e(x.id)}">${e(x.name.split(' ')[0]!)}</button>`).join('')}</div>
+      <div class="row meta">${t('Update to customers')}: <b>${inc.update === 'none' ? t('none yet') : t(inc.update)}</b></div>
+      <div class="row actions"><button class="${inc.update === 'honest' ? 'primary' : ''}" data-action="update" data-kind="honest">${t('Honest')}</button><button class="${inc.update === 'vague' ? 'primary' : ''}" data-action="update" data-kind="vague">${t('Vague')}</button><button class="${inc.update === 'silent' ? 'primary' : ''}" data-action="update" data-kind="silent">${t('Silent')}</button></div></div>`;
+  }
+  const a = s.audit;
+  if (a?.done) {
+    out += `<div class="banner ${a.passed ? 'info' : 'bad'}"><span>📑 ${t('Compliance audit')}: <b>${a.passed ? t('passed') : t('failed')}</b></span></div>
+      <ul class="list goals">${a.checks.map((c) => `<li class="row"><span>${c.ok ? '✅' : '❌'}</span><span>${e(t(c.label))}</span></li>`).join('')}</ul>`;
+  }
+  const night = isNightHour(s.minute);
+  out += `<div class="row meta">🌙 ${t('Night rota')}: ${(s.nightCrew ?? []).length} · ${t('premium')} ${money(rotaPremiumPerDay(s))}/${t('day')}${night ? ` · <b>${t('night')}</b>` : ''}</div>`;
+  return out;
+}
+
 export function alarmsPanel(s: GameState): string {
   const list = [...s.alarms].sort((a, b) => b.severity - a.severity || a.raisedAt - b.raisedAt);
-  const requests = attackCard(s) + postMortemCard(s) + changesSection(s) + requestsSection(s);
+  const requests = attackCard(s) + nightsSection(s) + postMortemCard(s) + changesSection(s) + requestsSection(s);
   if (!list.length) return `${requests}<div class="empty">✅ All quiet. ${requests ? 'Time for those requests!' : hasFeature(s, 'projects') ? 'Maybe start an ops project (Team tab)?' : 'Enjoy your coffee.'}</div>`;
   return `${requests}${requests ? '<h3>Alarms</h3>' : ''}<ul class="list alarms">${list
     .map((a) => {
@@ -179,6 +209,7 @@ export function techStatus(s: GameState, t: Tech): string {
   const job = s.jobs.find((j) => j.id === t.jobId);
   if (!job && (t.lockedUntil ?? 0) > s.minute) return `🔒 Locked out (phished) · ${countdown((t.lockedUntil ?? 0) - s.minute)}`;
   if (!job && t.onBreak) return 'On a break 😴';
+  if (!job && hasFeature(s, 'nights') && t.role !== 'manager' && isNightHour(s.minute) && !(s.nightCrew ?? []).includes(t.id)) return `🌙 ${tl('Off duty')}`;
   if (!job) return t.path.length ? 'Walking back to the staff room' : 'Idle ☕';
   const where = job.rackId ? ` · ${rackName(s, rackById(s, job.rackId))}` : '';
   switch (job.stage) {
@@ -207,6 +238,7 @@ export function teamPanel(s: GameState): string {
         ${hasFeature(s, 'fatigue') ? `<div class="row meta vitals"><span title="Fatigue">😓</span><div class="bar mini"><div style="width:${t.fatigue.toFixed(0)}%" class="${t.fatigue > 60 ? 'bad' : ''}"></div></div>
           <span title="Morale">${t.morale > 75 ? '😄' : t.morale > 45 ? '🙂' : t.morale > 25 ? '😐' : '😠'}</span></div>` : ''}
         ${trait ? `<div class="row meta">🏷️ ${e(trait.name)}: ${e(trait.description)}</div>` : ''}
+        ${t.role !== 'manager' && hasFeature(s, 'nights') ? `<div class="row actions"><button class="opt ${(s.nightCrew ?? []).includes(t.id) ? 'on' : ''}" data-action="nightCrew" data-tech="${e(t.id)}" data-on="${(s.nightCrew ?? []).includes(t.id) ? '0' : '1'}" aria-pressed="${(s.nightCrew ?? []).includes(t.id)}">🌙 ${tl('Night rota')}</button></div>` : ''}
         ${t.role !== 'manager' ? `<div class="row actions"><span class="muted">${money(t.salaryPerDay)}/day</span>
           <button class="ghost danger" data-action="fire" data-tech="${e(t.id)}">Let go</button></div>` : ''}
       </li>`;
@@ -243,8 +275,10 @@ function contractRow(s: GameState, c: Contract): string {
     : `<span class="chip ${today >= c.slaPct ? 'ok' : 'bad'}">Today ${today.toFixed(1)}% / ${c.slaPct}%</span>`;
   const bar = Math.min(100, (live / Math.max(1, c.units)) * 100);
   const needPct = Math.min(100, (need / Math.max(1, c.units)) * 100);
+  const mood = hasFeature(s, 'crm') ? satisfactionOf(c) : null;
+  const moodLine = mood === null ? '' : `<div class="row meta"><span title="${t('Customer satisfaction')}">${mood >= 75 ? '😄' : mood >= 50 ? '🙂' : mood >= 30 ? '😐' : '😠'}</span><div class="bar mini"><div style="width:${mood.toFixed(0)}%" class="${mood < 40 ? 'bad' : ''}"></div></div><span class="muted small">${Math.round(mood)}${c.renewals ? ` · ${t('renewed')} ×${c.renewals}` : ''}${daysLeft <= 1 ? ` · ${mood >= 60 ? t('likely to renew') : t('may leave')}` : ''}</span></div>`;
   return `<li class="contract">
-    <div class="row"><b>${e(c.name)}</b><span class="muted">${money(c.revenuePerDay)}/day · ${daysLeft}d left</span></div>
+    <div class="row"><b>${e(c.name)}</b><span class="muted">${money(c.revenuePerDay)}/day · ${daysLeft}d left</span></div>${moodLine}
     <div class="row meta"><span class="cust">🏢 ${e(c.customer)}</span></div>
     <div class="row meta">${e(c.description)}</div>
     <div class="cap" title="Live capacity vs demand"><div class="cap-live" style="width:${bar}%"></div><div class="cap-need" style="left:${needPct}%"></div></div>

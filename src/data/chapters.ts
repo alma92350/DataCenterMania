@@ -4,6 +4,7 @@ import type { AttackKind, ChapterId, Contract, Facing, FaultKind, FeatureFlag, G
 import { resilience } from '../sim/resilience';
 import { pueAverage } from '../sim/site';
 import { aiEffective } from '../sim/ai';
+import { averageSatisfaction } from '../sim/crm';
 import { overallUptimePct, servingDeviceCount, activeContracts } from '../sim/selectors';
 
 /** Money goals shrink with the difficulty's starting cash, so harder levels stay fair. */
@@ -33,6 +34,8 @@ export type ScriptedAction =
   | { type: 'delayInfra'; days: number; text?: string }
   | { type: 'drought'; days: number; text?: string }
   | { type: 'pumpFail'; text?: string }
+  | { type: 'audit' }
+  | { type: 'pager'; what: 'feed' | 'cooler'; text: string }
   | { type: 'leak'; rack: number; text?: string }
   | { type: 'spike'; mult: number; minutes: number; text?: string }
   | { type: 'corrupt'; text?: string }
@@ -535,6 +538,45 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       { label: 'Effective training time ≥ 90% and $6,000 profit', check: (s) => aiEffective(s) >= 90 && s.cash - s.progress.startCash >= profitGoal(s, 6000), progress: (s) => `Training ${aiEffective(s).toFixed(1)}% / 90% · profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 6000))}` },
       { label: 'Training ≥ 95%, no thermal shutdown, two coolant units and $40,000 profit', check: (s) => aiEffective(s) >= 95 && s.stats.thermalShutdowns === 0 && (s.loop?.cdus ?? 0) >= 2 && s.cash - s.progress.startCash >= profitGoal(s, 40000), progress: (s) => `Training ${aiEffective(s).toFixed(1)}% / 95% · shutdowns ${s.stats.thermalShutdowns}` },
     ],
+    next: 'ch9',
+  },
+  ch9: {
+    id: 'ch9', number: 9, title: 'The Long Night', subtitle: 'Customers who talk back, an audit, and a pager at 3 a.m.',
+    intro: 'Customers now have moods: a missed SLA or an ignored request makes them nervous, and unhappy ones leave when their contract ends. An auditor arrives on Thursday. At night only your rota is on site, and the pager will wake you. Command the incident, tell customers the truth, and keep everybody happy.',
+    map: COLO_MAP,
+    startMinute: at(0, 8),
+    endMinute: at(4, 22),
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue', 'backup', 'remote', 'redundancy', 'changes', 'capacity', 'energy', 'liquid', 'ai', 'crm', 'nights'],
+    startCash: 26000,
+    ambient: 24,
+    rackPowerBudgetW: 3000,
+    mapCooler: 'wallAc',
+    rackFacing: ['S', 'S', 'S', 'S', 'S', 'N', 'N', 'N', 'N', 'N', 'S', 'S', 'S', 'S', 'S'],
+    uplinks: [{ name: 'MetroFiber A', capacityGbps: 8, costPerDay: 150 }, { name: 'SkyLink Fiber B (separate route)', capacityGbps: 15, costPerDay: 220 }],
+    startingRoles: ['hw'],
+    devices: COLO_DEVICES,
+    contracts: LAUNCH_CONTRACTS.map((c, i) => (i < 2 ? { ...c, seed: { ...c.seed, durationDays: 3 } } : c)),
+    inventory: { disk: 2, psu: 6, server1u: 2, filter: 1, switch: 1 },
+    hwTechs: 1,
+    failuresEnabled: true,
+    dailyOffers: true,
+    incidentMult: 0.65,
+    backup: { ups: 2, health: 1, generator: 'idle', fuelMin: 1440 },
+    siteCapW: 20000,
+    loopCdus: 1,
+    events: [
+      { id: 'crmTip', at: at(0, 8, 5), actions: [{ type: 'tip', key: 'crm' }] },
+      { id: 'nightsTip', at: at(0, 8, 30), actions: [{ type: 'tip', key: 'nights' }] },
+      { id: 'auditNotice', at: at(1, 9), actions: [{ type: 'say', text: 'Notice: a compliance auditor visits on Thursday morning. They will check your generator tests, dual power legs, change record and UPS. Pass and enterprise customers will talk to you.' }] },
+      { id: 'pager1', at: at(1, 3), actions: [{ type: 'pager', what: 'feed', text: 'a power feed failed on a rack' }] },
+      { id: 'pager2', at: at(2, 3), actions: [{ type: 'pager', what: 'cooler', text: 'a cooler broke down' }] },
+      { id: 'audit', at: at(3, 9), actions: [{ type: 'audit' }] },
+    ],
+    objectives: [
+      { label: 'SLA uptime ≥ 97% and $2,000 profit (scaled by difficulty)', check: (s) => overallUptimePct(s) >= 97 && s.cash - s.progress.startCash >= profitGoal(s, 2000), progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 97% · mood ${Math.round(averageSatisfaction(s))} · profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 2000))}` },
+      { label: 'Pass the compliance audit and keep average customer satisfaction ≥ 65', check: (s) => !!s.audit?.passed && averageSatisfaction(s) >= 65, progress: (s) => `Audit ${s.audit?.done ? (s.audit.passed ? 'passed' : 'failed') : 'pending'} · mood ${Math.round(averageSatisfaction(s))} / 65` },
+      { label: 'Audit passed, satisfaction ≥ 75, incidents scored ≥ 2 on average and $45,000 profit', check: (s) => !!s.audit?.passed && averageSatisfaction(s) >= 75 && (s.incidentScores?.length ? s.incidentScores.reduce((n, x) => n + x, 0) / s.incidentScores.length >= 2 : false) && s.cash - s.progress.startCash >= profitGoal(s, 45000), progress: (s) => `Mood ${Math.round(averageSatisfaction(s))} / 75 · incident score ${(s.incidentScores?.length ? s.incidentScores.reduce((n, x) => n + x, 0) / s.incidentScores.length : 0).toFixed(1)} / 2` },
+    ],
     next: null,
   },
   hack: {
@@ -578,6 +620,6 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
 };
 
 /** The campaign, in order. Events (like the Hacker Weekend) are not part of it. */
-export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8'];
+export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8', 'ch9'];
 
 export const EVENT_ORDER: ChapterId[] = ['hack'];

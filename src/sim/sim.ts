@@ -19,6 +19,7 @@ import { updateNetwork } from './network';
 import { updateNoc } from './noc';
 import { updateSite } from './site';
 import { updateAi } from './ai';
+import { updateNights } from './nights';
 import { rollFeeds } from './feeds';
 import { updateChanges } from './changes';
 import { updateFatigue } from './fatigue';
@@ -43,6 +44,7 @@ export function step(s: GameState): void {
   rollFailures(s, dt);
   rollFeeds(s, dt);
   updateAi(s);
+  updateNights(s);
   escalateAlarms(s);
   updateNoc(s);
   runAutomation(s);

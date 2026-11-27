@@ -21,11 +21,11 @@ export interface Grid {
 }
 
 export type DifficultyId = 'intern' | 'sysadmin' | 'senior' | 'nightmare';
-export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'ch6' | 'ch7' | 'ch8' | 'hack';
+export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'ch6' | 'ch7' | 'ch8' | 'ch9' | 'hack';
 export type FeatureFlag =
   | 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote'
   | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance'
-  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup' | 'redundancy' | 'changes' | 'capacity' | 'energy' | 'liquid' | 'ai';
+  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup' | 'redundancy' | 'changes' | 'capacity' | 'energy' | 'liquid' | 'ai' | 'crm' | 'nights';
 
 export type PartId =
   | 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc'
@@ -120,6 +120,29 @@ export interface Site {
 }
 
 /** Coolant loop for liquid racks (PRD v2 F6). */
+export interface Audit {
+  at: number;
+  done: boolean;
+  passed: boolean;
+  checks: { label: string; ok: boolean }[];
+}
+
+export interface Pager {
+  id: string;
+  raisedAt: number;
+  text: string;
+  answered: 'now' | 'hold' | null;
+}
+
+export interface Incident {
+  id: string;
+  startedAt: number;
+  commanderId: string | null;
+  update: 'none' | 'honest' | 'vague' | 'silent';
+  status: 'open' | 'closed';
+  quietSince: number | null;
+}
+
 export interface Loop {
   cdus: number;
   /** Working coolant distribution units. */
@@ -315,6 +338,9 @@ export interface Contract {
   pueMax?: number;
   /** AI training contract: the SLA is effective training time (v1.5). */
   kind?: 'ai';
+  /** Customer satisfaction 0..100 (v1.6). Missing means 70. */
+  satisfaction?: number;
+  renewals?: number;
   /** The cluster is restarting from an interruption until this minute. */
   pausedUntil?: number;
   aiInterrupts?: number;
@@ -502,6 +528,15 @@ export interface GameState {
     changeFailed?: number;
     rmaCredit?: number;
   };
+  /** Customer relationships (Chapter 9): the latest compliance audit. */
+  audit?: Audit;
+  /** Technicians on the night rota; the others are off duty from 22:00 to 06:00. */
+  nightCrew?: string[];
+  /** A page that woke the manager: handle it now or hold until morning. */
+  pager?: Pager | null;
+  /** The open major incident, with its commander and customer update. */
+  incident?: Incident | null;
+  incidentScores?: number[];
   /** Liquid loop and the AI technology ladder (Chapter 8). */
   loop?: Loop;
   aiTech?: AiTech;

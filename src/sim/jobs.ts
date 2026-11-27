@@ -13,6 +13,7 @@ import { repairPdu } from './feeds';
 import { finishChange, rmaCredit } from './changes';
 import { repairOob, resetMain } from './site';
 import { repairLeak, repairPump } from './liquid';
+import { offDuty } from './nights';
 import { refuelGenerator, replaceBatteries, startGenerator, testGenerator, transferAts } from './backup';
 import { addLog, homeSpot, makeCooler, makeRack, newId, showTip } from './state';
 import { blockedTiles, deviceById, isIdle, rackById, techById, techQueueLength } from './selectors';
@@ -55,7 +56,7 @@ const tile = (p: Vec): Vec => ({ x: Math.round(p.x), y: Math.round(p.y) });
 const manhattan = (a: Vec, b: Vec) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
 /** On a break, or locked out of their account after a phishing click (v0.7). */
-export const unavailable = (s: GameState, t: Tech): boolean => t.onBreak || (t.lockedUntil ?? 0) > s.minute;
+export const unavailable = (s: GameState, t: Tech): boolean => t.onBreak || (t.lockedUntil ?? 0) > s.minute || offDuty(s, t);
 
 /** Specialists only take their own kind of job; the manager can do anything (PRD §6.1). */
 export function canDo(t: Tech, kind: JobKind): boolean {

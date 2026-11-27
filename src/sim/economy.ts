@@ -1,4 +1,6 @@
 import { ENERGY, NOC, SUPPLY } from '../data/catalog';
+import { dailySatisfaction, onContractExpiry } from './crm';
+import { rotaPremiumPerDay } from './nights';
 import { contractLabel } from './naming';
 import { pick, randInt } from '../core/rng';
 import { MINUTES_PER_DAY, dayOf, minuteOfDay } from '../core/time';
@@ -51,7 +53,7 @@ export const nocLicencePerDay = (s: GameState): number => NOC.levels.slice(0, s.
 
 function dailyCosts(s: GameState) {
   return {
-    salaries: s.techs.reduce((sum, t) => sum + t.salaryPerDay, 0),
+    salaries: s.techs.reduce((sum, t) => sum + t.salaryPerDay, 0) + rotaPremiumPerDay(s),
     rent: s.racks.length * RACK_RENT_PER_DAY,
     network: s.uplinks.reduce((sum, u) => sum + u.costPerDay, 0) + nocLicencePerDay(s),
   };
@@ -103,6 +105,7 @@ export function settleDay(s: GameState, final = false): DayReport {
   for (const c of s.contracts) {
     if (c.status !== 'active' || c.minutesToday === 0) continue;
     const uptime = contractUptimeTodayPct(c);
+    dailySatisfaction(s, c, uptime + 1e-9 >= c.slaPct);
     if (uptime + 1e-9 >= c.slaPct) {
       report.slaMet++;
       s.reputation = Math.min(5, s.reputation + 0.06);
@@ -129,6 +132,7 @@ export function settleDay(s: GameState, final = false): DayReport {
   const today = dayOf(s.minute);
   for (const c of s.contracts) {
     if (c.status === 'active' && today >= c.expiresDay) {
+      if (s.features.includes('crm') && onContractExpiry(s, c, today) === 'renewed') continue;
       c.status = 'ended';
       for (const d of s.devices) if (d.contractId === c.id) d.contractId = null;
       if (c.breaches === 0) s.reputation = Math.min(5, s.reputation + 0.1);

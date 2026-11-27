@@ -7,6 +7,9 @@ import { delayInfra, offerChange, supplyShock } from './changes';
 import { cutOob, startDrought, surge } from './site';
 import { failPump, leak, spike } from './liquid';
 import { corruptNode } from './ai';
+import { runAudit } from './crm';
+import { raisePager } from './nights';
+import { raiseAlarm } from './alarms';
 import { launchAttack } from './cyber';
 import { addLog, makeContract, showTip } from './state';
 import type { GameState } from './types';
@@ -47,6 +50,23 @@ function run(s: GameState, a: ScriptedAction): void {
     case 'supplyShock':
       supplyShock(s, a.days, a.text);
       break;
+    case 'audit':
+      runAudit(s);
+      break;
+    case 'pager': {
+      raisePager(s, a.text);
+      if (a.what === 'feed') {
+        const r = s.racks.find((x) => s.devices.some((d) => d.rackId === x.id && (d.psus ?? 1) !== 2)) ?? s.racks[3];
+        if (r) failPdu(s, r, 'A');
+      } else {
+        const c = s.coolers.find((x) => x.kind !== 'officeAc' && !x.broken);
+        if (c) {
+          c.broken = true;
+          raiseAlarm(s, 'coolerDown', null, null, 3, null, { coolerId: c.id });
+        }
+      }
+      break;
+    }
     case 'pumpFail':
       failPump(s, a.text);
       break;

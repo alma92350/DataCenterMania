@@ -614,6 +614,30 @@ try {
     check(await page.isVisible('#tabs'), 'the tab bar stays visible');
   });
 
+  await session('the long night (phone)', { ...devices['Pixel 5'], deviceScaleFactor: 2 }, async (page) => {
+    await page.addInitScript(() => {
+      const all = {}; for (const c of ['ch0','ch1','ch2','ch3','ch4','ch5','ch6','ch7','ch8']) all[c] = { sysadmin: 3 };
+      localStorage.setItem('dcm.progress.v1', JSON.stringify(all));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern', display: 'color' }));
+    });
+    await page.reload();
+    await page.waitForSelector('[data-chapter="ch9"]');
+    check(true, 'Chapter 9: The Long Night unlocks after AI Factory');
+    await page.tap('[data-chapter="ch9"]');
+    await page.waitForSelector('#topbar .stat');
+    while (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+    await page.tap('#tabs [data-panel="contracts"]');
+    await page.waitForTimeout(300);
+    check(/😄|🙂|😐|😠/.test(await page.textContent('#panel')), 'customer cards show a mood');
+    await page.tap('#tabs [data-panel="team"]');
+    await page.waitForSelector('[data-action="nightCrew"]');
+    await page.tap('[data-action="nightCrew"] >> nth=0');
+    await page.waitForFunction(() => document.querySelector('[data-action="nightCrew"]')?.getAttribute('aria-pressed') === 'true', null, { timeout: 4000 });
+    check(true, 'a technician can join the night rota');
+    await page.screenshot({ path: `${outDir}/night-rota.png` });
+    check(await page.isVisible('#tabs'), 'the tab bar stays visible');
+  });
+
 } finally {
   server?.kill();
 }

@@ -469,7 +469,7 @@ All v1 guardrails stay in CI. New ones:
 | **v1.3 "Change Advisory Board"** ✅ shipped | Risk | Change management (F2), supply chain events (F12), long-lead equipment (P2), resilience levels (P14), Chapter 6 gets its second system | Change-risk tests ✓; guardrails hold in Ch6 ✓ (see §15) |
 | **v1.4 "Efficiency Drive"** ✅ shipped | Planning | DCIM capacity (F4), live PUE, free cooling, cooling modes, two water meters, grid cap and queue (F5, P1, P3), out-of-band link (P8), heat reuse (P12), Chapter 7, Black Friday event | PUE property tests ✓; Ch7 ★★★ bot-gated ✓ (see §16) |
 | **v1.5 "AI Factory"** ✅ shipped | Density | Liquid cooling and GPU racks (F6), effective training time (P6), density ladder (P5), battery buffer (P10), liquid training (P13), Chapter 8 | Thermal runaway tests ✓ (see §17) |
-| **v1.6 "The Long Night"** | People | Customer 2.0 complete (F7), nights and incident command (F8), Chapter 9 | Renewal/churn tests; ≤ 1 pager per night |
+| **v1.6 "The Long Night"** ✅ shipped | People | Customer 2.0 (F7), nights, on-call and incident command (F8), Chapter 9 | Renewal/churn tests ✓; ≤ 1 pager per night ✓ (see §18) |
 | **v2.0 "Hyperscale"** | Scale | Campus and multi-site (F10), economy 2.0 (F11), Chapter 10, Sandbox 2.0, share codes, worker sim | Summary-model calibration ±10%; §10 metrics in a 20-player playtest |
 
 Each release keeps the v1 discipline: tests first, bot guardrails in CI, phone e2e, auto-deploy, PRD results section.
@@ -600,4 +600,18 @@ A second review, inspired by the *Data Centers: Today and Tomorrow* field guide,
 - **Handbook** gains *Liquid cooling*, *Training, inference and effective time*, *Synchronized power spikes* and *Silent data corruption*; all in French.
 - **Balance note.** The default "manual" bot earns far more profit than the Shift-Lead bot, so the ★★★ profit targets of Chapters 7 and 8 were raised ($25,000 and $40,000) to keep the ≤ 20% rule.
 - **Tests**: 442 unit tests and the phone e2e (new session). Test chapter lists now derive from `CHAPTER_ORDER` so adding a chapter no longer churns the achievement and title tests.
+
+## 18. v1.6 "The Long Night" results
+
+- **Chapter 9 "The Long Night"** (unlocked by AI Factory), cumulative with the earlier systems. Two new systems: *customer relationships* and *nights*.
+- **Satisfaction (0 to 100).** Each customer starts at 70. A day with the SLA met gives +3, a breach −12; finishing a customer request +4, letting one expire −6. Moods show as faces on the contract cards.
+- **Renewals and churn.** At the end of a term the chance to renew is (satisfaction − 40) ÷ 50, clamped to 0..1: a renewing customer stays 4 more days at a 10% higher price; one that leaves costs reputation. Two Chapter 9 contracts end after 3 days so the decision is felt.
+- **Compliance audit** (Thursday morning): four checks (generator tested, every serving server dual-corded, no failed change, two UPS units and a serviced transfer switch). Three or more pass: reputation up. Fewer: reputation down and every customer −10 satisfaction. The result and checklist are shown in the Alarms tab.
+- **Nights.** Add people to the **night rota** in the Team tab (they cost 50% more); everybody else is off duty from 22:00 to 06:00 and cannot take jobs. You (the manager) always can.
+- **Pager.** Scripted for 03:00 on days 2 and 3 (one per night): *Call everybody in* (they are tired next day) or *Hold until morning* (the problem gets worse after an hour).
+- **Incident command.** Any critical alarm opens a major incident: assign a **commander** and send an **honest / vague / silent** update. When critical alarms stay clear for 10 minutes the incident closes with a score 0 to 3 (commander, honest update, fixed within 2 hours). The score earns reputation, honest updates calm the customers who suffered (+3) and silence upsets them (−5).
+- **Goals.** ★ uptime ≥ 97% and $2,000; ★★ pass the audit and average satisfaction ≥ 65; ★★★ audit passed, satisfaction ≥ 75, incident score ≥ 2 on average and $45,000 profit (the bot gets ★★).
+- **Handbook** gains customer satisfaction and renewals, compliance audits, night shifts and on-call, and incident command; all in French. The Alarms tab shows the pager and incident cards, and the Team tab the rota toggle.
+- **Not done**: SLA tiers priced by redundancy, customer tours, and cross-connect orders feeding satisfaction beyond the +4 request bonus.
+- **Tests**: 460 unit tests (new: satisfaction, renewals, audit, rota gating, pager, incident scoring, UI, bot balance) and the phone e2e (new session).
 

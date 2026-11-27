@@ -1,7 +1,8 @@
 import { contractLabel } from './naming';
 import { chance, pick } from '../core/rng';
 import { hourOf } from '../core/time';
-import { WALKINS } from '../data/catalog';
+import { CRM, WALKINS } from '../data/catalog';
+import { adjustSatisfaction } from './crm';
 import { CHAPTERS } from '../data/chapters';
 import { TICKETS } from '../data/catalog';
 import { DIFFICULTIES } from '../data/difficulty';
@@ -46,6 +47,8 @@ export function completeWalkin(s: GameState, id: string | undefined): void {
   s.today.revenue += w.reward;
   s.reputation = Math.min(5, s.reputation + 0.05);
   addFx(s, 'money', w.rackId, w.reward);
+  const owner = s.contracts.find((c) => contractLabel(c) === w.customer);
+  if (owner && s.features.includes('crm')) adjustSatisfaction(owner, CRM.ticketDone);
   addLog(s, 'success', `${w.customer} is delighted: +$${w.reward}.`);
 }
 
@@ -65,6 +68,8 @@ export function updateWalkins(s: GameState, dt: number): void {
         return false;
       });
       addLog(s, 'info', `${w.customer} gave up waiting.`);
+      const owner = s.contracts.find((c) => contractLabel(c) === w.customer);
+      if (owner && s.features.includes('crm')) adjustSatisfaction(owner, CRM.ticketMissed);
     }
   }
   const h = hourOf(s.minute);

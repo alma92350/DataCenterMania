@@ -8,7 +8,7 @@ import type { GameState } from '../src/sim/types';
 /** A simple bot standing in for a competent player: fix every alarm, keep spares, fill contracts. */
 export type Defend = 'auto' | 'perfect' | 'ignore';
 
-export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean; energy?: 'planned' | 'passive'; legs?: 'dual' | 'single'; changes?: 'careful' | 'reckless'; ai?: 'planned' | 'passive' } = {}): void {
+export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean; energy?: 'planned' | 'passive'; legs?: 'dual' | 'single'; changes?: 'careful' | 'reckless'; ai?: 'planned' | 'passive'; night?: 'ready' | 'asleep' } = {}): void {
   // cyber attacks: skip the micro-game (half strength), play it perfectly, or never answer
   if (s.cyber.attack && opts.defend !== 'ignore') {
     if (opts.defend === 'perfect') applyCommand(s, { type: 'resolveAttack', score: 1, mode: 'played', infected: [] });
@@ -49,8 +49,19 @@ export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend;
       if (!s.techs.some((t) => t.role === role) && cand) applyCommand(s, { type: 'hire', candidateId: cand.id });
     }
   }
+  // nights: a rota of one, answer the pager, run the incident honestly
+  if (s.features.includes('nights') && opts.night !== 'asleep') {
+    const crew = s.techs.find((t) => t.role !== 'manager' && t.role !== 'lead' && !(s.nightCrew ?? []).includes(t.id));
+    if (crew && (s.nightCrew ?? []).length < 2) applyCommand(s, { type: 'setNightCrew', techId: crew.id, on: true });
+    if (s.pager && !s.pager.answered) applyCommand(s, { type: 'answerPager', how: 'now' });
+    const inc = s.incident;
+    if (inc && inc.status === 'open') {
+      if (!inc.commanderId) applyCommand(s, { type: 'setCommander', techId: (s.nightCrew ?? [])[0] ?? s.techs.find((t) => t.role !== 'manager')?.id ?? null });
+      if (inc.update === 'none') applyCommand(s, { type: 'sendUpdate', kind: 'honest' });
+    }
+  }
   // AI factory: tech ladder, a liquid rack, GPU servers, a spare coolant unit (expedited), trained staff
-  if (s.features.includes('ai') && opts.ai !== 'passive') {
+  if (s.features.includes('ai') && opts.ai !== 'passive' && s.contracts.some((c) => c.kind === 'ai')) {
     const t = s.aiTech;
     if (!t?.rearDoor && s.cash > 5000) applyCommand(s, { type: 'buyAiTech', tech: 'rearDoor' });
     if (t?.rearDoor && !t.coldPlates && s.cash > 8000) applyCommand(s, { type: 'buyAiTech', tech: 'coldPlates' });
@@ -77,7 +88,7 @@ export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend;
     if (t?.coldPlates && s.cash > 6000) for (const k of ['checkpoint', 'autoRestart', 'battery'] as const) if (!t[k] && applyCommand(s, { type: 'buyAiTech', tech: k }).ok) break;
   }
   // energy: free cooling early, heat reuse once rich, and a grid upgrade ordered well before the cap is reached
-  if (s.site && opts.energy !== 'passive') {
+  if (s.site && opts.energy !== 'passive' && s.contracts.some((c) => c.pueMax)) {
     const site = s.site;
     const queued = (s.pendingInfra ?? []).filter((x) => x.kind === 'grid').length;
     if (!site.economizer && s.cash > 7000) applyCommand(s, { type: 'buyEconomizer' });

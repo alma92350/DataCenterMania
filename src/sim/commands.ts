@@ -5,6 +5,7 @@ import { deliveryTime } from './economy';
 import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
 import { upsCapacityKwh } from './backup';
 import { droughtActive } from './site';
+import { answerPager, sendUpdate, setCommander } from './nights';
 import { changeRisk, changeTitle, orderInfra, scheduleChange } from './changes';
 import { resolveAttack } from './cyber';
 import { isWalkable, nearestTile, tileAt } from './grid';
@@ -37,6 +38,10 @@ export type Command =
   | { type: 'skipChange'; changeId: string }
   | { type: 'setFreeze'; on: boolean }
   | { type: 'expediteInfra'; id: string }
+  | { type: 'setNightCrew'; techId: string; on: boolean }
+  | { type: 'answerPager'; how: 'now' | 'hold' }
+  | { type: 'setCommander'; techId: string | null }
+  | { type: 'sendUpdate'; kind: 'honest' | 'vague' | 'silent' }
   | { type: 'buyAiTech'; tech: keyof typeof AI.tech }
   | { type: 'trainLiquid'; techId: string }
   | { type: 'orderCdu' }
@@ -499,6 +504,25 @@ function exec(s: GameState, cmd: Command): CommandResult {
       addLog(s, 'money', `📦 Expedited ${LEAD_TIME[p.kind].name} order: ${LEAD_TIME.expediteDays} day sooner for $${price}.`);
       return ok();
     }
+    case 'setNightCrew': {
+      if (!hasFeature(s, 'nights')) return fail('Night shifts unlock in Chapter 9.');
+      const t = techById(s, cmd.techId);
+      if (!t || t.role === 'manager') return fail('Pick a team member.');
+      const crew = new Set(s.nightCrew ?? []);
+      if (cmd.on) crew.add(t.id);
+      else crew.delete(t.id);
+      s.nightCrew = [...crew];
+      addLog(s, 'info', cmd.on ? `🌙 ${t.name} joins the night rota (+50% pay).` : `🌙 ${t.name} leaves the night rota.`);
+      return ok();
+    }
+    case 'answerPager':
+      return answerPager(s, cmd.how) ? ok() : fail('The pager is quiet.');
+    case 'setCommander': {
+      if (cmd.techId && !techById(s, cmd.techId)) return fail('Unknown person.');
+      return setCommander(s, cmd.techId) ? ok() : fail('There is no open incident.');
+    }
+    case 'sendUpdate':
+      return sendUpdate(s, cmd.kind) ? ok() : fail('There is no open incident.');
     case 'buyAiTech': {
       if (!hasFeature(s, 'ai')) return fail('The AI technology ladder unlocks in Chapter 8.');
       const def = AI.tech[cmd.tech];
