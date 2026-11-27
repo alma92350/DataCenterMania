@@ -492,6 +492,24 @@ export class App {
       case 'dispatchFeed':
         this.run({ type: 'dispatch', job: 'repairPdu', rackId: d.rack, feed: d.feed as 'A' | 'B', techId: 'best' });
         return;
+      case 'freezeToggle':
+        this.run({ type: 'setFreeze', on: !s.freeze });
+        return;
+      case 'changeRollback':
+        this.run({ type: 'setRollback', changeId: d.change!, on: d.on === '1' });
+        return;
+      case 'changeNow':
+        this.run({ type: 'scheduleChange', changeId: d.change!, when: 'now' });
+        return;
+      case 'changeTonight':
+        this.run({ type: 'scheduleChange', changeId: d.change!, when: 'tonight' });
+        return;
+      case 'changeSkip':
+        this.run({ type: 'skipChange', changeId: d.change! });
+        return;
+      case 'expediteInfra':
+        this.run({ type: 'expediteInfra', id: d.id! });
+        return;
       case 'upgradeNoc':
         this.run({ type: 'upgradeNoc' });
         return;

@@ -15,7 +15,7 @@ const SYSTEM_OF: Record<FeatureFlag, string | null> = {
   shop: 'shop', hire: 'team', projects: 'team', autodispatch: 'team',
   contracts: 'contracts', walkins: 'contracts',
   power: 'power', buildRack: 'expansion', coolers: 'expansion',
-  aisles: 'aisles', maintenance: 'maintenance', network: 'network', fatigue: 'fatigue', cyber: 'cyber', backup: 'backup', redundancy: 'redundancy',
+  aisles: 'aisles', maintenance: 'maintenance', network: 'network', fatigue: 'fatigue', cyber: 'cyber', backup: 'backup', redundancy: 'redundancy', changes: 'changes',
   roles: null, remote: null,
 };
 

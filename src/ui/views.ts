@@ -1,4 +1,4 @@
-import { BACKUP, CONTRACT_GRACE_MIN, COOLERS, NOC, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
+import { BACKUP, CHANGES, CONTRACT_GRACE_MIN, COOLERS, LEAD_TIME, NOC, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
 import { CHAPTERS, CHAPTER_ORDER } from '../data/chapters';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
@@ -24,6 +24,8 @@ import { HANDBOOK, handbookFor } from '../data/handbook';
 import { countdown, escapeHtml as e, money, stars } from './format';
 import { bestStars, isDifficultyUnlocked, isSandboxUnlocked, isUnlocked, type Progress, type Settings } from './storage';
 import { spofCount } from '../sim/spof';
+import { changeRisk, changeTitle, openChanges, tonight } from '../sim/changes';
+import { resilience } from '../sim/resilience';
 import { feedOk, onOneLeg } from '../sim/selectors';
 import { generatorTested, upsCapacityKwh, upsRuntimeMin } from '../sim/backup';
 import { SANDBOX_FLOORS, sandboxDays, sandboxScore, type SandboxConfig, type SandboxFloor } from '../sim/sandbox';
@@ -76,7 +78,7 @@ export function topBar(s: GameState, speed: Speed, effective: Speed): string {
 export function tabs(s: GameState, active: PanelId): string {
   return visiblePanels(s)
     .map((p) => {
-      const badge = p === 'alarms' ? s.alarms.filter((a) => a.kind !== 'powerHigh').length + s.walkins.filter((w) => w.status === 'open').length : p === 'contracts' ? offeredContracts(s).length : 0;
+      const badge = p === 'alarms' ? s.alarms.filter((a) => a.kind !== 'powerHigh').length + s.walkins.filter((w) => w.status === 'open').length + (s.changes ?? []).filter((c) => c.status === 'offered').length : p === 'contracts' ? offeredContracts(s).length : 0;
       const meta = p === 'network' && s.backup ? { icon: '🔌', label: t('Infra') } : PANEL_META[p];
       const alert = p === 'network' && ((s.backup && (!s.backup.grid || s.alarms.some((a) => a.kind === 'generator' || a.kind === 'battery' || a.kind === 'ats' || a.kind === 'fuel'))) || s.alarms.some((a) => a.kind === 'feed'));
       return `<button data-action="panel" data-panel="${p}" class="${p === active ? 'on' : ''}" aria-pressed="${p === active}">
@@ -101,9 +103,49 @@ const ALARM_HINT: Partial<Record<Alarm['kind'], string>> = {
   bandwidth: 'Add a second uplink in the Network tab, or turn away traffic-heavy clients',
 };
 
+const riskCls = (pct: number) => (pct >= 25 ? 'bad' : pct >= 12 ? 'warn' : 'ok');
+
+export function changesSection(s: GameState): string {
+  if (!hasFeature(s, 'changes')) return '';
+  const list = openChanges(s);
+  const tAt = tonight(s);
+  const cards = list.map((c) => {
+    const def = CHANGES[c.kind];
+    const now = changeRisk(s, c, s.minute);
+    const night = changeRisk(s, c, tAt);
+    const shown = c.status === 'offered' ? now : changeRisk(s, c);
+    const factors = shown.factors.map((f) => `<span class="chip ${f.mult < 1 ? 'ok' : 'warn'}" title="×${f.mult}">${f.mult < 1 ? '✓' : '⚠'} ${e(t(f.label))}</span>`).join(' ');
+    const actions = c.status === 'offered'
+      ? `<button class="ghost ${c.rollback ? 'on' : ''}" data-action="changeRollback" data-change="${e(c.id)}" data-on="${c.rollback ? '0' : '1'}" aria-pressed="${c.rollback}">↩️ ${t('Rollback plan')} ${c.rollback ? t('on') : t('off')}</button>
+         <button data-action="changeNow" data-change="${e(c.id)}" ${s.freeze ? 'disabled' : ''}>${t('Now')} · ${now.pct}%</button>
+         <button class="primary" data-action="changeTonight" data-change="${e(c.id)}">${t('Tonight')} ${formatClock(tAt)} · ${night.pct}%</button>
+         <button class="ghost" data-action="changeSkip" data-change="${e(c.id)}">${t('Skip')}</button>`
+      : c.status === 'scheduled'
+        ? `<span class="muted">🕙 ${t('Scheduled')} ${formatClock(c.scheduledAt ?? 0)}${s.freeze ? ` · ${t('held by the freeze')}` : ''}</span><button class="ghost" data-action="changeSkip" data-change="${e(c.id)}">${t('Skip')}</button>`
+        : `<span class="busy">🔧 ${t('In progress')}…</span>`;
+    return `<li class="change"><div class="row"><span>${def.icon}</span><b>${e(t(changeTitle(s, c).split(' · ')[0]!))}${c.rackId ? ` · Rack ${s.racks.findIndex((r) => r.id === c.rackId) + 1}` : ''}</b><span class="chip ${riskCls(shown.pct)}">${shown.pct}% ${t('risk')}</span></div>
+      <div class="row meta">${e(t(def.benefit))}</div>
+      <div class="row meta factors">${factors}</div>
+      <div class="row actions">${actions}</div></li>`;
+  }).join('');
+  return `<h3>📝 ${t('Planned changes')}</h3>
+    <div class="row actions"><button class="${s.freeze ? 'primary' : 'ghost'}" data-action="freezeToggle" aria-pressed="${!!s.freeze}">🧊 ${t('Change freeze')} ${s.freeze ? t('on') : t('off')}</button>
+      <span class="muted small">${t('Done')} ${s.stats.changeDone ?? 0} · ${t('went wrong')} ${s.stats.changeFailed ?? 0}</span></div>
+    ${list.length ? `<ul class="list changes">${cards}</ul>` : `<div class="empty">${t('No change requests right now.')}</div>`}`;
+}
+
+export function resilienceCard(s: GameState): string {
+  if (!hasFeature(s, 'redundancy')) return '';
+  const r = resilience(s);
+  const lv = ['I', 'II', 'III', 'IV'][r.level - 1];
+  return `<h3>🛡️ ${t('Resilience level')} ${lv}</h3>
+    <ul class="list goals">${r.checks.map((c) => `<li class="row"><span>${c.ok ? '✅' : '▫️'}</span><span class="muted small">${['', '', 'II', 'III', 'IV'][c.level]}</span><span>${e(t(c.label))}</span></li>`).join('')}</ul>
+    <p class="muted small">${t('Level III means you can maintain anything without a shutdown. Level IV survives any single fault.')}</p>`;
+}
+
 export function alarmsPanel(s: GameState): string {
   const list = [...s.alarms].sort((a, b) => b.severity - a.severity || a.raisedAt - b.raisedAt);
-  const requests = attackCard(s) + postMortemCard(s) + requestsSection(s);
+  const requests = attackCard(s) + postMortemCard(s) + changesSection(s) + requestsSection(s);
   if (!list.length) return `${requests}<div class="empty">✅ All quiet. ${requests ? 'Time for those requests!' : hasFeature(s, 'projects') ? 'Maybe start an ops project (Team tab)?' : 'Enjoy your coffee.'}</div>`;
   return `${requests}${requests ? '<h3>Alarms</h3>' : ''}<ul class="list alarms">${list
     .map((a) => {
@@ -265,7 +307,7 @@ export function backupPanel(s: GameState): string {
       <li><div class="row"><b>🔋 UPS × ${b.upsUnits}</b><span class="chip ${b.health < BACKUP.batteryWarnBelow ? 'bad' : 'ok'}">Health ${Math.round(b.health * 100)}%</span></div>
         <div class="row meta">${b.upsKwh.toFixed(1)} / ${cap.toFixed(1)} kWh · bridges the gap until the generator starts</div>
         <div class="row actions">${busy('replaceBattery') ? '<span class="busy">🔧 Replacing…</span>' : b.health < 0.95 ? `<button class="primary" data-action="dispatchPower" data-job="replaceBattery" ${need(BACKUP.batteryJobCost)}>Replace batteries ${money(BACKUP.batteryJobCost)}</button>` : ''}
-          ${b.upsUnits < BACKUP.maxUps ? `<button data-action="buyUps" ${need(BACKUP.upsPrice)}>+ UPS unit ${money(BACKUP.upsPrice)}</button>` : ''}</div></li>
+          ${b.upsUnits + (s.pendingInfra ?? []).filter((p) => p.kind === 'ups').length < BACKUP.maxUps ? `<button data-action="buyUps" ${need(BACKUP.upsPrice)}>+ UPS unit ${money(BACKUP.upsPrice)}${hasFeature(s, 'changes') ? ` · ${LEAD_TIME.ups.days} ${t('days')}` : ''}</button>` : ''}</div></li>
       <li><div class="row"><b>🛢️ ${t('Generator')}</b><span class="chip ${gen[0]}">${gen[1]}</span></div>
         <div class="row meta">${b.generator === 'none' ? 'No generator: when the batteries run dry, the lights go out.' : `Starts ${BACKUP.genStartMin} min into an outage. ${tested ? 'Test valid until ' + formatClock((b.testedAt ?? 0) + BACKUP.genTestValidMin) + '.' : 'An untested generator often refuses to start.'}`}</div>
         ${b.generator !== 'none' ? `<div class="row meta">⛽ ${t('Fuel')}: ${Math.floor((b.fuelMin ?? BACKUP.fuelFullMin) / 60)} h ${t('left')} ${b.ats === 'failed' ? `· <b class="bad">${t('Transfer switch STUCK')}</b>` : ''}</div>` : ''}
@@ -275,6 +317,8 @@ export function backupPanel(s: GameState): string {
           : b.generator === 'idle' && b.grid ? (busy('testGenerator') ? '<span class="busy">🔧 Testing…</span>' : `<button class="primary" data-action="dispatchPower" data-job="testGenerator" ${need(BACKUP.genTestCost)}>Test generator ${money(BACKUP.genTestCost)}</button>`)
           : b.generator === 'none' ? `<button class="primary" data-action="buyGenerator" ${need(BACKUP.generatorPrice)}>Buy generator ${money(BACKUP.generatorPrice)}</button>` : ''}</div></li>
     </ul>
+    ${(s.pendingInfra ?? []).length ? `<ul class="list">${(s.pendingInfra ?? []).map((p) => `<li><div class="row"><b>📦 ${e(t(LEAD_TIME[p.kind].name))}</b><span class="chip warn">${t('ETA')} ${formatClock(p.at)} · ${Math.max(1, Math.ceil((p.at - s.minute) / 1440))} ${t('day')}</span></div>
+      <div class="row actions">${p.expedited ? `<span class="muted small">${t('Expedited')}</span>` : `<button data-action="expediteInfra" data-id="${e(p.id)}">${t('Expedite')} ${money(Math.round((p.kind === 'ups' ? BACKUP.upsPrice : BACKUP.generatorPrice) * LEAD_TIME.expediteShare))}</button>`}</div></li>`).join('')}</ul>` : ''}
     <p class="muted small">Only an <b>electrician</b> works at full speed on power jobs. Hire one in the Team tab.</p>`;
 }
 
@@ -380,6 +424,7 @@ export function goalsPanel(s: GameState): string {
       .map((o, i) => `<li class="row"><span class="star">${'★'.repeat(i + 1)}</span><span>${e(o.label)}</span><span class="${status[i] ? 'ok' : 'muted'}">${status[i] ? '✓ on track' : '…'}</span></li>`)
       .join('')}</ul>
     <p class="muted small">${s.sandbox ? `No end date · score ${sandboxScore(s).toLocaleString('en-US')} · milestones` : `Ends ${formatClock(chapterEnd(s))} · goals are checked at the end`} · ${DIFFICULTIES[s.difficulty].emoji} ${e(DIFFICULTIES[s.difficulty].name)}</p>
+    ${resilienceCard(s)}
     ${last ? `<h3>Last day</h3><div class="report">
       <span>Revenue</span><b>${money(last.revenue)}</b><span>Penalties</span><b>${money(-last.penalties)}</b>
       <span>Salaries</span><b>${money(-last.salaries)}</b><span>Electricity</span><b>${money(-last.electricity)}</b>
@@ -703,6 +748,7 @@ export function shiftReportModal(s: GameState, r: ShiftReport): string {
     <div class="report"><span>Cash this shift</span><b class="${r.net < 0 ? 'neg' : 'pos'}">${r.net >= 0 ? '+' : ''}${money(r.net)}</b>
       <span>Incidents fixed</span><b>${r.resolved} / ${r.incidents}</b></div>
     ${r.highlights.length ? `<p class="muted small">${r.highlights.map(e).join(' · ')}</p>` : ''}
+    ${(s.pendingInfra ?? []).length ? `<p class="muted small">${(s.pendingInfra ?? []).map((p) => `📦 ${t('Arriving')}: ${t(LEAD_TIME[p.kind].name)} · ${Math.max(1, Math.ceil((p.at - s.minute) / 1440))} ${t('day')}`).join(' · ')}</p>` : ''}
     <div class="stack">${over ? '<button class="primary" data-action="closeModal">See results</button>' : `
       <button class="primary big" data-action="sleep">😴 Sleep until 06:00</button>
       <button data-action="closeModal">Keep working through the night</button>`}</div>

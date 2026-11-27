@@ -522,3 +522,10 @@ button:focus-visible, select:focus-visible, summary:focus-visible, input:focus-v
 .hb-list summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 8px; }
 .hb-list p { margin: 6px 0 10px; line-height: 1.4; }
 .hb-k { display: inline-block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-right: 6px; }
+
+/* ---------- v1.3 change management ---------- */
+.change .factors { display: flex; flex-wrap: wrap; gap: 4px; }
+.change .actions { flex-wrap: wrap; gap: 6px; }
+.change button { min-height: 44px; }
+.change button.on { background: var(--accent, #5ab4ff); color: #04121f; font-weight: 700; }
+body.eink .change button.on { background: #000; color: #fff; }

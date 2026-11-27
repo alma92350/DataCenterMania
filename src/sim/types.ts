@@ -25,7 +25,7 @@ export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'ch6' | 
 export type FeatureFlag =
   | 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote'
   | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance'
-  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup' | 'redundancy';
+  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup' | 'redundancy' | 'changes';
 
 export type PartId =
   | 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc'
@@ -69,6 +69,33 @@ export interface Rack {
   /** Power feeds A and B (PRD v2 F1). Missing means working. */
   pduA?: 'ok' | 'failed';
   pduB?: 'ok' | 'failed';
+  /** A firmware change was applied: servers here hang far less (v1.3). */
+  fw?: boolean;
+  /** PDU maintenance was done: feed failures are much rarer here (v1.3). */
+  pduHardened?: boolean;
+}
+
+export type ChangeKind = 'firmware' | 'pduMaintenance' | 'coolerSwap' | 'capacityInstall';
+
+/** Planned work (PRD v2 F2): a card with a benefit and a risk the player chooses when to take. */
+export interface Change {
+  id: string;
+  kind: ChangeKind;
+  rackId: string | null;
+  coolerId: string | null;
+  status: 'offered' | 'scheduled' | 'running' | 'done' | 'failed' | 'skipped' | 'expired';
+  scheduledAt: number | null;
+  rollback: boolean;
+  expiresDay: number;
+  /** Risk shown on the card when it was last computed. */
+  riskPct: number;
+}
+
+export interface PendingInfra {
+  id: string;
+  kind: 'ups' | 'generator';
+  at: number;
+  expedited: boolean;
 }
 
 export interface Cooler {
@@ -142,7 +169,7 @@ export interface Candidate {
 export type JobKind =
   | 'swapDisk'
   | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel'
-  | 'repairPdu' | 'dualCord' | 'crossConnect'
+  | 'repairPdu' | 'dualCord' | 'crossConnect' | 'change'
   | 'replacePsu'
   | 'reboot'
   | 'resetBreaker'
@@ -184,6 +211,7 @@ export interface Job {
   projectId?: ProjectId;
   walkinId?: string;
   feed?: 'A' | 'B';
+  changeId?: string;
   /** Started by an idle specialist on their own initiative. */
   proactive?: boolean;
   botched?: boolean;
@@ -413,7 +441,18 @@ export interface GameState {
     /** Game minutes with no power at all (grid down, battery empty, generator off). */
     blackoutMin?: number;
     outages?: number;
+    /** Planned changes that finished cleanly / went wrong (v1.3). */
+    changeDone?: number;
+    changeFailed?: number;
+    rmaCredit?: number;
   };
+  /** Change management (v1.3): offered and scheduled planned work, and a freeze policy. */
+  changes?: Change[];
+  freeze?: boolean;
+  /** Big equipment on order: arrives after a number of game days (queue days). */
+  pendingInfra?: PendingInfra[];
+  /** Supply shock: part deliveries are slower until this minute. */
+  supplyShockUntil?: number;
   /** NOC level 0..3 (remote hands) and reboots in flight. */
   noc?: number;
   remoteReboots?: { deviceId: string; at: number }[];

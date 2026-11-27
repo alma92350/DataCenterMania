@@ -10,6 +10,7 @@ import { accessTile, findPath, isWalkable, nearestTile } from './grid';
 import { mistakeFactor, staminaFactor } from './fatigue';
 import { restoreUplink } from './network';
 import { repairPdu } from './feeds';
+import { finishChange, rmaCredit } from './changes';
 import { refuelGenerator, replaceBatteries, startGenerator, testGenerator, transferAts } from './backup';
 import { addLog, homeSpot, makeCooler, makeRack, newId, showTip } from './state';
 import { blockedTiles, deviceById, isIdle, rackById, techById, techQueueLength } from './selectors';
@@ -31,6 +32,7 @@ export interface JobSpec {
   projectId?: Job['projectId'];
   walkinId?: string;
   feed?: 'A' | 'B';
+  changeId?: string;
   proactive?: boolean;
   workMin?: number;
 }
@@ -40,7 +42,7 @@ export function createJob(s: GameState, spec: JobSpec): Job {
     id: newId(s, 'j'), kind: spec.kind, rackId: spec.rackId ?? null, deviceId: spec.deviceId ?? null,
     techId: null, stage: 'queued', workLeft: spec.workMin ?? JOB_WORK_MIN[spec.kind], workTotal: spec.workMin ?? JOB_WORK_MIN[spec.kind], part: spec.part,
     site: { ...spec.site }, model: spec.model, slot: spec.slot, contractId: spec.contractId, coolerKind: spec.coolerKind,
-    coolerId: spec.coolerId, uplinkId: spec.uplinkId, facing: spec.facing, projectId: spec.projectId, walkinId: spec.walkinId, feed: spec.feed, proactive: spec.proactive,
+    coolerId: spec.coolerId, uplinkId: spec.uplinkId, facing: spec.facing, projectId: spec.projectId, walkinId: spec.walkinId, feed: spec.feed, changeId: spec.changeId, proactive: spec.proactive,
   };
   if (spec.part) s.inventory[spec.part]--;
   s.jobs.push(job);
@@ -266,10 +268,12 @@ export function completeJob(s: GameState, job: Job): void {
   if (REPAIRS.has(job.kind)) s.stats.resolved++;
   switch (job.kind) {
     case 'swapDisk':
+      rmaCredit(s, 'disk');
       if (dev) dev.faults = dev.faults.filter((f) => f !== 'disk' && f !== 'dataloss');
       clearFor(['disk', 'dataloss']);
       break;
     case 'replacePsu':
+      rmaCredit(s, 'psu');
       if (dev) dev.faults = dev.faults.filter((f) => f !== 'psu');
       clearFor(['psu']);
       break;
@@ -367,6 +371,9 @@ export function completeJob(s: GameState, job: Job): void {
       break;
     case 'crossConnect':
       completeWalkin(s, job.walkinId);
+      break;
+    case 'change':
+      finishChange(s, job.changeId);
       break;
     case 'refuel':
       refuelGenerator(s);

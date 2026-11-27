@@ -7,7 +7,7 @@ import type { GameState } from '../src/sim/types';
 /** A simple bot standing in for a competent player: fix every alarm, keep spares, fill contracts. */
 export type Defend = 'auto' | 'perfect' | 'ignore';
 
-export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean; legs?: 'dual' | 'single' } = {}): void {
+export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean; legs?: 'dual' | 'single'; changes?: 'careful' | 'reckless' } = {}): void {
   // cyber attacks: skip the micro-game (half strength), play it perfectly, or never answer
   if (s.cyber.attack && opts.defend !== 'ignore') {
     if (opts.defend === 'perfect') applyCommand(s, { type: 'resolveAttack', score: 1, mode: 'played', infected: [] });
@@ -47,6 +47,18 @@ export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend;
       const cand = s.candidates.find((c) => c.role === role);
       if (!s.techs.some((t) => t.role === role) && cand) applyCommand(s, { type: 'hire', candidateId: cand.id });
     }
+  }
+  // change management: careful players use the night window and a rollback plan; reckless ones run everything now
+  if (s.features.includes('changes')) {
+    for (const c of s.changes ?? []) {
+      if (c.status !== 'offered') continue;
+      if (opts.changes === 'reckless') applyCommand(s, { type: 'scheduleChange', changeId: c.id, when: 'now' });
+      else {
+        applyCommand(s, { type: 'setRollback', changeId: c.id, on: true });
+        applyCommand(s, { type: 'scheduleChange', changeId: c.id, when: 'tonight' });
+      }
+    }
+    for (const p of s.pendingInfra ?? []) void p;
   }
   // redundancy: dual-cord the servers that serve customers, one at a time
   if (s.features.includes('redundancy') && opts.legs !== 'single' && !s.jobs.some((j) => j.kind === 'dualCord')) {

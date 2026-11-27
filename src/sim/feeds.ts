@@ -1,5 +1,5 @@
 import { chance } from '../core/rng';
-import { REDUNDANCY } from '../data/catalog';
+import { CHANGE, REDUNDANCY } from '../data/catalog';
 import { DIFFICULTIES } from '../data/difficulty';
 import { clearAlarms, escalationDelay, raiseAlarm } from './alarms';
 import { addLog, showTip } from './state';
@@ -34,6 +34,6 @@ export function rollFeeds(s: GameState, dt: number): void {
   const rate = DIFFICULTIES[s.difficulty].incidentRate * (s.incidentMult ?? 1) * REDUNDANCY.pduFailPerDay * (dt / 1440);
   for (const r of s.racks) {
     if (!s.devices.some((d) => d.rackId === r.id)) continue;
-    for (const feed of ['A', 'B'] as const) if (chance(s.rng, rate)) failPdu(s, r, feed);
+    for (const feed of ['A', 'B'] as const) if (chance(s.rng, rate * (r.pduHardened ? CHANGE.hardenedFeedMult : 1))) failPdu(s, r, feed);
   }
 }

@@ -1,6 +1,7 @@
 import { at } from '../core/time';
 import { DIFFICULTIES } from './difficulty';
 import type { AttackKind, ChapterId, Contract, Facing, FaultKind, FeatureFlag, GameState, PartId, ServerModelId, TechRole, Uplink, Villain } from '../sim/types';
+import { resilience } from '../sim/resilience';
 import { overallUptimePct, servingDeviceCount, activeContracts } from '../sim/selectors';
 
 /** Money goals shrink with the difficulty's starting cash, so harder levels stay fair. */
@@ -24,7 +25,10 @@ export type ScriptedAction =
   | { type: 'cutUplink'; uplink: number; text?: string }
   | { type: 'attack'; kind: AttackKind; villain?: Villain }
   | { type: 'outage'; minutes: number; text?: string }
-  | { type: 'pduFail'; rack: number; feed: 'A' | 'B'; text?: string };
+  | { type: 'pduFail'; rack: number; feed: 'A' | 'B'; text?: string }
+  | { type: 'offerChange'; kind: 'firmware' | 'pduMaintenance' | 'coolerSwap' | 'capacityInstall' }
+  | { type: 'supplyShock'; days: number; text?: string }
+  | { type: 'delayInfra'; days: number; text?: string };
 
 export interface ScriptedEvent {
   id: string;
@@ -400,7 +404,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     map: COLO_MAP,
     startMinute: at(0, 8),
     endMinute: at(3, 22),
-    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue', 'backup', 'remote', 'redundancy'],
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue', 'backup', 'remote', 'redundancy', 'changes'],
     startCash: 20000,
     ambient: 24,
     rackPowerBudgetW: 3000,
@@ -414,11 +418,14 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     hwTechs: 1,
     failuresEnabled: true,
     dailyOffers: true,
-    incidentMult: 0.8,
+    incidentMult: 0.65,
     backup: { ups: 2, health: 1, generator: 'idle', fuelMin: 1440 },
     events: [
       { id: 'redundancyTip', at: at(0, 8, 5), actions: [{ type: 'tip', key: 'redundancy' }] },
       { id: 'dualTip', at: at(0, 9), actions: [{ type: 'tip', key: 'dualCord' }] },
+      { id: 'firstChanges', at: at(0, 8, 20), actions: [{ type: 'offerChange', kind: 'firmware' }, { type: 'offerChange', kind: 'pduMaintenance' }] },
+      { id: 'supplyShock', at: at(1, 8, 30), actions: [{ type: 'supplyShock', days: 2, text: '📦 A chip shortage hits the market: part deliveries now take 3× longer for two days. Check your spares!' }] },
+      { id: 'delayedOrder', at: at(2, 9), actions: [{ type: 'delayInfra', days: 1 }] },
       { id: 'feedDrill', at: at(1, 10), actions: [{ type: 'pduFail', rack: 1, feed: 'A', text: '⚡ 10:00: the utility electrician is testing a PDU and drops feed A on one rack. A planned test, but nobody told you…' }] },
       { id: 'feedChain', at: at(2, 15), actions: [{ type: 'pduFail', rack: 3, feed: 'B', text: '⚡ 15:00: feed B fails on another rack. Servers with two legs keep running, but now they hang by a single thread…' }] },
       { id: 'feedChain2', at: at(2, 17), actions: [{ type: 'pduFail', rack: 3, feed: 'A', text: '⚡ 17:00: feed A trips on that same rack. If you did not fix B, this is the chain reaction.' }] },
@@ -426,7 +433,7 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
     objectives: [
       { label: 'SLA uptime ≥ 97% and $2,000 profit (scaled by difficulty)', check: (s) => overallUptimePct(s) >= 97 && s.cash - s.progress.startCash >= profitGoal(s, 2000), progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 97% · profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 2000))}` },
       { label: 'SLA uptime ≥ 99.5% and $6,000 profit', check: (s) => overallUptimePct(s) >= 99.5 && s.cash - s.progress.startCash >= profitGoal(s, 6000) },
-      { label: 'Every serving server dual-corded, no blackout, $20,000 profit', check: (s) => (s.stats.blackoutMin ?? 0) === 0 && s.cash - s.progress.startCash >= profitGoal(s, 20000) && s.devices.filter((d) => d.contractId !== null).every((d) => (d.psus ?? 1) === 2), progress: (s) => `Dual-corded ${s.devices.filter((d) => (d.psus ?? 1) === 2).length} / ${s.devices.length}` },
+      { label: 'Resilience level III, no blackout, $20,000 profit', check: (s) => (s.stats.blackoutMin ?? 0) === 0 && s.cash - s.progress.startCash >= profitGoal(s, 20000) && resilience(s).level >= 3, progress: (s) => `Resilience level ${resilience(s).level} / 3 · dual-corded ${s.devices.filter((d) => (d.psus ?? 1) === 2).length} / ${s.devices.length}` },
     ],
     next: null,
   },

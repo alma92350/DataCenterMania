@@ -31,6 +31,7 @@ export const TIPS: Record<string, string> = {
   redundancy: 'Power now comes in two feeds, A and B. A server with one power cord (a single leg) dies when feed A does. A server with two legs survives one failure. Open the map overlay button until it shows the red single points of failure.',
   dualCord: 'Dual-cord your servers: open a rack, tap Dual-cord on a server and a hardware tech fits a second power supply. You have a few spare PSUs in stock. Start with the servers your best customers use.',
   feedFail: 'A power feed failed on a rack. Servers with two legs keep running but are one failure from an outage, and single-corded ones on that feed are down. Send an electrician to repair the feed right away.',
+  changes: 'Planned work now arrives as change cards in the Alarms tab. Every card shows its risk. You can cut it: schedule it for the night window (23:00) and tick the rollback plan. A freeze stops all planned work, but requests pile up. Most real outages happen during planned work.',
   uplinkCut: 'A backhoe just cut your fiber! Until it is spliced, only your other uplinks carry traffic. A network engineer can fix it faster than the ISP.',
   switchDown: 'A top-of-rack switch died: every server in that rack is offline. Network engineers carry spare switches. Make sure you have some in stock.',
   autodispatch: 'Busy? Hire a Shift Lead in the Team tab. They send the best specialist to routine alarms and customer requests so you can focus on the big decisions. It costs a daily salary: you are buying back your attention.',

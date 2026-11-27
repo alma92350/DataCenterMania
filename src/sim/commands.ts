@@ -1,9 +1,10 @@
 import { contractLabel } from './naming';
-import { BACKUP, CONTRACT_GRACE_MIN, EXTRA_UPLINK, JOB_WORK_MIN, LEAD, NOC, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
-import { dayOf } from '../core/time';
+import { BACKUP, CONTRACT_GRACE_MIN, EXTRA_UPLINK, JOB_WORK_MIN, LEAD, LEAD_TIME, NOC, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
+import { dayOf, formatClock } from '../core/time';
 import { deliveryTime } from './economy';
 import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
 import { upsCapacityKwh } from './backup';
+import { changeRisk, changeTitle, orderInfra, scheduleChange } from './changes';
 import { resolveAttack } from './cyber';
 import { isWalkable, nearestTile, tileAt } from './grid';
 import { addLog, homeSpot, homeTile, makeCandidate, newId, showTip, techFromCandidate } from './state';
@@ -30,6 +31,11 @@ export type Command =
   | { type: 'serviceCooler'; coolerId: string; techId: TechChoice }
   | { type: 'repairCooler'; coolerId: string; techId: TechChoice }
   | { type: 'buyUplink' }
+  | { type: 'scheduleChange'; changeId: string; when: 'now' | 'tonight' }
+  | { type: 'setRollback'; changeId: string; on: boolean }
+  | { type: 'skipChange'; changeId: string }
+  | { type: 'setFreeze'; on: boolean }
+  | { type: 'expediteInfra'; id: string }
   | { type: 'upgradeNoc' }
   | { type: 'remoteReboot'; deviceId: string }
   | { type: 'buyUps' }
@@ -395,6 +401,45 @@ function exec(s: GameState, cmd: Command): CommandResult {
       addLog(s, 'success', `${EXTRA_UPLINK.name} is live: +${EXTRA_UPLINK.capacityGbps} Gbps on a separate route.`);
       return ok();
     }
+    case 'setFreeze': {
+      if (!hasFeature(s, 'changes')) return fail('Change management unlocks in Chapter 6.');
+      s.freeze = cmd.on;
+      addLog(s, 'info', cmd.on ? '🧊 Change freeze ON: no planned work will start. Requests pile up.' : '🧊 Change freeze OFF: scheduled work can start again.');
+      return ok();
+    }
+    case 'setRollback': {
+      const c = s.changes?.find((x) => x.id === cmd.changeId);
+      if (!c || c.status !== 'offered') return fail('That change can no longer be edited.');
+      c.rollback = cmd.on;
+      c.riskPct = changeRisk(s, c, s.minute).pct;
+      return ok();
+    }
+    case 'skipChange': {
+      const c = s.changes?.find((x) => x.id === cmd.changeId);
+      if (!c || (c.status !== 'offered' && c.status !== 'scheduled')) return fail('That change is not waiting.');
+      c.status = 'skipped';
+      return ok();
+    }
+    case 'scheduleChange': {
+      const c = s.changes?.find((x) => x.id === cmd.changeId);
+      if (!c || c.status !== 'offered') return fail('That change is not waiting for a decision.');
+      if (s.freeze && cmd.when === 'now') return fail('A change freeze is in force. Lift it first, or pick tonight and lift the freeze before then.');
+      scheduleChange(s, c, cmd.when);
+      addLog(s, 'info', `📝 ${changeTitle(s, c)} scheduled ${cmd.when === 'now' ? 'now' : `for ${formatClock(c.scheduledAt ?? 0)}`} (${c.riskPct}% risk${c.rollback ? ', with rollback' : ''}).`);
+      return ok();
+    }
+    case 'expediteInfra': {
+      const p = s.pendingInfra?.find((x) => x.id === cmd.id);
+      if (!p) return fail('That order is not pending.');
+      if (p.expedited) return fail('Already expedited.');
+      const price = Math.round((p.kind === 'ups' ? BACKUP.upsPrice : BACKUP.generatorPrice) * LEAD_TIME.expediteShare);
+      if (s.cash < price) return fail('Not enough cash.');
+      s.cash -= price;
+      p.at = Math.max(s.minute + 60, p.at - LEAD_TIME.expediteDays * 1440);
+      p.expedited = true;
+      addLog(s, 'money', `📦 Expedited ${LEAD_TIME[p.kind].name} order: ${LEAD_TIME.expediteDays} day sooner for $${price}.`);
+      return ok();
+    }
     case 'upgradeNoc': {
       if (!hasFeature(s, 'remote')) return fail('Remote management unlocks in Chapter 2.');
       const level = s.noc ?? 0;
@@ -419,9 +464,15 @@ function exec(s: GameState, cmd: Command): CommandResult {
     case 'buyUps': {
       const b = s.backup;
       if (!b) return fail('This site has no backup power system.');
-      if (b.upsUnits >= BACKUP.maxUps) return fail('The UPS room is full.');
+      const queued = (s.pendingInfra ?? []).filter((p) => p.kind === 'ups').length;
+      if (b.upsUnits + queued >= BACKUP.maxUps) return fail('The UPS room is full.');
       if (s.cash < BACKUP.upsPrice) return fail('Not enough cash.');
       s.cash -= BACKUP.upsPrice;
+      if (hasFeature(s, 'changes')) {
+        orderInfra(s, 'ups');
+        addLog(s, 'success', `📦 UPS unit ordered: arrives in ${LEAD_TIME.ups.days} days.`);
+        return ok();
+      }
       b.upsUnits++;
       b.upsKwh = Math.min(upsCapacityKwh(b), b.upsKwh + BACKUP.upsKwhPerUnit);
       addLog(s, 'success', `Another UPS unit is online: ${b.upsUnits} now, ${Math.round(upsCapacityKwh(b))} kWh of battery.`);
@@ -430,9 +481,14 @@ function exec(s: GameState, cmd: Command): CommandResult {
     case 'buyGenerator': {
       const b = s.backup;
       if (!b) return fail('This site has no backup power system.');
-      if (b.generator !== 'none') return fail('You already have a generator.');
+      if (b.generator !== 'none' || (s.pendingInfra ?? []).some((p) => p.kind === 'generator')) return fail('You already have a generator.');
       if (s.cash < BACKUP.generatorPrice) return fail('Not enough cash.');
       s.cash -= BACKUP.generatorPrice;
+      if (hasFeature(s, 'changes')) {
+        orderInfra(s, 'generator');
+        addLog(s, 'success', `📦 Generator ordered: arrives in ${LEAD_TIME.generator.days} days.`);
+        return ok();
+      }
       b.generator = 'idle';
       addLog(s, 'success', 'A diesel generator is installed in the yard. Have an electrician test it!');
       return ok();

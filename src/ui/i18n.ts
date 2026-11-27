@@ -457,7 +457,7 @@ export const FR: Record<string, string> = {
   'Power now comes in two feeds, A and B. A server with one power cord (a single leg) dies when feed A does. A server with two legs survives one failure. Open the map overlay button until it shows the red single points of failure.': 'Le courant arrive désormais par deux arrivées, A et B. Un serveur avec un seul cordon (une seule patte) tombe avec l’arrivée A. Un serveur à deux pattes survit à une panne. Faites défiler le calque de la carte jusqu’aux points de défaillance uniques en rouge.',
   'Dual-cord your servers: open a rack, tap Dual-cord on a server and a hardware tech fits a second power supply. You have a few spare PSUs in stock. Start with the servers your best customers use.': 'Passez vos serveurs en double alimentation : ouvrez une baie, touchez Double alimentation sur un serveur et un technicien matériel monte une seconde alimentation. Vous avez quelques alimentations de rechange. Commencez par les serveurs de vos meilleurs clients.',
   'A power feed failed on a rack. Servers with two legs keep running but are one failure from an outage, and single-corded ones on that feed are down. Send an electrician to repair the feed right away.': 'Une arrivée électrique est tombée sur une baie. Les serveurs à deux pattes continuent mais sont à une panne de l’arrêt, et ceux à un seul cordon sur cette arrivée sont arrêtés. Envoyez tout de suite un électricien réparer l’arrivée.',
-  'Every serving server dual-corded, no blackout, ${n} profit': 'Tous les serveurs en service en double alimentation, aucune coupure, {n} $ de bénéfice',
+  'Resilience level III, no blackout, ${n} profit': 'Niveau de résilience III, aucune coupure, {n} $ de bénéfice',
   'Dual-corded {n} / {n}': 'Double alimentation {n} / {n}',
   'Redundancy': 'Redondance', 'Single points of failure': 'Points de défaillance uniques', 'Dual-cord': 'Double alim.',
   'Feed A': 'Arrivée A', 'Feed B': 'Arrivée B', 'one leg': 'une patte', 'two legs': 'deux pattes', 'Legs': 'Pattes',
@@ -474,6 +474,33 @@ export const FR: Record<string, string> = {
   'The red overlay marks racks where one failed feed takes servers down. Dual-cord them.': 'Le calque rouge marque les baies où une arrivée en panne arrête des serveurs. Passez-les en double alimentation.',
   'A single point of failure is any one component whose failure stops the service. Finding and removing them is the heart of resilient design.': 'Un point de défaillance unique est tout composant dont la panne arrête le service. Les repérer et les supprimer est au cœur d’une conception résiliente.',
   'Feed': 'Arrivée',
+  // v1.3: change management, lead times, resilience
+  'Planned change': 'Changement planifié',
+  'Firmware upgrade': 'Mise à jour du firmware', 'PDU maintenance': 'Maintenance du PDU', 'Cooler overhaul': 'Révision du climatiseur', 'Vendor capacity drop': 'Livraison de capacité fournisseur',
+  'Servers in this rack hang 60% less often.': 'Les serveurs de cette baie se bloquent 60 % moins souvent.',
+  'Power feed failures on this rack become far rarer.': 'Les pannes d’arrivée électrique sur cette baie deviennent bien plus rares.',
+  'The cooler is restored to full health.': 'Le climatiseur retrouve tout son état.',
+  'A new server for your stock, ready to install.': 'Un nouveau serveur pour votre stock, prêt à installer.',
+  'Maintenance window (night)': 'Fenêtre de maintenance (nuit)', 'Rollback plan': 'Plan de retour arrière', 'No specialist: you do it yourself': 'Pas de spécialiste : vous le faites vous-même',
+  'Tired technician': 'Technicien fatigué', 'Rested specialist': 'Spécialiste reposé', 'Every server has two legs': 'Chaque serveur a deux pattes', 'Labels and tidy cables': 'Étiquettes et câbles rangés',
+  'on': 'activé', 'off': 'désactivé', 'Now': 'Maintenant', 'Tonight': 'Cette nuit', 'Skip': 'Passer', 'Scheduled': 'Planifié', 'held by the freeze': 'retenu par le gel', 'In progress': 'En cours',
+  'risk': 'risque', 'Planned changes': 'Changements planifiés', 'Change freeze': 'Gel des changements', 'Done': 'Terminés', 'went wrong': 'ratés', 'No change requests right now.': 'Aucune demande de changement pour l’instant.',
+  'Resilience level': 'Niveau de résilience', 'Level III means you can maintain anything without a shutdown. Level IV survives any single fault.': 'Le niveau III permet de tout maintenir sans arrêt. Le niveau IV survit à n’importe quelle panne unique.',
+  'Every serving server has two power legs': 'Chaque serveur en service a deux pattes d’alimentation', 'Two planned changes done with none going wrong': 'Deux changements planifiés réussis, aucun raté',
+  'Generator tested and two UPS units': 'Groupe testé et deux onduleurs', 'No single point of failure on power': 'Aucun point de défaillance unique sur l’électricité',
+  'Every loaded rack has two coolers in reach': 'Chaque baie chargée a deux climatiseurs à portée', 'Two internet uplinks and a serviced transfer switch': 'Deux liaisons internet et un commutateur de transfert entretenu',
+  'Arriving': 'En route', 'ETA': 'Arrivée', 'days': 'jours', 'Expedite': 'Accélérer', 'Expedited': 'Accéléré', 'UPS unit': 'Onduleur',
+  'Resilience level {n} / {n} · dual-corded {n} / {n}': 'Niveau de résilience {n} / {n} · double alimentation {n} / {n}',
+  'Planned work now arrives as change cards in the Alarms tab. Every card shows its risk. You can cut it: schedule it for the night window (23:00) and tick the rollback plan. A freeze stops all planned work, but requests pile up. Most real outages happen during planned work.': 'Le travail planifié arrive désormais sous forme de cartes de changement dans l’onglet Alarmes. Chaque carte affiche son risque. Vous pouvez le réduire : planifiez-la dans la fenêtre de nuit (23 h) et cochez le plan de retour arrière. Un gel arrête tout travail planifié, mais les demandes s’accumulent. La plupart des vraies pannes surviennent pendant du travail planifié.',
+  '📦 A chip shortage hits the market: part deliveries now take 3× longer for two days. Check your spares!': '📦 Une pénurie de puces frappe le marché : les livraisons de pièces prennent 3× plus de temps pendant deux jours. Vérifiez vos pièces de rechange !',
+  'Change management': 'Gestion des changements',
+  'Planned work comes as cards with a risk. Night windows, a rollback plan and a rested specialist cut the risk. A freeze stops everything.': 'Le travail planifié arrive sous forme de cartes avec un risque. Les fenêtres de nuit, un plan de retour arrière et un spécialiste reposé réduisent le risque. Un gel arrête tout.',
+  'A large share of outages happen during planned work, not from random failures. Operators schedule risky work in maintenance windows, write a rollback plan first, and freeze changes before big events.': 'Une grande part des pannes survient pendant du travail planifié, pas à cause de pannes aléatoires. Les exploitants planifient le travail risqué dans des fenêtres de maintenance, rédigent d’abord un plan de retour arrière et gèlent les changements avant les grands événements.',
+  'Lead times and returns (RMA)': 'Délais de livraison et retours (RMA)',
+  'Big equipment takes game days to arrive, and a supply shock slows everything. Failed parts go back for credit.': 'Les gros équipements mettent des jours de jeu à arriver, et une pénurie ralentit tout. Les pièces en panne repartent contre avoir.',
+  'Large electrical equipment can have lead times of months or years, so capacity is ordered long before it is needed. Returning a failed part for replacement or credit is called an RMA.': 'Les gros équipements électriques peuvent avoir des délais de plusieurs mois ou années, donc la capacité se commande bien avant le besoin. Renvoyer une pièce défectueuse contre remplacement ou avoir s’appelle un RMA.',
+  'Resilience levels': 'Niveaux de résilience',
+  'Industry ratings grade sites by how much can fail or be maintained without downtime. The game uses generic levels I to IV, not any real certification.': 'Les classements du secteur notent les sites selon ce qui peut tomber en panne ou être maintenu sans arrêt. Le jeu utilise des niveaux génériques I à IV, pas une vraie certification.',
   // tips
   'Welcome to the closet! That humming box is the whole company. Tap the rack to look inside.': 'Bienvenue dans le placard ! Cette boîte qui ronronne, c’est toute l’entreprise. Touchez la baie pour regarder dedans.',
   'An alarm! Tap it in the alarm list, then send someone. Amber = warning, red = trouble.': 'Une alarme ! Touchez-la dans la liste, puis envoyez quelqu’un. Orange = avertissement, rouge = problème.',
@@ -593,7 +620,7 @@ export function translateTree(root: ParentNode): void {
   }
 }
 
-type Named = { term?: string; game?: string; real?: string; name?: string; title?: string; subtitle?: string; intro?: string; description?: string; blurb?: string; label?: string };
+type Named = { benefit?: string; term?: string; game?: string; real?: string; name?: string; title?: string; subtitle?: string; intro?: string; description?: string; blurb?: string; label?: string };
 
 export function t(text: string): string {
   return current === 'fr' ? FR[text] ?? text : text;
@@ -620,6 +647,8 @@ export async function applyLanguage(lang: Lang): Promise<void> {
   for (const k of Object.keys(TIPS)) TIPS[k] = t(TIPS[k]!);
   for (const h of handbook.HANDBOOK) tr(h as Named & { term?: string }, ['term', 'game', 'real'] as (keyof Named)[]);
   for (const l of catalog.NOC.levels) tr(l as Named, ['name', 'blurb']);
+  for (const c of Object.values(catalog.CHANGES)) tr(c as unknown as Named, ['title', 'benefit'] as (keyof Named)[]);
+  for (const l of Object.values(catalog.LEAD_TIME)) if (typeof l === 'object') tr(l as Named, ['name']);
   for (const c of Object.values(CHAPTERS)) tr(c, ['title', 'subtitle', 'intro']);
   for (const d of Object.values(DIFFICULTIES)) tr(d, ['name', 'blurb']);
   for (const a of ACHIEVEMENTS) tr(a, ['name', 'description']);

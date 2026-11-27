@@ -466,7 +466,7 @@ All v1 guardrails stay in CI. New ones:
 |---|---|---|---|
 | **v1.1 "Remote Hands"** ✅ shipped (message keys deferred) | Quick wins | NOC and remote reboot (F3), backup power 2.0 retune (F9), Ops Handbook v1 (F13), local telemetry (F14); sim message keys moved to v1.2 | Ch5 tests updated ✓; Handbook covers every v1 system ✓ (see §12) |
 | **v1.2 "Two Legs"** ✅ shipped | Redundancy | Dual PSU, A/B feeds, SPOF view (F1); cross-connect tickets (F7 partial); Chapter 6 arrives early with redundancy only | SPOF property tests ✓; bot feed-failure test ✓ (see §13) |
-| **v1.3 "Change Advisory Board"** | Risk | Change management (F2), supply chain events (F12), Chapter 6 | Change-risk tests; guardrails hold in Ch6 |
+| **v1.3 "Change Advisory Board"** ✅ shipped | Risk | Change management (F2), supply chain events (F12), long-lead equipment (P2), resilience levels (P14), Chapter 6 gets its second system | Change-risk tests ✓; guardrails hold in Ch6 ✓ (see §15) |
 | **v1.4 "Efficiency Drive"** | Planning | DCIM capacity (F4), live PUE and free cooling (F5), Chapter 7, Black Friday event | PUE property tests; Ch7 ★★★ bot-gated |
 | **v1.5 "AI Factory"** | Density | Liquid cooling and GPU racks (F6), Chapter 8 | Thermal runaway tests; 60 fps on throttled phone |
 | **v1.6 "The Long Night"** | People | Customer 2.0 complete (F7), nights and incident command (F8), Chapter 9 | Renewal/churn tests; ≤ 1 pager per night |
@@ -555,3 +555,18 @@ Office cat in the data center (morale), visitor tours as a reputation event, wea
 A second review, inspired by the *Data Centers: Today and Tomorrow* field guide, produced 16 proposals (site power cap and grid queue, long-lead equipment, water ↔ power slider, community goodwill, a density tech tree, effective training time for AI customers, training vs inference, out-of-band network, event cards and more). They are scored and placed in the release plan in [`PRD_v2_field_guide_proposals.md`](PRD_v2_field_guide_proposals.md). It also resolves open question 1 of §11: liquid cooling becomes a **skill gained by training an existing technician**, not a new role.
 
 **Decisions recorded (27 Nov 2026):** power labels move to MW by *row scale* from Chapter 7/8; a queue day is one game day (about 6–9 real minutes), with major items taking 2–5 days; off-site water is modelled next to on-site water; the orbital epilogue is a late Sandbox *Frontier* mode, not a release. Details in §5 of the addendum.
+
+## 15. v1.3 "Change Advisory Board" results
+
+- **Change cards (F2)** in the Alarms tab, from Chapter 6. Four kinds: *Firmware upgrade* (a rack's servers hang 60% less), *PDU maintenance* (that rack's feed failures become far rarer), *Cooler overhaul* (cooler back to full health), *Vendor capacity drop* (a spare server). Two cards arrive every morning (never more than three open) and expire after two days.
+- **Risk model** (pure, unit-tested): base risk × named factors. Night window ×0.6, rollback plan ×0.6 (costs 30 extra minutes), rested specialist ×0.85 or tired / no specialist ×1.3, PDU work on a rack where every server has two legs ×0.4, labels or tidy cables ×0.85; clamped to 1–95%. Each card shows its factors, and the *Now* and *Tonight 23:00* buttons show the risk of each option, so the lesson is visible.
+- **Outcomes.** A failed change causes a real incident (hung server, feed A down, cooler broken, or a damaged delivery) and says so in the log ("Cause: a planned change"). Careful scheduling (night plus rollback) fails less than reckless scheduling (tested on the bot).
+- **Change freeze**: one switch. Scheduled work waits, *Now* is refused, and unanswered requests expire with a small reputation cost.
+- **Incident budget**: Chapter 6's random failure rate drops from 0.8 to 0.65, because planned work now supplies part of the incident load.
+- **Long-lead equipment (P2)**: from Chapter 6, UPS units (2 queue days) and generators (3) are ordered, not bought; the Infra tab and the shift report show the ETA, and *Expedite* costs half the price and saves a day. Earlier chapters keep instant purchases and small parts keep their delivery times. A queue day is one game day (see the addendum).
+- **Supply events (F12, first three)**: a chip shortage triples part deliveries for two days, a delivery delay slips equipment orders, and failed disks and PSUs earn a 40% RMA credit.
+- **Resilience levels (P14)**: I to IV with a checklist in the Goals tab (II: every serving server has two legs; III: two planned changes done cleanly plus a tested generator and two UPS units; IV: no single point of failure, two coolers in reach, two uplinks and a serviced transfer switch). Chapter 6's ★★★ is now *Resilience level III, no blackout, $20,000 profit*.
+- **Handbook** gains *Change management*, *Lead times and returns (RMA)* and *Resilience levels*; everything is translated into French.
+- **Not done**: the remaining event cards (drought, moratorium, winter storm, new chip generation) wait for the systems they depend on; translatable simulation messages move to v1.4.
+- **Tests**: 400 unit tests and the phone e2e (new session for the change cards).
+

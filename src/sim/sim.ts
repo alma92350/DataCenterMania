@@ -18,6 +18,7 @@ import { updateCoolers } from './maintenance';
 import { updateNetwork } from './network';
 import { updateNoc } from './noc';
 import { rollFeeds } from './feeds';
+import { updateChanges } from './changes';
 import { updateFatigue } from './fatigue';
 import type { GameState } from './types';
 
@@ -27,6 +28,7 @@ export function step(s: GameState): void {
   const dt = 1;
   runScriptedEvents(s);
   updateShift(s);
+  updateChanges(s);
   updateCyber(s);
   updateWalkins(s, dt);
   updateNetwork(s, dt);

@@ -3,6 +3,7 @@ import { applyFault } from './failures';
 import { cutUplink } from './network';
 import { startOutage } from './backup';
 import { failPdu } from './feeds';
+import { delayInfra, offerChange, supplyShock } from './changes';
 import { launchAttack } from './cyber';
 import { addLog, makeContract, showTip } from './state';
 import type { GameState } from './types';
@@ -37,6 +38,15 @@ function run(s: GameState, a: ScriptedAction): void {
       if (c) c.health = Math.min(c.health, a.health);
       break;
     }
+    case 'offerChange':
+      offerChange(s, a.kind);
+      break;
+    case 'supplyShock':
+      supplyShock(s, a.days, a.text);
+      break;
+    case 'delayInfra':
+      delayInfra(s, a.days, a.text);
+      break;
     case 'pduFail': {
       const r = s.racks[a.rack];
       if (a.text) addLog(s, 'story', a.text);

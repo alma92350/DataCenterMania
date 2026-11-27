@@ -70,6 +70,7 @@ export const JOB_WORK_MIN: Record<JobKind, number> = {
   repairPdu: 40,
   dualCord: 25,
   crossConnect: 45,
+  change: 60,
 };
 
 export const JOB_LABEL: Record<JobKind, string> = {
@@ -98,6 +99,7 @@ export const JOB_LABEL: Record<JobKind, string> = {
   repairPdu: 'Repair power feed',
   dualCord: 'Dual-cord server',
   crossConnect: 'Patch cross-connect',
+  change: 'Planned change',
 };
 
 /**
@@ -109,7 +111,7 @@ export const JOB_ROLES: Record<JobKind, TechRole[]> = {
   buildRack: ['hw'], rotateRack: ['hw'], placeCooler: ['hw', 'hvac'],
   serviceCooler: ['hvac'], repairCooler: ['hvac'], replaceSwitch: ['net'], repairUplink: ['net'],
   project: ['hw', 'net'], favor: ['hw', 'hvac', 'net'], audit: ['net'], reimage: ['hw', 'net'],
-  startGenerator: ['elec'], testGenerator: ['elec'], replaceBattery: ['elec'], transferAts: ['elec'], refuel: ['elec', 'hw'], repairPdu: ['elec'], dualCord: ['hw', 'elec'], crossConnect: ['net'],
+  startGenerator: ['elec'], testGenerator: ['elec'], replaceBattery: ['elec'], transferAts: ['elec'], refuel: ['elec', 'hw'], repairPdu: ['elec'], dualCord: ['hw', 'elec'], crossConnect: ['net'], change: ['hw', 'hvac', 'elec'],
 };
 
 export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer', lead: 'Shift Lead', elec: 'Electrician' };
@@ -210,3 +212,37 @@ export const REDUNDANCY = { pduFailPerDay: 0.05, repairMin: 40, dualCordMin: 25 
 
 /** Ticket queue v1: cross-connect orders pay more than favours and need a network engineer. */
 export const TICKETS = { crossConnectShare: 0.3, rewardMult: 3, deadlineMin: 120 } as const;
+
+/** Change management (PRD v2 F2). Risk is the chance the change goes wrong when the work finishes. */
+export interface ChangeDef {
+  title: string;
+  icon: string;
+  roles: ('hw' | 'hvac' | 'elec')[];
+  workMin: number;
+  riskBase: number;
+  benefit: string;
+}
+
+export const CHANGES: Record<'firmware' | 'pduMaintenance' | 'coolerSwap' | 'capacityInstall', ChangeDef> = {
+  firmware: { title: 'Firmware upgrade', icon: '💾', roles: ['hw'], workMin: 60, riskBase: 0.2, benefit: 'Servers in this rack hang 60% less often.' },
+  pduMaintenance: { title: 'PDU maintenance', icon: '🔌', roles: ['elec'], workMin: 90, riskBase: 0.3, benefit: 'Power feed failures on this rack become far rarer.' },
+  coolerSwap: { title: 'Cooler overhaul', icon: '🧊', roles: ['hvac'], workMin: 75, riskBase: 0.15, benefit: 'The cooler is restored to full health.' },
+  capacityInstall: { title: 'Vendor capacity drop', icon: '📦', roles: ['hw'], workMin: 45, riskBase: 0.12, benefit: 'A new server for your stock, ready to install.' },
+};
+
+export const CHANGE = {
+  rollbackMin: 30, nightRiskMult: 0.6, rollbackRiskMult: 0.6, restedMult: 0.85, tiredMult: 1.3, tiredFatigue: 50,
+  dualRackMult: 0.4, projectMult: 0.85, offerPerDay: 2, maxOpen: 3, expireDays: 2, freezeRepPenalty: 0.02, minRisk: 0.01, maxRisk: 0.95,
+  fwHungMult: 0.4, hardenedFeedMult: 0.3,
+} as const;
+
+/** Long-lead equipment (PRD v2 addendum P2): ordered in game days ("queue days"), shown as an ETA. */
+export const LEAD_TIME = {
+  ups: { days: 2, name: 'UPS unit' },
+  generator: { days: 3, name: 'Generator' },
+  expediteShare: 0.5,
+  expediteDays: 1,
+} as const;
+
+/** Supply shocks and returns (PRD v2 F12). */
+export const SUPPLY = { shockMult: 3, rmaShare: 0.4 } as const;

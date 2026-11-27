@@ -1,4 +1,4 @@
-import { NOC } from '../data/catalog';
+import { NOC, SUPPLY } from '../data/catalog';
 import { contractLabel } from './naming';
 import { pick, randInt } from '../core/rng';
 import { MINUTES_PER_DAY, dayOf, minuteOfDay } from '../core/time';
@@ -13,7 +13,8 @@ import { contractUptimeTodayPct, unitsOf } from './selectors';
 import type { DayReport, GameState, PartId } from './types';
 
 export function deliveryTime(s: GameState, part: PartId): number {
-  return Math.round(PARTS[part].deliveryMin * DIFFICULTIES[s.difficulty].deliveryTime);
+  const shock = s.minute < (s.supplyShockUntil ?? 0) ? SUPPLY.shockMult : 1;
+  return Math.round(PARTS[part].deliveryMin * DIFFICULTIES[s.difficulty].deliveryTime * shock);
 }
 
 export function updateOrders(s: GameState): void {

@@ -525,6 +525,43 @@ try {
     check(await page.isVisible('#tabs'), 'the SPOF overlay is on and the tab bar stays visible');
   });
 
+  await session('change advisory board (phone)', { ...devices['Pixel 5'], deviceScaleFactor: 2 }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 }, ch3: { sysadmin: 3 }, ch4: { sysadmin: 3 }, ch5: { sysadmin: 1 } }));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern', display: 'color' }));
+    });
+    await page.reload();
+    await page.tap('[data-chapter="ch6"]');
+    await page.waitForSelector('#topbar .stat');
+    while (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+    await page.tap('[data-action="speed"][data-speed="4"]');
+    for (let i = 0; i < 60 && !(await page.locator('.change').count()); i++) {
+      if (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+      await page.waitForTimeout(400);
+    }
+    await page.tap('#tabs [data-panel="alarms"]');
+    await page.waitForSelector('.change', { timeout: 10000 });
+    await page.tap('[data-action="speed"][data-speed="0"]').catch(() => {});
+    check((await page.textContent('#panel')).includes('Planned changes'), 'the Alarms tab shows planned change cards');
+    check(/\d+% risk/.test(await page.textContent('.change')), 'each card shows its risk');
+    const before = await page.textContent('.change [data-action="changeTonight"]');
+    await page.tap('.change [data-action="changeRollback"] >> nth=0');
+    await page.waitForTimeout(300);
+    const after = await page.textContent('.change [data-action="changeTonight"]');
+    check(before !== after, `ticking the rollback plan changes the risk (${before.trim()} -> ${after.trim()})`);
+    await page.screenshot({ path: `${outDir}/changes.png` });
+    await page.tap('.change [data-action="changeTonight"] >> nth=0');
+    await page.waitForFunction(() => document.querySelector('#panel')?.textContent.includes('Scheduled'), null, { timeout: 4000 });
+    check(true, 'scheduling a change for tonight works');
+    await page.tap('[data-action="freezeToggle"]');
+    await page.waitForFunction(() => document.querySelector('[data-action="freezeToggle"]')?.getAttribute('aria-pressed') === 'true', null, { timeout: 4000 });
+    check(true, 'the change freeze can be switched on');
+    await page.tap('#tabs [data-panel="goals"]');
+    await page.waitForTimeout(300);
+    check((await page.textContent('#panel')).includes('Resilience level'), 'the Goals tab shows the resilience level');
+    check(await page.isVisible('#tabs'), 'the tab bar stays visible');
+  });
+
 } finally {
   server?.kill();
 }

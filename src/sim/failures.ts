@@ -1,5 +1,5 @@
 import { chance } from '../core/rng';
-import { FAILURE_PER_DAY, PROJECT_EFFECT, THERMAL } from '../data/catalog';
+import { CHANGE, FAILURE_PER_DAY, PROJECT_EFFECT, THERMAL } from '../data/catalog';
 import { DIFFICULTIES } from '../data/difficulty';
 import { escalationDelay, raiseAlarm } from './alarms';
 import { directorMultiplier } from './director';
@@ -33,7 +33,7 @@ export function rollFailures(s: GameState, dt: number): void {
     const mult = rate * failureMultiplier(rack?.temp ?? 20) * (0.6 + d.load * 0.8) * (dt / 1440);
     for (const fault of ['disk', 'psu', 'hung'] as const) {
       if (d.faults.includes(fault) || (fault === 'disk' && d.faults.includes('dataloss'))) continue;
-      const extra = fault === 'hung' ? hungRateMultiplier(s) : 1;
+      const extra = fault === 'hung' ? hungRateMultiplier(s) * (rack?.fw ? CHANGE.fwHungMult : 1) : 1;
       if (chance(s.rng, FAILURE_PER_DAY[fault] * mult * extra)) {
         applyFault(s, d, fault);
         break;
