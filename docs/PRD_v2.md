@@ -549,3 +549,8 @@ Office cat in the data center (morale), visitor tours as a reputation event, wea
 - **Handbook** gains *A/B feeds and dual power supplies* and *Single point of failure*; French translations for everything new.
 - **Deferred**: N+1 cooling as an explicit setting (the SPOF view already flags single-cooler racks), dual top-of-rack switches, simulation message keys (now v1.3).
 - **Tests**: 377 unit tests (new: legs, feeds, dual-cording, scripted chain, bot with and without dual-cording, SPOF property test, overlay cycle, cross-connect tickets) and the phone e2e (new session).
+
+## 14. Field-guide proposals (pending decision)
+
+A second review, inspired by the *Data Centers: Today and Tomorrow* field guide, produced 16 proposals (site power cap and grid queue, long-lead equipment, water ↔ power slider, community goodwill, a density tech tree, effective training time for AI customers, training vs inference, out-of-band network, event cards and more). They are scored and placed in the release plan in [`PRD_v2_field_guide_proposals.md`](PRD_v2_field_guide_proposals.md). It also resolves open question 1 of §11: liquid cooling becomes a **skill gained by training an existing technician**, not a new role.
+

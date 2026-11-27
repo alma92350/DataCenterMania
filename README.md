@@ -4,7 +4,7 @@ A top-down data center management game for desktop and mobile browsers. You star
 
 **Play it:** https://alma92350.github.io/DataCenterMania/ (redeployed automatically: every push runs the tests, builds, and publishes to the `gh-pages` branch)
 
-Free, no ads, works offline (PWA). See the full design in [`docs/PRD.md`](docs/PRD.md), and the plan for the next major release in [`docs/PRD_v2.md`](docs/PRD_v2.md).
+Free, no ads, works offline (PWA). See the full design in [`docs/PRD.md`](docs/PRD.md), and the plan for the next major release in [`docs/PRD_v2.md`](docs/PRD_v2.md) (with [field-guide proposals](docs/PRD_v2_field_guide_proposals.md)).
 
 ## Play / develop
 
