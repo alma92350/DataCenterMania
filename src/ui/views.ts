@@ -1,4 +1,4 @@
-import { BACKUP, CHANGES, CONTRACT_GRACE_MIN, COOLERS, LEAD_TIME, NOC, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
+import { BACKUP, CHANGES, CONTRACT_GRACE_MIN, COOLERS, ENERGY, LEAD_TIME, NOC, SITE, EXTRA_UPLINK, JOB_LABEL, LEAD, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS, THERMAL } from '../data/catalog';
 import { CHAPTERS, CHAPTER_ORDER } from '../data/chapters';
 import { traitOf } from '../data/content';
 import { DIFFICULTIES } from '../data/difficulty';
@@ -26,6 +26,8 @@ import { bestStars, isDifficultyUnlocked, isSandboxUnlocked, isUnlocked, type Pr
 import { spofCount } from '../sim/spof';
 import { changeRisk, changeTitle, openChanges, tonight } from '../sim/changes';
 import { resilience } from '../sim/resilience';
+import { capacityReport, fitPreview, formatPower, powerScale } from '../sim/capacity';
+import { droughtActive, facilityW, freeShare, outdoorC, pueAverage, pueNow } from '../sim/site';
 import { feedOk, onOneLeg } from '../sim/selectors';
 import { generatorTested, upsCapacityKwh, upsRuntimeMin } from '../sim/backup';
 import { SANDBOX_FLOORS, sandboxDays, sandboxScore, type SandboxConfig, type SandboxFloor } from '../sim/sandbox';
@@ -80,7 +82,7 @@ export function tabs(s: GameState, active: PanelId): string {
     .map((p) => {
       const badge = p === 'alarms' ? s.alarms.filter((a) => a.kind !== 'powerHigh').length + s.walkins.filter((w) => w.status === 'open').length + (s.changes ?? []).filter((c) => c.status === 'offered').length : p === 'contracts' ? offeredContracts(s).length : 0;
       const meta = p === 'network' && s.backup ? { icon: '🔌', label: t('Infra') } : PANEL_META[p];
-      const alert = p === 'network' && ((s.backup && (!s.backup.grid || s.alarms.some((a) => a.kind === 'generator' || a.kind === 'battery' || a.kind === 'ats' || a.kind === 'fuel'))) || s.alarms.some((a) => a.kind === 'feed'));
+      const alert = p === 'network' && ((s.backup && (!s.backup.grid || s.alarms.some((a) => a.kind === 'generator' || a.kind === 'battery' || a.kind === 'ats' || a.kind === 'fuel'))) || s.alarms.some((a) => a.kind === 'feed' || a.kind === 'siteCap' || a.kind === 'oob'));
       return `<button data-action="panel" data-panel="${p}" class="${p === active ? 'on' : ''}" aria-pressed="${p === active}">
         <span class="ti">${meta.icon}</span><span class="tl">${meta.label}</span>${alert ? '<span class="badge">!</span>' : ''}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
     })
@@ -265,6 +267,7 @@ export function contractsPanel(s: GameState): string {
             <div class="row"><b>${e(c.name)}</b><span class="muted">${money(c.revenuePerDay)}/day</span></div>
             <div class="row meta"><span class="cust">🏢 ${e(c.customer)}</span></div>
             <div class="row meta">${e(c.description)}</div>
+            ${fitLine(s, c)}
             <div class="row meta">Needs ${c.units} units · SLA ${c.slaPct}% · ${c.durationDays} days · penalty ${money(c.penaltyPerBreach)}/breach · demand: ${e(c.profile)}</div>
             <div class="row actions"><span class="muted">Offer expires in ${Math.max(0, c.expiresDay - dayOf(s.minute))}d</span>
               <button class="ghost" data-action="decline" data-contract="${e(c.id)}">Decline</button>
@@ -322,6 +325,70 @@ export function backupPanel(s: GameState): string {
     <p class="muted small">Only an <b>electrician</b> works at full speed on power jobs. Hire one in the Team tab.</p>`;
 }
 
+export function siteChip(s: GameState): string {
+  const site = s.site;
+  if (!site) return '';
+  if (site.mainTripped) return `<button class="chip-btn bad" data-action="panel" data-panel="network">⚡ ${t('MAIN BREAKER TRIPPED')}</button>`;
+  const pct = Math.round((facilityW(s) / site.gridCapW) * 100);
+  return `<button class="chip-btn ${pct >= 100 ? 'bad' : pct >= 90 ? 'warn' : ''}" data-action="panel" data-panel="network" title="${t('Grid connection used')}">⚡ ${pct}% · PUE ${pueNow(s).toFixed(2)}</button>`;
+}
+
+export function energyCard(s: GameState): string {
+  const site = s.site;
+  if (!site || !hasFeature(s, 'energy')) return '';
+  const sc = powerScale(s);
+  const cash = (n: number) => (s.cash < n ? 'disabled' : '');
+  const ratio = site.waterOffToday > 0 ? site.waterOffToday / Math.max(1, site.waterOnToday) : 0;
+  const maxW = Math.max(1, site.waterOnToday, site.waterOffToday);
+  const drought = droughtActive(s);
+  const queued = (s.pendingInfra ?? []).filter((p) => p.kind === 'grid');
+  const room = site.gridSteps + queued.length < SITE.maxSteps;
+  return `<h3>⚡ ${t('Energy and water')}</h3>
+    <div class="report"><span>PUE ${t('now')}</span><b class="${pueNow(s) > 1.55 ? 'bad' : pueNow(s) > 1.4 ? 'warn' : 'ok'}">${pueNow(s).toFixed(2)}</b>
+      <span>PUE ${t('since the start')}</span><b>${pueAverage(s).toFixed(2)}</b>
+      <span>${t('Outside air')}</span><b>${outdoorC(s).toFixed(0)}°C${site.economizer ? ` · ${t('free cooling')} ${Math.round(freeShare(s) * 100)}%` : ''}</b>
+      <span>${t('Facility power')}</span><b>${formatPower(facilityW(s), sc)} / ${formatPower(site.gridCapW, sc)}</b></div>
+    <div class="bar big"><div style="width:${Math.min(100, (facilityW(s) / site.gridCapW) * 100)}%" class="${facilityW(s) > site.gridCapW * SITE.warnShare ? 'bad' : ''}"></div></div>
+    ${site.mainTripped ? `<div class="banner bad"><span>⚡ ${t('The main breaker tripped. Everything is down.')}</span>${s.jobs.some((j) => j.kind === 'resetMain') ? '<span class="busy">🔧 …</span>' : `<button class="primary" data-action="dispatchPower" data-job="resetMain">${t('Reset main breaker')}</button>`}</div>` : ''}
+    ${site.oob === 'cut' ? `<div class="banner warn"><span>🖥️ ${t('Out-of-band management link is down')}</span>${s.jobs.some((j) => j.kind === 'repairOob') ? '<span class="busy">🔧 …</span>' : `<button class="primary" data-action="dispatchPower" data-job="repairOob">${t('Repair management link')}</button>`}</div>` : ''}
+    ${drought ? `<div class="banner warn"><span>🏜️ ${t('Drought: evaporative cooling is banned')} · ${t('until')} ${formatClock(site.droughtUntil)}</span></div>` : ''}
+    <ul class="list">
+      <li><div class="row"><b>🌬️ ${t('Cooling mode')}</b><span class="chip ok">${site.cooling === 'evaporative' ? t('Evaporative') : t('Dry')}</span></div>
+        <div class="row meta">${t('Evaporative: cheap electricity, uses water. Dry: almost no water, more electricity.')}</div>
+        <div class="row actions"><button class="opt ${site.cooling === 'evaporative' ? 'on' : ''}" data-action="setCooling" data-mode="evaporative" aria-pressed="${site.cooling === 'evaporative'}" ${drought ? 'disabled' : ''}>💧 ${t('Evaporative')}</button>
+          <button class="opt ${site.cooling === 'dry' ? 'on' : ''}" data-action="setCooling" data-mode="dry" aria-pressed="${site.cooling === 'dry'}">🌬️ ${t('Dry')}</button></div></li>
+      <li><div class="row"><b>❄️ ${t('Free cooling')}</b><span class="chip ${site.economizer ? 'ok' : 'muted'}">${site.economizer ? t('Installed') : t('Not installed')}</span></div>
+        <div class="row actions">${site.economizer ? '' : `<button class="primary" data-action="buyEconomizer" ${cash(ENERGY.economizerPrice)}>${t('Install')} ${money(ENERGY.economizerPrice)}</button>`}
+          <button class="opt ${site.renewable ? 'on' : ''}" data-action="setRenewable" data-on="${site.renewable ? '0' : '1'}" aria-pressed="${site.renewable}">🌱 ${t('Renewable power')} +15%</button>
+          ${site.heatReuse ? `<span class="chip ok">♨️ ${t('Heat reuse')}</span>` : `<button data-action="buyHeatReuse" ${cash(ENERGY.heatReusePrice)}>♨️ ${t('Heat reuse')} ${money(ENERGY.heatReusePrice)}</button>`}</div></li>
+      <li><div class="row"><b>💧 ${t('Water today')}</b>${ratio ? `<span class="chip">${t('off-site is')} ${ratio.toFixed(1)}× ${t('on-site')}</span>` : ''}</div>
+        <div class="row meta">${t('On-site (cooling)')}: ${Math.round(site.waterOnToday)} L</div><div class="bar"><div style="width:${(site.waterOnToday / maxW) * 100}%"></div></div>
+        <div class="row meta">${t('Off-site (in the electricity)')}: ${Math.round(site.waterOffToday)} L</div><div class="bar"><div style="width:${(site.waterOffToday / maxW) * 100}%" class="warn"></div></div></li>
+      <li><div class="row"><b>🔌 ${t('Grid connection')}</b><span class="chip ${room ? 'ok' : 'muted'}">${formatPower(site.gridCapW, sc)}</span></div>
+        ${queued.map((p) => `<div class="row meta">📦 +${formatPower(SITE.stepW, sc)} · ${t('ETA')} ${formatClock(p.at)} · ${Math.max(1, Math.ceil((p.at - s.minute) / 1440))} ${t('day')}</div>`).join('')}
+        <div class="row actions">${room ? `<button class="primary" data-action="orderGrid" ${cash(SITE.stepPrice)}>${t('Order +')}${formatPower(SITE.stepW, sc)} ${money(SITE.stepPrice)} · ${LEAD_TIME.grid.days} ${t('days')}</button>` : `<span class="muted small">${t('The utility will not connect more.')}</span>`}</div></li>
+    </ul>`;
+}
+
+export function capacityCard(s: GameState): string {
+  if (!hasFeature(s, 'capacity')) return '';
+  const rep = capacityReport(s);
+  const sc = powerScale(s);
+  const fmt = (k: string, v: number) => (k === 'power' ? formatPower(v, sc) : k === 'space' ? `${v} U` : k === 'cooling' ? `${v.toFixed(1)} kW` : `${v.toFixed(1)} Gbps`);
+  return `<h3>📊 ${t('Capacity')}</h3>
+    <ul class="list">${rep.resources.map((r) => `<li><div class="row"><b>${e(t(r.label))}${r.key === rep.limiting ? ` <span class="chip warn">${t('runs out first')}</span>` : ''}</b><span class="muted">${fmt(r.key, r.used)} / ${fmt(r.key, r.cap)}</span></div>
+      <div class="bar"><div style="width:${Math.min(100, r.pct)}%" class="${r.pct > 90 ? 'bad' : ''}"></div></div></li>`).join('')}</ul>
+    ${rep.strandedU > 0 ? `<p class="muted small">⚠ ${t('Stranded')}: ${rep.strandedU} U ${t('free but no power left in those racks.')}</p>` : ''}`;
+}
+
+export function fitLine(s: GameState, c: Contract): string {
+  if (!hasFeature(s, 'capacity')) return '';
+  const f = fitPreview(s, c);
+  const names: Record<string, string> = { power: 'power', space: 'space', network: 'network', cooling: 'cooling' };
+  return `<div class="row meta"><span class="chip ${f.ok ? 'ok' : 'bad'}">${f.ok ? `✓ ${t('Fits')}` : `⚠ ${t('Runs out of')} ${f.limits.map((l) => t(names[l]!)).join(', ')}`}</span>
+    <span class="muted small">${t('needs')} ${f.needUnits} ${t('servers')} · ${formatPower(f.needW, powerScale(s))} · ${f.needU} U${f.needGbps ? ` · ${f.needGbps} Gbps` : ''}</span></div>`;
+}
+
 export function redundancyCard(s: GameState): string {
   if (!hasFeature(s, 'redundancy')) return '';
   const serving = s.devices.filter((d) => d.contractId !== null);
@@ -347,7 +414,7 @@ export function networkPanel(s: GameState): string {
   const used = s.bandwidthUsed;
   const pct = cap > 0 ? (used / cap) * 100 : 100;
   const failed = s.racks.filter((r) => r.switchFailed);
-  return `${backupPanel(s)}${redundancyCard(s)}
+  return `${energyCard(s)}${capacityCard(s)}${backupPanel(s)}${redundancyCard(s)}
     <h3>${t('Uplink traffic')}</h3>
     <div class="report"><span>Using</span><b class="${used > cap ? 'bad' : pct > 90 ? 'warn' : ''}">${used.toFixed(1)} / ${cap} Gbps</b></div>
     <div class="bar big"><div style="width:${Math.min(100, pct)}%" class="${pct > 90 ? 'bad' : ''}"></div></div>
@@ -500,7 +567,7 @@ export function rackModal(s: GameState, rackId: string): string {
     <header role="group"><h2 class="inline-ico"><span class="ico sm">${partSvg('rack')}</span> ${e(rackName(s, rack))}</h2><button class="ghost" data-action="closeModal" aria-label="Close">✕</button></header>
     <div class="rack-stats">
       <div><span class="k">Temperature</span><b class="${tempCls}">${rack.temp.toFixed(1)}°C</b></div>
-      <div><span class="k">Power</span><b class="${powerPct > 90 ? 'bad' : powerPct > 70 ? 'warn' : ''}">${Math.round(rack.loadW)} / ${rack.powerBudgetW} W</b>
+      <div><span class="k">Power</span><b class="${powerPct > 90 ? 'bad' : powerPct > 70 ? 'warn' : ''}">${formatPower(rack.loadW, powerScale(s))} / ${formatPower(rack.powerBudgetW, powerScale(s))}</b>
         <div class="bar"><div style="width:${Math.min(100, powerPct)}%" class="${powerPct > 90 ? 'bad' : ''}"></div></div></div>
     </div>
     ${hasFeature(s, 'aisles') ? `<div class="banner ${rack.recirculation > 0 ? 'warn' : 'info'}">
@@ -725,7 +792,7 @@ export function goalBar(s: GameState): string {
   const today = s.today.revenue - s.today.salaries - s.today.rent - s.today.network - s.today.electricity;
   const money$ = `<span class="chip-btn ${today < 0 ? 'bad' : 'ok'}" title="Today so far (credited every hour)">💰 Today ${today >= 0 ? '+' : ''}${money(today)}</span>`;
   const streak = s.streak.hours >= 2 ? `<span class="chip-btn ok" title="Hours in a row with every customer within SLA (best ${s.streak.best}h)">🔥 Streak ${s.streak.hours}h</span>` : '';
-  return `${cyberChips(s)}${powerChip(s)}${goal}${shift}${streak}${money$}`;
+  return `${cyberChips(s)}${powerChip(s)}${siteChip(s)}${goal}${shift}${streak}${money$}`;
 }
 
 /** A burst of falling pieces for a perfect shift. Pure CSS, deterministic, off for reduced motion and e-ink. */

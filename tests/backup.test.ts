@@ -222,7 +222,7 @@ describe('Backup power UI', () => {
   });
 
   it('the end screen of the last chapter does not promise a next one', () => {
-    const s = createGame('ch6', 'sysadmin', 1);
+    const s = createGame('ch7', 'sysadmin', 1);
     s.progress.status = 'won';
     s.progress.stars = 1;
     expect(endScreen(s)).not.toContain('Next:');

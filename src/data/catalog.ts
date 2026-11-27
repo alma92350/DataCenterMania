@@ -71,6 +71,8 @@ export const JOB_WORK_MIN: Record<JobKind, number> = {
   dualCord: 25,
   crossConnect: 45,
   change: 60,
+  resetMain: 20,
+  repairOob: 30,
 };
 
 export const JOB_LABEL: Record<JobKind, string> = {
@@ -100,6 +102,8 @@ export const JOB_LABEL: Record<JobKind, string> = {
   dualCord: 'Dual-cord server',
   crossConnect: 'Patch cross-connect',
   change: 'Planned change',
+  resetMain: 'Reset main breaker',
+  repairOob: 'Repair management link',
 };
 
 /**
@@ -111,7 +115,7 @@ export const JOB_ROLES: Record<JobKind, TechRole[]> = {
   buildRack: ['hw'], rotateRack: ['hw'], placeCooler: ['hw', 'hvac'],
   serviceCooler: ['hvac'], repairCooler: ['hvac'], replaceSwitch: ['net'], repairUplink: ['net'],
   project: ['hw', 'net'], favor: ['hw', 'hvac', 'net'], audit: ['net'], reimage: ['hw', 'net'],
-  startGenerator: ['elec'], testGenerator: ['elec'], replaceBattery: ['elec'], transferAts: ['elec'], refuel: ['elec', 'hw'], repairPdu: ['elec'], dualCord: ['hw', 'elec'], crossConnect: ['net'], change: ['hw', 'hvac', 'elec'],
+  startGenerator: ['elec'], testGenerator: ['elec'], replaceBattery: ['elec'], transferAts: ['elec'], refuel: ['elec', 'hw'], repairPdu: ['elec'], dualCord: ['hw', 'elec'], crossConnect: ['net'], change: ['hw', 'hvac', 'elec'], resetMain: ['elec'], repairOob: ['net'],
 };
 
 export const ROLE_LABEL: Record<TechRole, string> = { manager: 'Manager', hw: 'HW tech', hvac: 'HVAC tech', net: 'Network engineer', lead: 'Shift Lead', elec: 'Electrician' };
@@ -240,9 +244,23 @@ export const CHANGE = {
 export const LEAD_TIME = {
   ups: { days: 2, name: 'UPS unit' },
   generator: { days: 3, name: 'Generator' },
+  grid: { days: 2, name: 'Grid connection upgrade' },
   expediteShare: 0.5,
   expediteDays: 1,
 } as const;
 
 /** Supply shocks and returns (PRD v2 F12). */
 export const SUPPLY = { shockMult: 3, rmaShare: 0.4 } as const;
+
+/** Energy and water (PRD v2 F5, addendum P3). Game values, ordered like the real trade-offs, not exact. */
+export const ENERGY = {
+  copEvaporative: 4.0, copDry: 2.8, fanW: 400, lossShare: 0.06,
+  economizerPrice: 5000, freeStartC: 20, freeSpanC: 10, freeMax: 0.8,
+  dryHotC: 28, dryHotPenalty: 1.25, renewablePriceMult: 1.15,
+  waterOnPerKwh: { evaporative: 1.8, dry: 0.05 }, waterOffPerKwh: { grid: 8, renewable: 1 },
+  heatReusePrice: 6000, heatReuseEarnPerKwh: 0.5, heatReusePueCredit: 0.1,
+  droughtDays: 2,
+} as const;
+
+/** Site power cap and the grid-connection queue (addendum P1). Display only: row scale x10 (a tile counts as a row of racks). */
+export const SITE = { startW: 10000, stepW: 4000, stepPrice: 4000, maxSteps: 3, warnShare: 0.9, tripMin: 5, rowScale: 10, strandedBelowW: 150 } as const;

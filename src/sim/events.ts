@@ -4,6 +4,7 @@ import { cutUplink } from './network';
 import { startOutage } from './backup';
 import { failPdu } from './feeds';
 import { delayInfra, offerChange, supplyShock } from './changes';
+import { cutOob, startDrought, surge } from './site';
 import { launchAttack } from './cyber';
 import { addLog, makeContract, showTip } from './state';
 import type { GameState } from './types';
@@ -43,6 +44,19 @@ function run(s: GameState, a: ScriptedAction): void {
       break;
     case 'supplyShock':
       supplyShock(s, a.days, a.text);
+      break;
+    case 'drought':
+      startDrought(s, a.days, a.text);
+      break;
+    case 'oobCut':
+      cutOob(s, a.text);
+      break;
+    case 'surge':
+      surge(s, a.mult, a.hours, a.text);
+      break;
+    case 'freeze':
+      s.freeze = a.on;
+      if (a.text) addLog(s, 'story', a.text);
       break;
     case 'delayInfra':
       delayInfra(s, a.days, a.text);

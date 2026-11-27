@@ -2,6 +2,7 @@ import { at } from '../core/time';
 import { DIFFICULTIES } from './difficulty';
 import type { AttackKind, ChapterId, Contract, Facing, FaultKind, FeatureFlag, GameState, PartId, ServerModelId, TechRole, Uplink, Villain } from '../sim/types';
 import { resilience } from '../sim/resilience';
+import { pueAverage } from '../sim/site';
 import { overallUptimePct, servingDeviceCount, activeContracts } from '../sim/selectors';
 
 /** Money goals shrink with the difficulty's starting cash, so harder levels stay fair. */
@@ -12,7 +13,7 @@ const money = (n: number) => `${n < 0 ? '-' : ''}$${Math.round(Math.abs(n)).toLo
 export type ContractSeed = Pick<
   Contract,
   'customer' | 'description' | 'units' | 'slaPct' | 'revenuePerDay' | 'penaltyPerBreach' | 'durationDays' | 'profile'
-> & Partial<Pick<Contract, 'bandwidthPerUnit' | 'name'>>;
+> & Partial<Pick<Contract, 'bandwidthPerUnit' | 'name' | 'pueMax'>>;
 
 export type ScriptedAction =
   | { type: 'say'; text: string }
@@ -28,7 +29,11 @@ export type ScriptedAction =
   | { type: 'pduFail'; rack: number; feed: 'A' | 'B'; text?: string }
   | { type: 'offerChange'; kind: 'firmware' | 'pduMaintenance' | 'coolerSwap' | 'capacityInstall' }
   | { type: 'supplyShock'; days: number; text?: string }
-  | { type: 'delayInfra'; days: number; text?: string };
+  | { type: 'delayInfra'; days: number; text?: string }
+  | { type: 'drought'; days: number; text?: string }
+  | { type: 'oobCut'; text?: string }
+  | { type: 'surge'; mult: number; hours: number; text?: string }
+  | { type: 'freeze'; on: boolean; text?: string };
 
 export interface ScriptedEvent {
   id: string;
@@ -76,6 +81,8 @@ export interface ChapterDef {
   failuresEnabled: boolean;
   /** Starting backup power: UPS units, their health and the generator. */
   backup?: { ups: number; health: number; generator: 'none' | 'idle'; fuelMin?: number };
+  /** Grid connection in watts (Chapter 7+). */
+  siteCapW?: number;
   dailyOffers: boolean;
   events: ScriptedEvent[];
   objectives: [Objective, Objective, Objective]; // ★ pass, ★★ pro, ★★★ legend
@@ -435,6 +442,49 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
       { label: 'SLA uptime ≥ 99.5% and $6,000 profit', check: (s) => overallUptimePct(s) >= 99.5 && s.cash - s.progress.startCash >= profitGoal(s, 6000) },
       { label: 'Resilience level III, no blackout, $20,000 profit', check: (s) => (s.stats.blackoutMin ?? 0) === 0 && s.cash - s.progress.startCash >= profitGoal(s, 20000) && resilience(s).level >= 3, progress: (s) => `Resilience level ${resilience(s).level} / 3 · dual-corded ${s.devices.filter((d) => (d.psus ?? 1) === 2).length} / ${s.devices.length}` },
     ],
+    next: 'ch7',
+  },
+  ch7: {
+    id: 'ch7', number: 7, title: 'The Efficiency Drive', subtitle: 'PUE, water and a grid connection that will not grow overnight',
+    intro: 'The utility caps your grid connection, a green customer will only sign if your efficiency is good, and Black Friday is coming. Watch PUE and water, plan your capacity, and order the grid upgrade before you need it.',
+    map: COLO_MAP,
+    startMinute: at(0, 8),
+    endMinute: at(4, 22),
+    features: ['shop', 'hire', 'contracts', 'power', 'buildRack', 'coolers', 'aisles', 'maintenance', 'roles', 'projects', 'walkins', 'autodispatch', 'network', 'fatigue', 'backup', 'remote', 'redundancy', 'changes', 'capacity', 'energy'],
+    startCash: 22000,
+    ambient: 24,
+    rackPowerBudgetW: 3000,
+    mapCooler: 'wallAc',
+    rackFacing: ['S', 'S', 'S', 'S', 'S', 'N', 'N', 'N', 'N', 'N', 'S', 'S', 'S', 'S', 'S'],
+    uplinks: [{ name: 'MetroFiber A', capacityGbps: 8, costPerDay: 150 }, { name: 'SkyLink Fiber B (separate route)', capacityGbps: 15, costPerDay: 220 }],
+    startingRoles: ['hw'],
+    devices: COLO_DEVICES,
+    contracts: LAUNCH_CONTRACTS,
+    inventory: { disk: 2, psu: 4, server1u: 4, filter: 1, switch: 1 },
+    hwTechs: 1,
+    failuresEnabled: true,
+    dailyOffers: true,
+    incidentMult: 0.65,
+    backup: { ups: 2, health: 1, generator: 'idle', fuelMin: 1440 },
+    siteCapW: 10000,
+    events: [
+      { id: 'energyTip', at: at(0, 8, 5), actions: [{ type: 'tip', key: 'energy' }] },
+      { id: 'capacityTip', at: at(0, 8, 40), actions: [{ type: 'tip', key: 'capacity' }] },
+      { id: 'greenOffer', at: at(0, 10), actions: [
+        { type: 'say', text: 'Verdant Cloud is a green customer: it will sign only if your PUE stays at 1.55 or better. It pays well.' },
+        { type: 'offer', contract: { customer: 'Verdant Cloud', name: 'Green Workloads', description: 'ESG customer: PUE must stay at or below 1.55.', units: 4, slaPct: 98, revenuePerDay: 2200, penaltyPerBreach: 900, durationDays: 5, profile: 'office', bandwidthPerUnit: 0.2, pueMax: 1.55 } },
+      ] },
+      { id: 'oobCut', at: at(1, 14), actions: [{ type: 'oobCut', text: '🖥️ 14:00: a router upgrade cut your out-of-band management link. Remote reboots will not work until a network engineer fixes it.' }] },
+      { id: 'drought', at: at(2, 9), actions: [{ type: 'drought', days: 2 }] },
+      { id: 'blackFridayWarning', at: at(2, 18), actions: [{ type: 'say', text: 'Black Friday starts tomorrow morning. Expect double traffic and a freeze on changes. Is your grid connection ready?' }] },
+      { id: 'blackFriday', at: at(3, 8), actions: [{ type: 'surge', mult: 1.8, hours: 20, text: '🛍️ Black Friday! Customers need almost double the traffic for 20 hours.' }, { type: 'freeze', on: true, text: '🧊 Change freeze: no planned work during Black Friday.' }] },
+      { id: 'blackFridayEnd', at: at(3, 22), actions: [{ type: 'freeze', on: false }] },
+    ],
+    objectives: [
+      { label: 'SLA uptime ≥ 97% and $2,000 profit (scaled by difficulty)', check: (s) => overallUptimePct(s) >= 97 && s.cash - s.progress.startCash >= profitGoal(s, 2000), progress: (s) => `Uptime ${overallUptimePct(s).toFixed(1)}% / 97% · PUE ${pueAverage(s).toFixed(2)} · profit ${money(s.cash - s.progress.startCash)} / ${money(profitGoal(s, 2000))}` },
+      { label: 'SLA uptime ≥ 99.5%, average PUE ≤ 1.5 and $5,000 profit', check: (s) => overallUptimePct(s) >= 99.5 && pueAverage(s) <= 1.5 && s.cash - s.progress.startCash >= profitGoal(s, 5000) },
+      { label: 'Average PUE ≤ 1.35, the main breaker never trips and $12,000 profit', check: (s) => pueAverage(s) <= 1.35 && (s.site?.trips ?? 0) === 0 && s.cash - s.progress.startCash >= profitGoal(s, 12000), progress: (s) => `PUE ${pueAverage(s).toFixed(2)} / 1.35 · trips ${s.site?.trips ?? 0}` },
+    ],
     next: null,
   },
   hack: {
@@ -478,6 +528,6 @@ export const CHAPTERS: Record<ChapterId, ChapterDef> = {
 };
 
 /** The campaign, in order. Events (like the Hacker Weekend) are not part of it. */
-export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6'];
+export const CHAPTER_ORDER: ChapterId[] = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7'];
 
 export const EVENT_ORDER: ChapterId[] = ['hack'];

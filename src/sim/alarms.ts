@@ -26,6 +26,9 @@ export const ALARM_TEXT: Record<AlarmKind, string> = {
   ats: 'Transfer switch stuck: the generator is not carrying the load',
   fuel: 'Generator fuel is running low',
   feed: 'Power feed lost on a rack',
+  siteCap: 'Main breaker tripped: the grid connection is overloaded',
+  siteCapHigh: 'Facility power above 90% of the grid connection',
+  oob: 'Out-of-band management link is down',
 };
 
 export interface AlarmTarget {

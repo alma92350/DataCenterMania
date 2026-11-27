@@ -562,6 +562,32 @@ try {
     check(await page.isVisible('#tabs'), 'the tab bar stays visible');
   });
 
+  await session('efficiency drive (phone)', { ...devices['Pixel 5'], deviceScaleFactor: 2 }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 }, ch3: { sysadmin: 3 }, ch4: { sysadmin: 3 }, ch5: { sysadmin: 3 }, ch6: { sysadmin: 1 } }));
+      localStorage.setItem('dcm.settings.v1', JSON.stringify({ autoPause: 'off', nightSkip: true, sound: false, difficulty: 'intern', display: 'color' }));
+    });
+    await page.reload();
+    await page.waitForSelector('[data-chapter="ch7"]');
+    check(true, 'Chapter 7: The Efficiency Drive unlocks after Grown-up Infrastructure');
+    await page.tap('[data-chapter="ch7"]');
+    await page.waitForSelector('#topbar .stat');
+    while (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
+    check(/PUE \d\.\d\d/.test(await page.textContent('#goalbar')), 'the HUD shows the grid load and PUE');
+    await page.tap('#tabs [data-panel="network"]');
+    await page.waitForSelector('[data-action="setCooling"]');
+    const before = await page.textContent('#panel');
+    check(before.includes('Energy and water') && before.includes('Capacity'), 'the Infra tab shows Energy and water and the Capacity card');
+    await page.screenshot({ path: `${outDir}/energy.png` });
+    await page.tap('[data-action="setCooling"][data-mode="dry"]');
+    await page.waitForFunction(() => document.querySelector('[data-mode="dry"]')?.getAttribute('aria-pressed') === 'true', null, { timeout: 4000 });
+    check(true, 'switching to dry cooling works');
+    await page.tap('[data-action="orderGrid"]');
+    await page.waitForFunction(() => document.querySelector('#panel')?.textContent.includes('ETA'), null, { timeout: 4000 });
+    check(true, 'ordering a grid upgrade shows an ETA in queue days');
+    check(await page.isVisible('#tabs'), 'the tab bar stays visible');
+  });
+
 } finally {
   server?.kill();
 }

@@ -1,12 +1,13 @@
 import { SERVER_MODELS } from '../data/catalog';
 import { clearAlarms, raiseAlarm } from './alarms';
 import { addLog, showTip } from './state';
+import { facilityW } from './site';
 import { devicesInRack, hasFeature, legsUp, rackById } from './selectors';
 import type { Device, GameState } from './types';
 
 export function devicePowerW(s: GameState, d: Device): number {
   const rack = rackById(s, d.rackId);
-  if (!d.poweredOn || d.thermalShutdown || !rack || rack.tripped || rack.maintenance || s.backup?.source === 'none') return 0;
+  if (!d.poweredOn || d.thermalShutdown || !rack || rack.tripped || rack.maintenance || s.backup?.source === 'none' || s.site?.mainTripped) return 0;
   const legs = legsUp(s, d);
   if (!legs.a && !legs.b) return 0;
   const m = SERVER_MODELS[d.model];
@@ -38,6 +39,7 @@ export function updatePower(s: GameState): void {
 
 /** Total facility IT + cooling power in watts. */
 export function facilityPowerW(s: GameState): number {
+  if (s.site) return facilityW(s);
   const it = s.racks.reduce((w, r) => w + r.loadW, 0);
   const cooling = s.coolers.filter((c) => c.on).reduce((w, c) => w + c.powerW, 0);
   return it + cooling;

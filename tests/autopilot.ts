@@ -1,3 +1,4 @@
+import { facilityW } from '../src/sim/site';
 import { applyCommand, suggestedCoolerJob, suggestedJob } from '../src/sim/commands';
 import { hourOf } from '../src/core/time';
 import { firstFreeSlot, activeContracts, contractAssignedUnits } from '../src/sim/selectors';
@@ -7,7 +8,7 @@ import type { GameState } from '../src/sim/types';
 /** A simple bot standing in for a competent player: fix every alarm, keep spares, fill contracts. */
 export type Defend = 'auto' | 'perfect' | 'ignore';
 
-export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean; legs?: 'dual' | 'single'; changes?: 'careful' | 'reckless' } = {}): void {
+export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend; power?: 'prepared' | 'negligent'; noc?: boolean; energy?: 'planned' | 'passive'; legs?: 'dual' | 'single'; changes?: 'careful' | 'reckless' } = {}): void {
   // cyber attacks: skip the micro-game (half strength), play it perfectly, or never answer
   if (s.cyber.attack && opts.defend !== 'ignore') {
     if (opts.defend === 'perfect') applyCommand(s, { type: 'resolveAttack', score: 1, mode: 'played', infected: [] });
@@ -47,6 +48,16 @@ export function autopilot(s: GameState, opts: { auto?: boolean; defend?: Defend;
       const cand = s.candidates.find((c) => c.role === role);
       if (!s.techs.some((t) => t.role === role) && cand) applyCommand(s, { type: 'hire', candidateId: cand.id });
     }
+  }
+  // energy: free cooling early, heat reuse once rich, and a grid upgrade ordered well before the cap is reached
+  if (s.site && opts.energy !== 'passive') {
+    const site = s.site;
+    const queued = (s.pendingInfra ?? []).filter((x) => x.kind === 'grid').length;
+    if (!site.economizer && s.cash > 7000) applyCommand(s, { type: 'buyEconomizer' });
+    // a planned player orders one step on day one and a second before the big surge
+    const want = s.minute >= 1440 ? 2 : facilityW(s) > site.gridCapW * 0.65 ? 1 : 0;
+    if (site.gridSteps + queued < want && s.cash > 5000) applyCommand(s, { type: 'orderGrid' });
+    if (!site.heatReuse && s.cash > 30000) applyCommand(s, { type: 'buyHeatReuse' });
   }
   // change management: careful players use the night window and a rollback plan; reckless ones run everything now
   if (s.features.includes('changes')) {

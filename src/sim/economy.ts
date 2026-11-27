@@ -1,4 +1,4 @@
-import { NOC, SUPPLY } from '../data/catalog';
+import { ENERGY, NOC, SUPPLY } from '../data/catalog';
 import { contractLabel } from './naming';
 import { pick, randInt } from '../core/rng';
 import { MINUTES_PER_DAY, dayOf, minuteOfDay } from '../core/time';
@@ -84,7 +84,7 @@ export function settleHour(s: GameState): void {
     salaries: Math.round(daily.salaries * elapsed) - t.salaries,
     rent: Math.round(daily.rent * elapsed) - t.rent,
     network: Math.round(daily.network * elapsed) - t.network,
-    electricity: Math.round(s.energyTodayKwh * ELECTRICITY_PER_KWH * BASE_PUE) - t.electricity,
+    electricity: Math.round(s.energyTodayKwh * ELECTRICITY_PER_KWH * (s.site ? (s.site.renewable ? ENERGY.renewablePriceMult : 1) : BASE_PUE)) - t.electricity,
   };
   for (const k of ['salaries', 'rent', 'network', 'electricity'] as const) t[k] += Math.max(0, due[k]);
   s.cash += credited - Math.max(0, due.salaries) - Math.max(0, due.rent) - Math.max(0, due.network) - Math.max(0, due.electricity);

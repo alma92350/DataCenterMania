@@ -21,11 +21,11 @@ export interface Grid {
 }
 
 export type DifficultyId = 'intern' | 'sysadmin' | 'senior' | 'nightmare';
-export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'ch6' | 'hack';
+export type ChapterId = 'ch0' | 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5' | 'ch6' | 'ch7' | 'hack';
 export type FeatureFlag =
   | 'hire' | 'contracts' | 'power' | 'buildRack' | 'coolers' | 'shop' | 'remote'
   | 'aisles' | 'network' | 'roles' | 'fatigue' | 'maintenance'
-  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup' | 'redundancy' | 'changes';
+  | 'projects' | 'walkins' | 'autodispatch' | 'cyber' | 'backup' | 'redundancy' | 'changes' | 'capacity' | 'energy';
 
 export type PartId =
   | 'disk' | 'psu' | 'server1u' | 'server2u' | 'rack' | 'portableAc' | 'wallAc'
@@ -91,9 +91,33 @@ export interface Change {
   riskPct: number;
 }
 
+/** The site as a whole (PRD v2 F4/F5): grid connection, cooling mode, water, efficiency. */
+export interface Site {
+  /** Grid connection capacity in watts: the facility cannot draw more than this. */
+  gridCapW: number;
+  gridSteps: number;
+  cooling: 'evaporative' | 'dry';
+  economizer: boolean;
+  renewable: boolean;
+  heatReuse: boolean;
+  /** Out-of-band management link: remote reboots need it. */
+  oob: 'ok' | 'cut';
+  mainTripped: boolean;
+  overMin: number;
+  droughtUntil: number;
+  trips: number;
+  /** Cumulative energy (kWh) and water (litres): on-site (cooling) and off-site (embedded in the electricity). */
+  itKwh: number;
+  facKwh: number;
+  waterOnL: number;
+  waterOffL: number;
+  waterOnToday: number;
+  waterOffToday: number;
+}
+
 export interface PendingInfra {
   id: string;
-  kind: 'ups' | 'generator';
+  kind: 'ups' | 'generator' | 'grid';
   at: number;
   expedited: boolean;
 }
@@ -169,7 +193,7 @@ export interface Candidate {
 export type JobKind =
   | 'swapDisk'
   | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel'
-  | 'repairPdu' | 'dualCord' | 'crossConnect' | 'change'
+  | 'repairPdu' | 'dualCord' | 'crossConnect' | 'change' | 'resetMain' | 'repairOob'
   | 'replacePsu'
   | 'reboot'
   | 'resetBreaker'
@@ -219,7 +243,7 @@ export interface Job {
 
 export type AlarmKind =
   | 'disk' | 'dataloss' | 'psu' | 'hung' | 'overheat' | 'breaker' | 'powerHigh'
-  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth' | 'malware' | 'gridDown' | 'generator' | 'battery' | 'ats' | 'fuel' | 'feed';
+  | 'filter' | 'coolerDown' | 'switch' | 'uplink' | 'bandwidth' | 'malware' | 'gridDown' | 'generator' | 'battery' | 'ats' | 'fuel' | 'feed' | 'siteCap' | 'siteCapHigh' | 'oob';
 
 export interface Alarm {
   id: string;
@@ -262,6 +286,8 @@ export interface Contract {
   breaches: number;
   totalMinutes: number;
   totalOkMinutes: number;
+  /** ESG clause: the SLA also fails while the site PUE is above this (v1.4). */
+  pueMax?: number;
 }
 
 export interface Uplink {
@@ -446,6 +472,10 @@ export interface GameState {
     changeFailed?: number;
     rmaCredit?: number;
   };
+  /** Site power, cooling mode, water and efficiency (Chapter 7+). */
+  site?: Site;
+  /** A demand surge such as Black Friday. */
+  surge?: { mult: number; until: number };
   /** Change management (v1.3): offered and scheduled planned work, and a freeze policy. */
   changes?: Change[];
   freeze?: boolean;

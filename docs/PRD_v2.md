@@ -467,7 +467,7 @@ All v1 guardrails stay in CI. New ones:
 | **v1.1 "Remote Hands"** ✅ shipped (message keys deferred) | Quick wins | NOC and remote reboot (F3), backup power 2.0 retune (F9), Ops Handbook v1 (F13), local telemetry (F14); sim message keys moved to v1.2 | Ch5 tests updated ✓; Handbook covers every v1 system ✓ (see §12) |
 | **v1.2 "Two Legs"** ✅ shipped | Redundancy | Dual PSU, A/B feeds, SPOF view (F1); cross-connect tickets (F7 partial); Chapter 6 arrives early with redundancy only | SPOF property tests ✓; bot feed-failure test ✓ (see §13) |
 | **v1.3 "Change Advisory Board"** ✅ shipped | Risk | Change management (F2), supply chain events (F12), long-lead equipment (P2), resilience levels (P14), Chapter 6 gets its second system | Change-risk tests ✓; guardrails hold in Ch6 ✓ (see §15) |
-| **v1.4 "Efficiency Drive"** | Planning | DCIM capacity (F4), live PUE and free cooling (F5), Chapter 7, Black Friday event | PUE property tests; Ch7 ★★★ bot-gated |
+| **v1.4 "Efficiency Drive"** ✅ shipped | Planning | DCIM capacity (F4), live PUE, free cooling, cooling modes, two water meters, grid cap and queue (F5, P1, P3), out-of-band link (P8), heat reuse (P12), Chapter 7, Black Friday event | PUE property tests ✓; Ch7 ★★★ bot-gated ✓ (see §16) |
 | **v1.5 "AI Factory"** | Density | Liquid cooling and GPU racks (F6), Chapter 8 | Thermal runaway tests; 60 fps on throttled phone |
 | **v1.6 "The Long Night"** | People | Customer 2.0 complete (F7), nights and incident command (F8), Chapter 9 | Renewal/churn tests; ≤ 1 pager per night |
 | **v2.0 "Hyperscale"** | Scale | Campus and multi-site (F10), economy 2.0 (F11), Chapter 10, Sandbox 2.0, share codes, worker sim | Summary-model calibration ±10%; §10 metrics in a 20-player playtest |
@@ -569,4 +569,21 @@ A second review, inspired by the *Data Centers: Today and Tomorrow* field guide,
 - **Handbook** gains *Change management*, *Lead times and returns (RMA)* and *Resilience levels*; everything is translated into French.
 - **Not done**: the remaining event cards (drought, moratorium, winter storm, new chip generation) wait for the systems they depend on; translatable simulation messages move to v1.4.
 - **Tests**: 400 unit tests and the phone e2e (new session for the change cards).
+
+## 16. v1.4 "Efficiency Drive" results
+
+- **Chapter 7 "The Efficiency Drive"** (unlocked by Grown-up Infrastructure, five game days). Two new systems, as the rule says: *capacity* (grid connection cap, DCIM view, queue) and *energy* (PUE, cooling modes, water).
+- **Live PUE.** Cooling electricity is now load-based: IT heat ÷ COP (evaporative 4.0, dry 2.8, dry in a hot spell ×0.8) plus fan power per cooler, minus free-cooling savings, plus 6% distribution losses. PUE lands between about 1.2 and 1.6 depending on choices (a property test checks 1.1 to 2.2 on random states). Chapters before 7 keep the old fixed-cooler model, so their balance is unchanged. Outside air follows a daily wave (about 8 to 20°C, hotter in a heatwave); the **free cooling** upgrade ($5,000) saves up to 80% of cooling electricity when it is cold.
+- **Cooling mode and water.** *Evaporative* (cheap electricity, on-site water) or *Dry* (almost no water, more electricity). Two meters, per addendum §5.3: **on-site** water (cooling) and **off-site** water (embedded in the electricity, 8 litres per kWh on the grid mix, 1 with a renewable contract). With evaporative cooling off-site water is about 4 to 5 times on-site; dry cooling cuts the first and raises the second. A **drought** (Chapter 7, day 3) bans evaporative cooling and switches the site to dry automatically. A **renewable contract** costs 15% more electricity.
+- **Grid connection and queue (P1).** The facility cannot draw more than its connection (10 kW at the start). A warning at 90%, and after 5 minutes over the cap the **main breaker trips** and everything is down until an electrician resets it (and it trips again if load is not shed). Upgrades ($4,000, +4 kW, up to three) take **2 queue days** and can be expedited. In the bot test, the unplanned bot trips the breaker or loses stars, the planned one never does.
+- **Capacity card and fit preview (F4).** Space, power, cooling and network with the resource that runs out first, **stranded space** (free U in racks without power headroom), and a **fit line on every contract offer** (fits, or what it would exhaust).
+- **ESG customer.** *Verdant Cloud* (Chapter 7, day 1) pays well, but its SLA fails for every minute the site PUE is above 1.55 (heat reuse counts as a 0.1 credit).
+- **Out-of-band link (P8).** A cut management link (Chapter 7, day 2) blocks remote reboots until a network engineer repairs it.
+- **Heat reuse (P12).** $6,000, earns about 50 cents per kWh of IT heat and gives the ESG credit.
+- **Black Friday.** Day 4 morning: demand ×1.8 for 20 hours and a change freeze.
+- **Units (decision 1).** Row scale: from Chapter 7 power is displayed at ×10 (a tile is a row of racks), through one `formatPower` function (W, kW, MW). The simulation is untouched.
+- **Goals.** ★ 97% uptime and $2,000; ★★ 99.5%, average PUE ≤ 1.5 and $5,000; ★★★ average PUE ≤ 1.35, no breaker trip and $12,000 (the default bot gets ★★ on most seeds and ★★★ on none).
+- **Handbook** gains PUE, on-site and off-site water, free cooling and heat reuse, grid connection and the queue, and out-of-band management; all translated into French.
+- **Not done**: setpoint and containment settings, goodwill and moratoriums (campus), translatable simulation messages (now v1.5).
+- **Tests**: 425 unit tests (new: formatting, PUE and water model, breaker, grid queue, drought, out-of-band, ESG, capacity, UI, bot balance) and the phone e2e (new session).
 

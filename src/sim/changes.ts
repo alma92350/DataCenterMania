@@ -1,6 +1,6 @@
 import { chance, pick } from '../core/rng';
 import { dayOf, hourOf } from '../core/time';
-import { CHANGE, CHANGES, COOLERS, LEAD_TIME, PARTS, SUPPLY } from '../data/catalog';
+import { CHANGE, CHANGES, COOLERS, LEAD_TIME, PARTS, SITE, SUPPLY } from '../data/catalog';
 import { DIFFICULTIES } from '../data/difficulty';
 import { raiseAlarm } from './alarms';
 import { failPdu } from './feeds';
@@ -208,12 +208,20 @@ export function finishChange(s: GameState, changeId: string | undefined): void {
 
 // ---------------------------------------------------------------- long-lead equipment, supply events
 
-export function orderInfra(s: GameState, kind: 'ups' | 'generator'): void {
+export function orderInfra(s: GameState, kind: 'ups' | 'generator' | 'grid'): void {
   const days = LEAD_TIME[kind].days;
   (s.pendingInfra ??= []).push({ id: newId(s, 'inf'), kind, at: s.minute + days * 1440, expedited: false });
 }
 
-export function deliverInfra(s: GameState, kind: 'ups' | 'generator'): void {
+export function deliverInfra(s: GameState, kind: 'ups' | 'generator' | 'grid'): void {
+  if (kind === 'grid') {
+    if (s.site) {
+      s.site.gridCapW += SITE.stepW;
+      s.site.gridSteps++;
+      addLog(s, 'success', `📦 The utility finished the upgrade: the grid connection grew to ${Math.round(s.site.gridCapW / 1000)} kW.`);
+    }
+    return;
+  }
   const b = s.backup;
   if (!b) return;
   if (kind === 'ups') {

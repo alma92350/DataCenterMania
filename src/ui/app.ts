@@ -510,6 +510,21 @@ export class App {
       case 'expediteInfra':
         this.run({ type: 'expediteInfra', id: d.id! });
         return;
+      case 'setCooling':
+        this.run({ type: 'setCooling', mode: d.mode as 'evaporative' | 'dry' });
+        return;
+      case 'buyEconomizer':
+        this.run({ type: 'buyEconomizer' });
+        return;
+      case 'setRenewable':
+        this.run({ type: 'setRenewable', on: d.on === '1' });
+        return;
+      case 'buyHeatReuse':
+        this.run({ type: 'buyHeatReuse' });
+        return;
+      case 'orderGrid':
+        this.run({ type: 'orderGrid' });
+        return;
       case 'upgradeNoc':
         this.run({ type: 'upgradeNoc' });
         return;

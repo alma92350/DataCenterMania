@@ -28,7 +28,7 @@ export function onOneLeg(s: GameState, d: Device): boolean {
 
 /** Is the device serving traffic right now? */
 export function deviceUp(s: GameState, d: Device): boolean {
-  if (!d.poweredOn || d.thermalShutdown || s.backup?.source === 'none') return false;
+  if (!d.poweredOn || d.thermalShutdown || s.backup?.source === 'none' || s.site?.mainTripped) return false;
   if (d.faults.some((f) => BLOCKING_FAULTS.has(f))) return false;
   const legs = legsUp(s, d);
   if (!legs.a && !legs.b) return false;

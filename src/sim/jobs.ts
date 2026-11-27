@@ -11,6 +11,7 @@ import { mistakeFactor, staminaFactor } from './fatigue';
 import { restoreUplink } from './network';
 import { repairPdu } from './feeds';
 import { finishChange, rmaCredit } from './changes';
+import { repairOob, resetMain } from './site';
 import { refuelGenerator, replaceBatteries, startGenerator, testGenerator, transferAts } from './backup';
 import { addLog, homeSpot, makeCooler, makeRack, newId, showTip } from './state';
 import { blockedTiles, deviceById, isIdle, rackById, techById, techQueueLength } from './selectors';
@@ -69,7 +70,7 @@ export function bestTech(s: GameState, site: Vec, kind: JobKind = 'reboot'): Tec
   return [...pool].sort((a, b) => score(a) - score(b))[0]!;
 }
 
-const SPECIALIST: Partial<Record<JobKind, true>> = { serviceCooler: true, repairCooler: true, replaceSwitch: true, repairUplink: true, startGenerator: true, testGenerator: true, replaceBattery: true, transferAts: true, refuel: true, repairPdu: true, crossConnect: true };
+const SPECIALIST: Partial<Record<JobKind, true>> = { serviceCooler: true, repairCooler: true, replaceSwitch: true, repairUplink: true, startGenerator: true, testGenerator: true, replaceBattery: true, transferAts: true, refuel: true, repairPdu: true, crossConnect: true, resetMain: true, repairOob: true };
 
 export function assignJob(s: GameState, job: Job, techId: string | 'best'): Tech {
   const tech = techId === 'best' ? bestTech(s, job.site, job.kind) : techById(s, techId);
@@ -94,7 +95,7 @@ function siteAccess(s: GameState, job: Job): Vec | null {
     const front = { x: rack.pos.x, y: rack.pos.y + (rack.facing === 'S' ? 1 : -1) };
     if (isWalkable(s.grid, blocked, front.x, front.y)) return front;
   }
-  if ((job.kind === 'repairUplink' || job.kind === 'startGenerator' || job.kind === 'testGenerator' || job.kind === 'replaceBattery' || job.kind === 'transferAts' || job.kind === 'refuel' || job.kind === 'crossConnect') && isWalkable(s.grid, blocked, job.site.x, job.site.y)) return job.site;
+  if ((job.kind === 'repairUplink' || job.kind === 'startGenerator' || job.kind === 'testGenerator' || job.kind === 'replaceBattery' || job.kind === 'transferAts' || job.kind === 'refuel' || job.kind === 'crossConnect' || job.kind === 'resetMain' || job.kind === 'repairOob') && isWalkable(s.grid, blocked, job.site.x, job.site.y)) return job.site;
   return accessTile(s.grid, blocked, job.site);
 }
 
@@ -258,7 +259,7 @@ function finishWork(s: GameState, tech: Tech, job: Job): void {
   else routeTo(s, tech, home);
 }
 
-const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker', 'replaceSwitch', 'repairCooler', 'repairUplink', 'reimage', 'startGenerator', 'replaceBattery', 'transferAts', 'refuel', 'repairPdu']);
+const REPAIRS: ReadonlySet<JobKind> = new Set(['swapDisk', 'replacePsu', 'reboot', 'resetBreaker', 'replaceSwitch', 'repairCooler', 'repairUplink', 'reimage', 'startGenerator', 'replaceBattery', 'transferAts', 'refuel', 'repairPdu', 'resetMain', 'repairOob']);
 
 /** Applies a finished job's effect on the world. */
 export function completeJob(s: GameState, job: Job): void {
@@ -374,6 +375,12 @@ export function completeJob(s: GameState, job: Job): void {
       break;
     case 'change':
       finishChange(s, job.changeId);
+      break;
+    case 'resetMain':
+      resetMain(s);
+      break;
+    case 'repairOob':
+      repairOob(s);
       break;
     case 'refuel':
       refuelGenerator(s);

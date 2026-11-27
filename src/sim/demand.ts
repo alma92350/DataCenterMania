@@ -1,3 +1,4 @@
+import { esgOk, surgeFactor } from './site';
 import { contractLabel } from './naming';
 import { minuteOfDay, weekdayOf } from '../core/time';
 import { NETWORK } from '../data/catalog';
@@ -44,7 +45,7 @@ export function updateDemand(s: GameState, dt: number): void {
   for (const d of s.devices) d.load = IDLE_LOAD;
   const bandwidthOk = updateBandwidth(s);
   for (const c of activeContracts(s)) {
-    const needed = c.units * Math.min(1, demandFactor(c.profile, s.minute) * (s.demandMult ?? 1)) * floodFactor(s);
+    const needed = c.units * Math.min(1, demandFactor(c.profile, s.minute) * (s.demandMult ?? 1) * surgeFactor(s)) * floodFactor(s);
     const live = contractDevices(s, c.id).filter((d) => deviceUp(s, d));
     const capacity = live.reduce((sum, d) => sum + unitsOf(d), 0);
     if (c.liveFrom === null) {
@@ -59,7 +60,7 @@ export function updateDemand(s: GameState, dt: number): void {
         ? `${contractLabel(c)} is live! SLA measurement starts now.`
         : `${contractLabel(c)}: setup time is over. SLA measurement starts now, ready or not!`);
     }
-    const ok = capacity + 1e-9 >= needed && (bandwidthOk || c.bandwidthPerUnit === 0);
+    const ok = capacity + 1e-9 >= needed && (bandwidthOk || c.bandwidthPerUnit === 0) && esgOk(s, c.pueMax);
     const load = capacity > 0 ? Math.min(1, needed / capacity) : 0;
     for (const d of live) d.load = Math.max(IDLE_LOAD, load);
     c.minutesToday += dt;

@@ -1,9 +1,10 @@
 import { contractLabel } from './naming';
-import { BACKUP, CONTRACT_GRACE_MIN, EXTRA_UPLINK, JOB_WORK_MIN, LEAD, LEAD_TIME, NOC, PARTS, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
+import { BACKUP, CONTRACT_GRACE_MIN, ENERGY, EXTRA_UPLINK, JOB_WORK_MIN, LEAD, LEAD_TIME, NOC, PARTS, SITE, PROJECTS, ROLE_LABEL, SERVER_MODELS } from '../data/catalog';
 import { dayOf, formatClock } from '../core/time';
 import { deliveryTime } from './economy';
 import { assignJob, canDo, cancelJob, createJob, type JobSpec } from './jobs';
 import { upsCapacityKwh } from './backup';
+import { droughtActive } from './site';
 import { changeRisk, changeTitle, orderInfra, scheduleChange } from './changes';
 import { resolveAttack } from './cyber';
 import { isWalkable, nearestTile, tileAt } from './grid';
@@ -36,6 +37,11 @@ export type Command =
   | { type: 'skipChange'; changeId: string }
   | { type: 'setFreeze'; on: boolean }
   | { type: 'expediteInfra'; id: string }
+  | { type: 'setCooling'; mode: 'evaporative' | 'dry' }
+  | { type: 'buyEconomizer' }
+  | { type: 'setRenewable'; on: boolean }
+  | { type: 'buyHeatReuse' }
+  | { type: 'orderGrid' }
   | { type: 'upgradeNoc' }
   | { type: 'remoteReboot'; deviceId: string }
   | { type: 'buyUps' }
@@ -45,7 +51,7 @@ export type Command =
   | { type: 'setAutoDispatch'; on: boolean }
   | { type: 'startProject'; project: ProjectId; techId?: TechChoice };
 
-export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor' | 'reimage' | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel' | 'repairPdu' | 'dualCord'>;
+export type DispatchJob = Extract<JobKind, 'swapDisk' | 'replacePsu' | 'reboot' | 'resetBreaker' | 'remove' | 'rotateRack' | 'replaceSwitch' | 'repairUplink' | 'favor' | 'reimage' | 'startGenerator' | 'testGenerator' | 'replaceBattery' | 'transferAts' | 'refuel' | 'repairPdu' | 'dualCord' | 'resetMain' | 'repairOob'>;
 
 export type CommandResult = { ok: true } | { ok: false; error: string };
 
@@ -77,6 +83,10 @@ export function suggestedJob(kind: AlarmKind): DispatchJob | null {
       return 'transferAts';
     case 'feed':
       return 'repairPdu';
+    case 'siteCap':
+      return 'resetMain';
+    case 'oob':
+      return 'repairOob';
     case 'fuel':
       return 'refuel';
     default:
@@ -175,6 +185,15 @@ function exec(s: GameState, cmd: Command): CommandResult {
         if (s.jobs.some((j) => j.kind === 'repairUplink' && j.uplinkId === u.id)) return fail('Someone is already on it.');
         const site = nearestTile(s.grid, 'dock', homeTile(s)) ?? homeTile(s);
         return dispatchJob(s, { kind: 'repairUplink', uplinkId: u.id, part: null, site }, cmd.techId);
+      }
+      if (cmd.job === 'resetMain' || cmd.job === 'repairOob') {
+        const site = s.site;
+        if (!site) return fail('This site has no grid connection to manage.');
+        if (cmd.job === 'resetMain' && !site.mainTripped) return fail('The main breaker is fine.');
+        if (cmd.job === 'repairOob' && site.oob !== 'cut') return fail('The management link is fine.');
+        if (s.jobs.some((j) => j.kind === cmd.job)) return fail('Someone is already on it.');
+        const where = nearestTile(s.grid, 'dock', homeTile(s)) ?? homeTile(s);
+        return dispatchJob(s, { kind: cmd.job, part: null, site: where }, cmd.techId);
       }
       if (cmd.job === 'startGenerator' || cmd.job === 'testGenerator' || cmd.job === 'replaceBattery' || cmd.job === 'transferAts' || cmd.job === 'refuel') {
         const b = s.backup;
@@ -432,12 +451,58 @@ function exec(s: GameState, cmd: Command): CommandResult {
       const p = s.pendingInfra?.find((x) => x.id === cmd.id);
       if (!p) return fail('That order is not pending.');
       if (p.expedited) return fail('Already expedited.');
-      const price = Math.round((p.kind === 'ups' ? BACKUP.upsPrice : BACKUP.generatorPrice) * LEAD_TIME.expediteShare);
+      const price = Math.round((p.kind === 'ups' ? BACKUP.upsPrice : p.kind === 'grid' ? SITE.stepPrice : BACKUP.generatorPrice) * LEAD_TIME.expediteShare);
       if (s.cash < price) return fail('Not enough cash.');
       s.cash -= price;
       p.at = Math.max(s.minute + 60, p.at - LEAD_TIME.expediteDays * 1440);
       p.expedited = true;
       addLog(s, 'money', `📦 Expedited ${LEAD_TIME[p.kind].name} order: ${LEAD_TIME.expediteDays} day sooner for $${price}.`);
+      return ok();
+    }
+    case 'setCooling': {
+      const site = s.site;
+      if (!site) return fail('Cooling modes unlock in Chapter 7.');
+      if (cmd.mode === 'evaporative' && droughtActive(s)) return fail('A drought is on: evaporative cooling is banned.');
+      site.cooling = cmd.mode;
+      addLog(s, 'info', cmd.mode === 'evaporative' ? '💧 Evaporative cooling: cheap electricity, but it uses water.' : '🌬️ Dry cooling: almost no water, but more electricity.');
+      return ok();
+    }
+    case 'buyEconomizer': {
+      const site = s.site;
+      if (!site) return fail('Free cooling unlocks in Chapter 7.');
+      if (site.economizer) return fail('You already have free cooling.');
+      if (s.cash < ENERGY.economizerPrice) return fail('Not enough cash.');
+      s.cash -= ENERGY.economizerPrice;
+      site.economizer = true;
+      addLog(s, 'success', '❄️ Free cooling installed: on cool nights the outside air does the work.');
+      return ok();
+    }
+    case 'setRenewable': {
+      const site = s.site;
+      if (!site) return fail('Power contracts unlock in Chapter 7.');
+      site.renewable = cmd.on;
+      addLog(s, 'info', cmd.on ? '🌱 Renewable power contract: electricity costs 15% more, off-site water use drops.' : 'Back to the standard grid mix.');
+      return ok();
+    }
+    case 'buyHeatReuse': {
+      const site = s.site;
+      if (!site) return fail('Heat reuse unlocks in Chapter 7.');
+      if (site.heatReuse) return fail('You already sell your heat.');
+      if (s.cash < ENERGY.heatReusePrice) return fail('Not enough cash.');
+      s.cash -= ENERGY.heatReusePrice;
+      site.heatReuse = true;
+      addLog(s, 'success', '♨️ Heat reuse is live: a neighbour buys your warm air, and green customers count it in your favour.');
+      return ok();
+    }
+    case 'orderGrid': {
+      const site = s.site;
+      if (!site) return fail('The grid connection can only be upgraded in Chapter 7 and later.');
+      const queued = (s.pendingInfra ?? []).filter((p) => p.kind === 'grid').length;
+      if (site.gridSteps + queued >= SITE.maxSteps) return fail('The utility will not connect more than that.');
+      if (s.cash < SITE.stepPrice) return fail('Not enough cash.');
+      s.cash -= SITE.stepPrice;
+      orderInfra(s, 'grid');
+      addLog(s, 'success', `📦 Grid upgrade requested: +${SITE.stepW / 1000} kW in ${LEAD_TIME.grid.days} days (the utility queue).`);
       return ok();
     }
     case 'upgradeNoc': {
@@ -453,6 +518,7 @@ function exec(s: GameState, cmd: Command): CommandResult {
     }
     case 'remoteReboot': {
       if ((s.noc ?? 0) < 1) return fail('You need the NOC remote reboot upgrade first.');
+      if (s.site?.oob === 'cut') return fail('The out-of-band management link is down: someone has to walk to the rack.');
       const dev = deviceById(s, cmd.deviceId);
       if (!dev || !dev.faults.includes('hung')) return fail('That server is not hung.');
       s.remoteReboots ??= [];
