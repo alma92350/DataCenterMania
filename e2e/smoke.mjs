@@ -111,6 +111,19 @@ try {
     check(true, 'loading the slot resumes the game');
   });
 
+  await session('seasons', { viewport: { width: 1000, height: 800 } }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.progress.v1', JSON.stringify({ ch0: { sysadmin: 3 }, ch1: { sysadmin: 3 }, ch2: { sysadmin: 3 } }));
+    });
+    await page.reload();
+    await page.waitForSelector('[data-action="sandboxOpt"][data-key="seasons"][data-value="true"]');
+    await page.$eval('[data-action="sandboxOpt"][data-key="seasons"][data-value="true"]', (el) => el.click());
+    await page.waitForSelector('[data-action="sandboxOpt"][data-key="seasons"][data-value="true"][aria-pressed="true"]');
+    await page.$eval('[data-action="sandbox"]', (el) => el.click());
+    await page.waitForSelector('#topbar .stat.clock');
+    check((await page.textContent('#topbar .stat.clock')).includes('🌸'), 'a seasonal sandbox shows the season on the clock');
+  });
+
   await session('keyboard', { viewport: { width: 1200, height: 800 } }, async (page) => {
     await page.click('[data-chapter="ch0"]');
     await page.waitForSelector('#topbar .stat');

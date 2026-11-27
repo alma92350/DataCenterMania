@@ -9,6 +9,7 @@ import { avatarSvg, partSvg } from './icons';
 import { AUTO } from '../sim/automation';
 import { attackCard, cyberChips, eventCard } from './cyberViews';
 import { advice } from '../sim/advisor';
+import { seasonOf } from '../sim/seasons';
 import { suggestedCoolerJob, suggestedJob } from '../sim/commands';
 import { bandwidthCapacity } from '../sim/network';
 import { demandFactor } from '../sim/demand';
@@ -78,7 +79,7 @@ export function topBar(s: GameState, speed: Speed, effective: Speed): string {
     <div class="stat" title="${t('Cash')}"><span class="k">${t('Cash')}</span><b class="${s.cash < 0 ? 'neg' : ''}">${money(s.cash)}</b></div>
     <div class="stat" title="${t('Reputation')}"><span class="k">${t('Rep')}</span><b class="stars">${stars(s.reputation)}</b></div>
     <div class="stat" title="${t('SLA uptime since start')}"><span class="k">${t('Uptime')}</span><b>${overallUptimePct(s).toFixed(2)}%</b></div>
-    <div class="stat clock" title="Time left: ${countdown(left)}"><span class="k">${ch.event ? 'Event' : `Ch${ch.number}`} · ${countdown(left)} left</span><b>${formatClock(s.minute)}</b></div>
+    <div class="stat clock" title="Time left: ${countdown(left)}"><span class="k">${ch.event ? 'Event' : `Ch${ch.number}`} · ${countdown(left)} left${seasonOf(s) ? ` · ${seasonOf(s)!.season.icon}` : ''}</span><b>${formatClock(s.minute)}</b></div>
     <div class="speed" role="group" aria-label="Game speed">
       ${speeds.map((sp) => `<button data-action="speed" data-speed="${sp}" class="${sp === speed ? 'on' : ''}" aria-pressed="${sp === speed}" title="${sp === 0 ? 'Pause (Space)' : `${sp}× speed`}">${sp === 0 ? '⏸' : `${sp}×`}</button>`).join('')}
       ${speed > 0 && effective === 0 ? '<span class="night paused" title="Read the tip to continue">⏸ Tip</span>' : effective !== speed ? '<span class="night" title="Night skip">🌙4×</span>' : ''}
@@ -1127,6 +1128,7 @@ export function sandboxCard(cfg: SandboxConfig, unlocked: boolean, best: { score
     <div class="opts"><span class="muted small">Incidents</span>${([0.5, 1, 2] as const).map((v) => opt('incidents', v, `×${v}`, cfg.incidents === v)).join('')}</div>
     <div class="opts"><span class="muted small">Hackers</span>${opt('cyber', true, 'On', cfg.cyber)}${opt('cyber', false, 'Off', !cfg.cyber)}
       <span class="muted small">Ramp-up</span>${opt('ramp', true, 'On', cfg.ramp)}${opt('ramp', false, 'Off', !cfg.ramp)}</div>
+    <div class="opts"><span class="muted small">${t('Seasons')}</span>${opt('seasons', true, 'On', !!cfg.seasons)}${opt('seasons', false, 'Off', !cfg.seasons)}</div>
     <div class="row actions"><span class="muted small">${e(SANDBOX_FLOORS[cfg.floor].blurb)} Score = days survived, peak cash and attacks blocked.</span>
       <button class="primary" data-action="sandbox">Play</button></div></details>`;
 }

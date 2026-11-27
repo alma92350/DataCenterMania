@@ -18,6 +18,7 @@ import { updateCoolers } from './maintenance';
 import { updateNetwork } from './network';
 import { updateNoc } from './noc';
 import { updateSite } from './site';
+import { updateSeasons } from './seasons';
 import { updateAi } from './ai';
 import { updateNights } from './nights';
 import { updateCampus } from './campus';
@@ -40,6 +41,7 @@ export function step(s: GameState): void {
   updateBackup(s);
   updatePower(s);
   updateSite(s);
+  updateSeasons(s);
   updateCoolers(s, dt);
   updateThermal(s, dt);
   rollFailures(s, dt);

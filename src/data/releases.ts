@@ -6,6 +6,7 @@ export interface Release {
 }
 
 export const RELEASES: Release[] = [
+  { version: '3.4.0', title: 'Four seasons', notes: ['Sandbox seasons: a 28-day year that moves the air temperature, with summer heatwaves and winter holiday rushes. Switch them on in the Sandbox card.'] },
   { version: '3.3.0', title: 'Save slots', notes: ['Three save slots in the pause menu, and download or load a save file to keep it or move it to another device.'] },
   { version: '3.2.0', title: 'The Advisor', notes: ['An Advisor card on the Alarms tab suggests up to three next steps: backup power, single points of failure, capacity, filters, efficiency and customers.'] },
   { version: '3.1.0', title: 'For everyone', notes: ['Accessibility settings: text size, reduced motion, high contrast and colour-blind-safe colours.'] },

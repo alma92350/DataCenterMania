@@ -3,6 +3,7 @@ import { CHAPTERS, type Objective } from '../data/chapters';
 import { MINUTES_PER_DAY } from '../core/time';
 import { FRONTIER } from '../data/catalog';
 import { addLog, createGame } from './state';
+import { createSeasons } from './seasons';
 import type { ChapterId, DifficultyId, FeatureFlag, GameState } from './types';
 
 /**
@@ -21,6 +22,8 @@ export interface SandboxConfig {
   cyber: boolean;
   /** Incident rate grows every day. */
   ramp: boolean;
+  /** Four seasons of seven days: air temperature, heatwaves and holiday rushes (v3.4). */
+  seasons?: boolean;
 }
 
 export const DEFAULT_SANDBOX: SandboxConfig = { floor: 'medium', cash: 1, incidents: 1, cyber: true, ramp: true };
@@ -57,6 +60,7 @@ export function createSandbox(cfg: SandboxConfig, difficulty: DifficultyId, seed
   s.incidentMult = cfg.incidents * (cfg.floor === 'frontier' ? FRONTIER.radiationMult : 1);
   if (cfg.cyber) s.cyberRandom = true;
   if (cfg.ramp) s.rampPerDay = SANDBOX_RAMP;
+  if (cfg.seasons) createSeasons(s);
   addLog(s, 'story', `Sandbox: ${SANDBOX_FLOORS[cfg.floor].name}. No deadline. Play until the bank pulls the plug. How many days can you last?`);
   return s;
 }

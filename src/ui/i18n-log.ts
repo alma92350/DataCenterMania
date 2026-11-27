@@ -264,6 +264,17 @@ export const LOG_FR: Record<string, string> = {
   'Save file loaded.': 'Fichier de sauvegarde chargé.', 'That file is not a DataCenterMania save.': 'Ce fichier n’est pas une sauvegarde DataCenterMania.',
   'Save slots': 'Emplacements de sauvegarde',
   'Three save slots in the pause menu, and download or load a save file to keep it or move it to another device.': 'Trois emplacements de sauvegarde dans le menu pause, et téléchargement ou chargement d’un fichier de sauvegarde pour le conserver ou le déplacer vers un autre appareil.',
+  // v3.4 seasons
+  '{s} {s} begins. {s}': '{s} {s} commence. {s}',
+  'Spring': 'Printemps', 'Summer': 'Été', 'Autumn': 'Automne', 'Winter': 'Hiver', 'Seasons': 'Saisons',
+  'Mild air. A good time to fix things.': 'Air doux. Un bon moment pour réparer.',
+  'Hotter air weakens your coolers, and heatwaves are possible.': 'L’air plus chaud affaiblit vos refroidisseurs, et des canicules sont possibles.',
+  'Cool air: free cooling works well.': 'Air frais : le free cooling fonctionne bien.',
+  'Cold air, and holiday traffic rushes are possible.': 'Air froid, et des pics de trafic des fêtes sont possibles.',
+  'Heatwave! The air is {s} degrees hotter for {s} days.': 'Canicule ! L’air est plus chaud de {s} degrés pendant {s} jours.',
+  'Holiday rush! Customers need more traffic today.': 'Rush des fêtes ! Les clients ont besoin de plus de trafic aujourd’hui.',
+  'Four seasons': 'Quatre saisons',
+  'Sandbox seasons: a 28-day year that moves the air temperature, with summer heatwaves and winter holiday rushes. Switch them on in the Sandbox card.': 'Saisons du bac à sable : une année de 28 jours qui fait varier la température de l’air, avec des canicules l’été et des rushs des fêtes l’hiver. Activez-les dans la carte Bac à sable.',
   // later additions found by reading the sources
   'Utility power is out! The grid should be back in about {s} h.': 'Le courant est coupé ! Le réseau devrait revenir dans environ {s} h.',
   'The generator is serviced and on standby.': 'Le groupe est entretenu et en veille.',

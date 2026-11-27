@@ -46,3 +46,10 @@ Results sections follow, one per release.
 - **Save files**: *Download save file* in the pause menu writes the game as JSON; *Load a save file* (pause menu and start screen) reads one. It is the same format as a slot, validated on load (a non-save file shows a message and changes nothing). Together with the hand-over codes of v2.0 this covers moving a game between devices.
 - Not offered during a site visit (the headquarters is saved instead, never the temporary hall).
 - 5 new tests: slots are independent of the autosave, a loaded slot continues identically to the original, bad slot numbers, full storage and corrupt data, round-trip of the file format, UI on both screens, French.
+
+## 3.4 "Four Seasons" results
+
+- **Sandbox seasons** (a *Seasons* On/Off option on the Sandbox card, off by default so existing sandboxes do not change): a 28-day year of four 7-day seasons. The hall's air is the floor's own air plus the season: spring −1°C, summer +4°C, autumn −2°C, winter −7°C. Because coolers lose capacity in hot air and free cooling needs cool outside air, summer squeezes the hall and winter and autumn reward efficiency work.
+- **Events from the dice** (seeded, so saves replay identically): in summer a heatwave (+7°C for two days, 18% a day) and in winter a holiday rush (1.5× traffic for ten hours, 25% a day), using the existing heat and surge machinery. A season icon sits next to the chapter label on the clock, and each new season is announced in the log.
+- No new system for the campaign: the state gains one optional field (`season`), saves load unchanged.
+- 7 new tests: off by default, the turn of the seasons, temperatures by season, events only in their season, save and reload continuing identically, a chosen starting season, UI and French.

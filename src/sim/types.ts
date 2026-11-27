@@ -588,6 +588,8 @@ export interface GameState {
   aiForce?: boolean;
   /** Since when each GPU server has been silently corrupted (device id to minute). In the state so a save, a worker and a replay agree. */
   corruptSince?: Record<string, number>;
+  /** Sandbox seasons (v3.4): the calendar and a running heatwave. */
+  season?: { day0: number; heatUntil: number };
   /** A synchronized power spike from a big training run starting. */
   spike?: { mult: number; until: number };
   /** Site power, cooling mode, water and efficiency (Chapter 7+). */
