@@ -14,6 +14,7 @@ import { CHAPTERS } from '../data/chapters';
 import { spofReport } from '../sim/spof';
 import { tl } from './i18n';
 import { Telemetry } from './telemetry';
+import { applyAccessibility, DEFAULT_A11Y, type A11ySettings, type TextSize } from './a11y';
 import { APP_VERSION } from './version';
 import { decodeHandover, encodeHandover } from './share';
 import { applyVisit, createVisit } from '../sim/visit';
@@ -75,6 +76,7 @@ export class App {
   start(): void {
     this.sound.enabled = this.settings.sound;
     this.applyDisplay();
+    applyAccessibility({ ...DEFAULT_A11Y, ...this.settings.a11y });
     this.bindInput();
     if (this.settings.seenVersion === undefined) {
       // a brand-new player has nothing to catch up on; a returning one sees what changed since 2.0
@@ -460,6 +462,16 @@ export class App {
           this.settings.lang = input.value as Settings['lang'];
           this.store.saveSettings(this.settings);
           location.reload();
+          return;
+        }
+        const a11yKey = key as string;
+        if (a11yKey === 'textSize' || a11yKey === 'reduceMotion' || a11yKey === 'highContrast' || a11yKey === 'colorBlind') {
+          const a: A11ySettings = { ...DEFAULT_A11Y, ...this.settings.a11y };
+          if (a11yKey === 'textSize') a.textSize = input.value as TextSize;
+          else a[a11yKey] = input.checked;
+          this.settings.a11y = a;
+          applyAccessibility(a);
+          this.store.saveSettings(this.settings);
           return;
         }
         if (key === 'nightSkip') this.settings.nightSkip = input.checked;
@@ -894,7 +906,7 @@ export class App {
 
   /** A short screen shake on critical alarms. Off for reduced motion and e-ink. */
   private shake(): void {
-    if (this.eink || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (this.eink || this.settings.a11y?.reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const stage = $('#stage');
     stage.classList.remove('shake');
     void stage.offsetWidth; // restart the animation

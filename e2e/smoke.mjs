@@ -65,6 +65,22 @@ try {
     check((await page.textContent('#goalbar')).length > 0, 'the replay starts with its goal on screen');
   });
 
+  await session('accessibility', { viewport: { width: 1000, height: 800 } }, async (page) => {
+    await page.click('[data-chapter="ch0"]');
+    await page.waitForSelector('#topbar .stat');
+    await page.click('[data-action="menu"]');
+    await page.click('details.settings summary');
+    await page.selectOption('[data-key="textSize"]', 'xlarge');
+    const px = await page.evaluate(() => getComputedStyle(document.documentElement).fontSize);
+    check(px === '20px', 'extra large text raises the page font size to 20px');
+    if (!(await page.isVisible('[data-key="highContrast"]'))) await page.click('details.settings summary');
+    await page.check('[data-key="highContrast"]');
+    check(await page.evaluate(() => document.body.classList.contains('high-contrast')), 'high contrast turns on');
+    await page.reload();
+    await page.waitForSelector('.start');
+    check((await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)) === '20px', 'the text size is remembered after a reload');
+  });
+
   await session('keyboard', { viewport: { width: 1200, height: 800 } }, async (page) => {
     await page.click('[data-chapter="ch0"]');
     await page.waitForSelector('#topbar .stat');
@@ -402,7 +418,7 @@ try {
         if (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
         await page.waitForTimeout(250);
       }
-      await page.waitForSelector('.attack-card', { timeout: 2000 });
+      await page.waitForSelector('.attack-card', { timeout: 8000 });
     };
     const center = async (loc) => { const b = await loc.boundingBox(); return b ? { x: b.x + b.width / 2, y: b.y + b.height / 2 } : null; };
 

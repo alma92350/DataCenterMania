@@ -55,6 +55,7 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 | Version and update check (v2.5.1) | The start screen and pause menu show the version; the game checks `version.json` on load, every 30 minutes and when the tab returns, and offers a Reload banner when a newer build is live (it saves first). Bump `version` in `package.json` for each release |
 | Playtest kit (v2.6) | With the play log on, the pause menu has one-tap feedback (1–5 "feels like the job", unfair / slow / hard / confusing); `npx vite-node scripts/playtest-report.ts log1.json log2.json …` turns testers' exported logs into the PRD §10 metrics |
 | What's new (v2.7) | Release notes in the game: opened once after an update for returning players, always available as a list; every note has French |
+| Accessibility (v3.1) | Text size, reduce motion, high contrast and a colour-blind-safe palette in Settings, with WCAG contrast tests |
 | Incident Replays (v3.0) | Three two-day scenarios (Dual-Feed Fiasco, Ransom Friday, Heat Dome), each unlocked by the chapter it replays |
 | Keyboard control (v2.9) | A/T/C/I/S/G switch tabs, M opens the menu, ? lists every shortcut (also in the pause menu), in French too |
 | Trophy room (v2.8) | Ten achievements for the v1.x and v2.x systems (PUE, circular economy, single points of failure, change control, AI training, incident command, goodwill, sites, gigawatt) |

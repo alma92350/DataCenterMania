@@ -853,6 +853,14 @@ export function settingsForm(settings: Settings): string {
     </select></label>
     <label><input type="checkbox" data-action="setting" data-key="telemetry" ${settings.telemetry ? 'checked' : ''}> ${t('Keep a play log on this device')}</label>
     ${settings.telemetry ? `<button class="ghost" data-action="exportTelemetry">${t('Export play log')}</button>${feedbackBox()}` : ''}
+    <fieldset class="a11y"><legend>♿ ${t('Accessibility')}</legend>
+      <label>${t('Text size')} <select data-action="setting" data-key="textSize">
+        ${([['normal', 'Normal'], ['large', 'Large'], ['xlarge', 'Extra large']] as const).map(([v, l]) => `<option value="${v}" ${(settings.a11y?.textSize ?? 'normal') === v ? 'selected' : ''}>${t(l)}</option>`).join('')}
+      </select></label>
+      <label><input type="checkbox" data-action="setting" data-key="reduceMotion" ${settings.a11y?.reduceMotion ? 'checked' : ''}> ${t('Reduce motion')}</label>
+      <label><input type="checkbox" data-action="setting" data-key="highContrast" ${settings.a11y?.highContrast ? 'checked' : ''}> ${t('High contrast')}</label>
+      <label><input type="checkbox" data-action="setting" data-key="colorBlind" ${settings.a11y?.colorBlind ? 'checked' : ''}> ${t('Colour-blind safe colours')}</label>
+    </fieldset>
     <label>${t('Language')} <select data-action="setting" data-key="lang">
       ${([['auto', 'Auto'], ['en', 'English'], ['fr', 'Français']] as const).map(([v, l]) => `<option value="${v}" ${settings.lang === v ? 'selected' : ''}>${l}</option>`).join('')}
     </select></label>

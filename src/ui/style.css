@@ -19,7 +19,8 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 15px/1.4 var(--font); }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: var(--font-px, 15px)/1.4 var(--font); }
+html { font-size: var(--font-px, 15px); }
 body { overflow: hidden; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 button, select, input { font: inherit; color: inherit; }
 button {
@@ -547,3 +548,8 @@ h3.era { grid-column: 1 / -1; margin: 14px 0 4px; font-size: 0.75rem; text-trans
 .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 8px 0; }
 .keys dt { text-align: right; } .keys dd { margin: 0; }
 kbd { padding: 1px 6px; border: 1px solid currentColor; border-radius: 4px; font: 600 12px monospace; opacity: .9; }
+
+/* accessibility (v3.1) */
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+body.high-contrast button, body.high-contrast .chip, body.high-contrast .modal-card, body.high-contrast .daily-card { border-color: #fff; border-width: 2px; }
+body.high-contrast .muted, body.high-contrast .meta { color: #e0e0e0; }

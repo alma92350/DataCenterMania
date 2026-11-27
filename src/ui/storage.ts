@@ -1,3 +1,4 @@
+import type { A11ySettings } from './a11y';
 import { CHAPTER_ORDER, SCENARIO_BASE } from '../data/chapters';
 import { deserialize, serialize } from '../sim/save';
 import type { ChapterId, DifficultyId, GameState } from '../sim/types';
@@ -60,6 +61,8 @@ export interface Settings {
   sandbox: SandboxConfig;
   /** Version whose release notes the player has seen (empty for a brand-new player). */
   seenVersion?: string;
+  /** Accessibility (v3.1). */
+  a11y?: A11ySettings;
 }
 
 export const DEFAULT_SETTINGS: Settings = { autoPause: 'critical', nightSkip: true, sound: true, difficulty: 'sysadmin', display: 'auto', lang: 'auto', telemetry: false, sandbox: { ...DEFAULT_SANDBOX } };

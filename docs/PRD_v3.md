@@ -26,3 +26,10 @@ Results sections follow, one per release.
 - **Start screen**: an *Incident Replays* section with best stars; each card is locked until the chapter it replays is won. They are events, not part of the campaign order, so campaign unlocks and the *Architect* achievement are unchanged.
 - **Balance**: with the default bot, 3 seeds each, every scenario is won in at least two of three runs and none reaches three stars (tested). All titles, intros, goals and incident messages have French.
 - 5 new tests and an e2e.
+
+## 3.1 "For Everyone" results
+
+- **Four settings** under *Accessibility* in the pause-menu Settings, saved with the other settings and applied at start-up: **text size** (normal 15 px, large 17, extra large 20; all sizes scale from the root), **reduce motion** (stops every animation and transition, and the screen shake; on top of the browser's own reduced-motion preference, which was already honoured), **high contrast** (black background, white text and borders), and **colour-blind safe colours** (blue, yellow, orange and pink for OK, warning, major and critical instead of green, amber, orange and red).
+- **Tested, not just styled**: a WCAG contrast function checks that the default palette has text at 7:1 or better and status colours at 4.5:1 on both surfaces, and that high contrast plus colour-blind colours reaches 7:1 for text, muted text and every status colour; a test applies and reverts the settings on the page.
+- All labels in French. Severity is also carried by icons and badges (not colour alone), unchanged from v1.0.
+- 6 new tests.

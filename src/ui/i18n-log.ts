@@ -237,6 +237,11 @@ export const LOG_FR: Record<string, string> = {
   '📈 12:00: customers need 2.5× traffic during the peak.': '📈 12 h 00 : les clients ont besoin de 2,5× de trafic pendant le pic.',
   '🌤️ 20:00: the heat finally breaks.': '🌤️ 20 h 00 : la chaleur retombe enfin.',
   'Three short scenarios inspired by real outages: Dual-Feed Fiasco, Ransom Friday and Heat Dome. Each unlocks when you win the chapter it replays.': 'Trois courts scénarios inspirés de vraies pannes : Fiasco des deux alimentations, Vendredi de rançon et Dôme de chaleur. Chacun se débloque quand vous gagnez le chapitre qu’il rejoue.',
+  // v3.1 accessibility
+  'Accessibility': 'Accessibilité', 'Text size': 'Taille du texte', 'Reduce motion': 'Réduire les animations', 'High contrast': 'Contraste élevé',
+  'Colour-blind safe colours': 'Couleurs adaptées au daltonisme', 'Normal': 'Normale', 'Large': 'Grande', 'Extra large': 'Très grande',
+  'For everyone': 'Pour tous',
+  'Accessibility settings: text size, reduced motion, high contrast and colour-blind-safe colours.': 'Réglages d’accessibilité : taille du texte, animations réduites, contraste élevé et couleurs adaptées au daltonisme.',
   // later additions found by reading the sources
   'Utility power is out! The grid should be back in about {s} h.': 'Le courant est coupé ! Le réseau devrait revenir dans environ {s} h.',
   'The generator is serviced and on standby.': 'Le groupe est entretenu et en veille.',
