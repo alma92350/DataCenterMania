@@ -646,3 +646,10 @@ A second review, inspired by the *Data Centers: Today and Tomorrow* field guide,
 - **Still not done**: a worker thread (not needed at current hall sizes), translatable simulation messages, a gigawatt tier, and the 20-player playtest.
 - **Tests**: 493 unit tests (new: visit shape, isolation of the headquarters, result and tune-up, bad shift, tuned incidents, calibration, UI).
 
+## 21. v2.2 "Parlez-vous Datacenter" results
+
+- **Simulation messages in French.** The log lines the simulation writes (outages, deliveries, board reviews, post-mortems, pager calls, site visits and about 130 more) were English-only after v0.9. They now translate through **wildcard templates**: `src/ui/i18n-log.ts` holds the English template with each variable part as `{s}` and its French form. The lookup compiles them to anchored regexes (longest literal text first); each captured name or label is translated on its own, so technician names, contract labels and job names keep their French forms. Values may reorder captures with `{1}`, `{2}`. A few lines with computed branches (day closing, campus day, change scheduling, chapter banners) use dedicated patterns.
+- **Coverage is enforced.** `tests/i18n-log.test.ts` reads every `addLog` template in `src/sim/` at test time and fails if one has no French form, so a new message cannot ship untranslated. The wildcard slot counts of English and French are also checked.
+- **Still English**: log lines built from non-literal text (a few scripted event texts, computed messages) are translated only if their pieces are already in the dictionary. The simulation itself is unchanged: this release touches no gameplay and no saves.
+- **Still not done**: a worker thread, a gigawatt tier, setpoint and containment, and the 20-player playtest.
+- **Tests**: 497 unit tests (new: template audit, slot parity, nested-name translation).
