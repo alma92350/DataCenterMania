@@ -14,6 +14,8 @@ import { CHAPTERS } from '../data/chapters';
 import { spofReport } from '../sim/spof';
 import { tl } from './i18n';
 import { Telemetry } from './telemetry';
+import { vrSupported } from '../xr/support';
+import type { VrApi } from '../xr/vr';
 import { entryFor } from './logbook';
 import { serialize, deserialize } from '../sim/save';
 import { applyAccessibility, DEFAULT_A11Y, type A11ySettings, type TextSize } from './a11y';
@@ -82,6 +84,7 @@ export class App {
     this.applyDisplay();
     applyAccessibility({ ...DEFAULT_A11Y, ...this.settings.a11y });
     this.bindInput();
+    void this.offerVr();
     if (this.settings.seenVersion === undefined) {
       // a brand-new player has nothing to catch up on; a returning one sees what changed since 2.0
       const returning = !!this.store.loadGame() || Object.keys(this.store.loadProgress()).length > 0;
@@ -156,7 +159,38 @@ export class App {
 
   // ---------- loop ----------
 
+  /** What the immersive hall (v4.1) needs from the running game. */
+  vrApi(): VrApi {
+    return {
+      state: () => this.state,
+      speed: () => this.speed,
+      setSpeed: (n) => { this.speed = n as Speed; },
+      tick: (t) => this.tick(t),
+      run: (cmd) => this.run(cmd),
+    };
+  }
+
+  /** The Enter VR button appears only where the browser offers immersive VR (the Quest Browser does). */
+  private async offerVr(): Promise<void> {
+    if (!(await vrSupported())) return;
+    const preload = () => void import('../xr/vr');
+    preload();
+    const btn = document.createElement('button');
+    btn.id = 'enter-vr';
+    btn.className = 'primary';
+    btn.textContent = `🥽 ${tl('Enter VR')}`;
+    btn.addEventListener('click', () => {
+      void import('../xr/vr').then((m) => m.enterVr(this.vrApi())).catch((err: Error) => this.toast(`VR could not start: ${err.message}`, 'fail', 6000));
+    });
+    document.body.appendChild(btn);
+  }
+
   private frame(t: number): void {
+    this.tick(t);
+    requestAnimationFrame((n) => this.frame(n));
+  }
+
+  private tick(t: number): void {
     const dt = this.lastFrame ? (t - this.lastFrame) / 1000 : 0;
     this.lastFrame = t;
     const s = this.state;
@@ -217,7 +251,6 @@ export class App {
         this.renderUi();
       }
     }
-    requestAnimationFrame((n) => this.frame(n));
   }
 
   /** The headquarters while a site visit is in progress (its time is frozen). */

@@ -284,6 +284,8 @@ export const LOG_FR: Record<string, string> = {
   'Meta Quest': 'Meta Quest',
   'Quest mode': 'Mode Quest',
   'Play in the Meta Quest browser: bigger text and targets and hover feedback for the laser pointer, switched on automatically.': 'Jouez dans le navigateur Meta Quest : texte et cibles plus grands et retour au survol pour le pointeur laser, activés automatiquement.',
+  'Immersive hall': 'Salle immersive', 'Enter VR': 'Entrer en VR',
+  'On a VR headset such as the Meta Quest, an Enter VR button puts you inside the data center: racks coloured by heat, alarm beacons, and a panel to pause, change speed and send the best technician.': 'Sur un casque VR comme le Meta Quest, un bouton Entrer en VR vous place dans le datacenter : baies colorées selon la chaleur, balises d’alarme, et un panneau pour mettre en pause, changer la vitesse et envoyer le meilleur technicien.',
   // later additions found by reading the sources
   'Utility power is out! The grid should be back in about {s} h.': 'Le courant est coupé ! Le réseau devrait revenir dans environ {s} h.',
   'The generator is serviced and on standby.': 'Le groupe est entretenu et en veille.',

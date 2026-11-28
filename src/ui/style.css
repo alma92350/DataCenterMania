@@ -570,3 +570,8 @@ body.quest .speed button { min-width: 60px; min-height: 56px; }
 body.quest button:hover, body.quest summary:hover, body.quest select:hover, body.quest label:hover { outline: 3px solid var(--accent); outline-offset: 2px; cursor: pointer; }
 body.quest input[type=checkbox] { width: 28px; height: 28px; }
 body.quest * { scrollbar-width: thick; }
+
+/* Enter VR (v4.1) */
+#enter-vr { position: fixed; z-index: 55; right: 12px; bottom: 84px; min-height: 52px; padding: 8px 18px; border-radius: 26px; box-shadow: 0 4px 16px rgba(0,0,0,.45); }
+body.quest #enter-vr { min-height: 64px; font-size: 1.1rem; }
+body.eink #enter-vr { display: none; }

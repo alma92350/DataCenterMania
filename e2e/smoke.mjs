@@ -145,6 +145,28 @@ try {
     check(h >= 56, `buttons are laser-pointer sized in Quest mode (${Math.round(h)}px)`);
     await browser.close();
   }
+  {
+    const browser = await chromium.launch();
+    const none = await (await browser.newContext()).newPage();
+    await none.goto(base);
+    await none.waitForSelector('.start');
+    check(!(await none.$('#enter-vr')), 'without WebXR there is no Enter VR button');
+    const ctx = await browser.newContext({ viewport: { width: 1000, height: 700 } });
+    await ctx.addInitScript(() => {
+      Object.defineProperty(navigator, 'xr', { value: { isSessionSupported: async () => true, requestSession: async () => { throw new Error('stub: no headset here'); } } });
+    });
+    const page = await ctx.newPage();
+    const errs = [];
+    page.on('pageerror', (e) => errs.push(e.message));
+    await page.goto(base);
+    await page.waitForSelector('#enter-vr', { timeout: 8000 });
+    check(true, 'with WebXR the Enter VR button appears');
+    await page.click('#enter-vr');
+    await page.waitForFunction(() => document.querySelector('#toasts')?.textContent.includes('VR could not start'), null, { timeout: 8000 });
+    check(true, 'a failed session start is reported and the VR code loads without errors');
+    check(errs.length === 0, `no page errors while loading the VR module ${JSON.stringify(errs)}`);
+    await browser.close();
+  }
   await session('keyboard', { viewport: { width: 1200, height: 800 } }, async (page) => {
     await page.click('[data-chapter="ch0"]');
     await page.waitForSelector('#topbar .stat');
