@@ -1,4 +1,5 @@
 import type { A11ySettings } from './a11y';
+import { LOGBOOK_MAX, type RunEntry } from './logbook';
 import { CHAPTER_ORDER, SCENARIO_BASE } from '../data/chapters';
 import { deserialize, serialize } from '../sim/save';
 import type { ChapterId, DifficultyId, GameState } from '../sim/types';
@@ -13,6 +14,7 @@ const SETTINGS_KEY = 'dcm.settings.v1';
 const ACHIEVEMENTS_KEY = 'dcm.achievements.v1';
 const DAILY_KEY = 'dcm.daily.v1';
 const SANDBOX_KEY = 'dcm.sandbox.v1';
+const LOGBOOK_KEY = 'dcm.logbook.v1';
 
 /** Storage can be missing or throw (private mode, blocked site data): every access is guarded. */
 export interface KeyValueStore {
@@ -143,6 +145,23 @@ export class Persistence {
   deleteSlot(i: number): void {
     write(this.store, slotKey(i, 'game'), null);
     write(this.store, slotKey(i, 'meta'), null);
+  }
+
+  /** The career logbook (v3.5), oldest first. */
+  loadLogbook(): RunEntry[] {
+    try {
+      const all = JSON.parse(read(this.store, LOGBOOK_KEY) ?? '[]') as RunEntry[];
+      return Array.isArray(all) ? all : [];
+    } catch {
+      return [];
+    }
+  }
+
+  addLogEntry(e: RunEntry): void {
+    const all = this.loadLogbook();
+    all.push(e);
+    if (all.length > LOGBOOK_MAX) all.splice(0, all.length - LOGBOOK_MAX);
+    write(this.store, LOGBOOK_KEY, JSON.stringify(all));
   }
 
   clearGame(): void {

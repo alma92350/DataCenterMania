@@ -30,6 +30,7 @@ import { changeRisk, changeTitle, openChanges, tonight } from '../sim/changes';
 import { resilience } from '../sim/resilience';
 import { APP_VERSION } from './version';
 import type { SlotInfo } from './storage';
+import { logbookStats, type RunEntry } from './logbook';
 import { RELEASES, releasesSince } from '../data/releases';
 import { satisfactionOf } from '../sim/crm';
 import { VISIT_OBJECTIVES, visitResult } from '../sim/visit';
@@ -765,6 +766,7 @@ export interface StartExtras {
   dailyBest: { stars: number; share: string } | null;
   achievements: Record<string, number>;
   slots?: (SlotInfo | null)[];
+  logbook?: RunEntry[];
 }
 
 /** Feature flags of every chapter the player has reached (the Handbook grows with them). */
@@ -827,7 +829,7 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
         <span class="best">${open ? `${'★'.repeat(best)}${'☆'.repeat(3 - best)}` : '🔒'}</span></button>`;
     }).join('')}
     </div>
-    ${extras ? achievementsGrid(extras.achievements) + handbookSection(unlockedFeatures(progress)) + slotsBox(extras.slots ?? [], false) + handoverBox() : ''}
+    ${extras ? achievementsGrid(extras.achievements) + handbookSection(unlockedFeatures(progress)) + logbookCard(extras.logbook ?? []) + slotsBox(extras.slots ?? [], false) + handoverBox() : ''}
     ${settingsForm(settings)}
     <p class="muted small">${t('Free, no ads, works offline. Saves stay in this browser.')}</p>
   </section>`;
@@ -835,6 +837,21 @@ export function startScreen(progress: Progress, settings: Settings, hasSave: boo
 
 /** The campaign in three eras (PRD v2 addendum P16): where each begins. */
 const ERA_STARTS: Record<number, string> = { 0: 'Era 1: Cloud warehouse', 6: 'Era 2: The AI factory approaches', 9: 'Era 3: Energy-integrated compute' };
+
+/** The career logbook (v3.5): records, trend and the last runs. */
+export function logbookCard(entries: RunEntry[]): string {
+  if (!entries.length) return `<details class="logbook"><summary>📒 ${t('Logbook')}</summary><p class="muted small">${t('Your finished runs will appear here.')}</p></details>`;
+  const st = logbookStats(entries);
+  const name = (x: RunEntry) => (x.mode === 'sandbox' ? t('Sandbox') : x.mode === 'daily' ? t('Daily Challenge') : e(t(CHAPTERS[x.chapter]?.title ?? x.chapter)));
+  const trend = st.trend === null ? '' : st.trend > 0 ? `📈 +${st.trend}★` : st.trend < 0 ? `📉 ${st.trend}★` : `➡️ 0★`;
+  return `<details class="logbook"><summary>📒 ${t('Logbook')} · ${st.runs} ${t('runs')}${trend ? ` · ${trend}` : ''}</summary>
+    <div class="report"><span>${t('Win rate')}</span><b>${st.winRate}%</b>
+      <span>${t('Winning streak')}</span><b>${st.streak}</b>
+      <span>${t('Best uptime')}</span><b>${st.bestUptime === null ? '–' : `${st.bestUptime.toFixed(2)}%`}</b>
+      <span>${t('Best profit')}</span><b>${st.bestProfit === null ? '–' : money(st.bestProfit)}</b>
+      ${st.bestSandboxDays === null ? '' : `<span>${t('Longest sandbox')}</span><b>${st.bestSandboxDays} ${t('days')}</b>`}</div>
+    <ul class="list logs">${[...entries].reverse().slice(0, 10).map((x) => `<li class="row"><span>${x.won ? '✅' : '❌'}</span><span>${name(x)} · ${e(t(DIFFICULTIES[x.difficulty]?.name ?? x.difficulty))}</span><span class="muted small">${x.won ? '★'.repeat(x.stars) + '☆'.repeat(3 - x.stars) : ''} ${x.uptime.toFixed(1)}% · ${money(x.profit)} · ${new Date(x.t).toISOString().slice(0, 10)}</span></li>`).join('')}</ul></details>`;
+}
 
 /** Save slots and save files (v3.3). In the pause menu a game can be saved into a slot; on the start screen a slot can be loaded. */
 export function slotsBox(slots: (SlotInfo | null)[], canSave: boolean): string {

@@ -275,6 +275,12 @@ export const LOG_FR: Record<string, string> = {
   'Holiday rush! Customers need more traffic today.': 'Rush des fêtes ! Les clients ont besoin de plus de trafic aujourd’hui.',
   'Four seasons': 'Quatre saisons',
   'Sandbox seasons: a 28-day year that moves the air temperature, with summer heatwaves and winter holiday rushes. Switch them on in the Sandbox card.': 'Saisons du bac à sable : une année de 28 jours qui fait varier la température de l’air, avec des canicules l’été et des rushs des fêtes l’hiver. Activez-les dans la carte Bac à sable.',
+  // v3.5 logbook
+  'Sandbox': 'Bac à sable', 'Daily Challenge': 'Défi du jour',
+  'Logbook': 'Journal de bord', 'Your finished runs will appear here.': 'Vos parties terminées apparaîtront ici.', 'runs': 'parties', 'Win rate': 'Taux de victoire',
+  'Winning streak': 'Série de victoires', 'Best uptime': 'Meilleure disponibilité', 'Best profit': 'Meilleur bénéfice', 'Longest sandbox': 'Plus long bac à sable',
+  'The logbook': 'Le journal de bord',
+  'A career logbook on the start screen: win rate, records, your trend and your last ten runs.': 'Un journal de bord de carrière sur l’écran d’accueil : taux de victoire, records, votre tendance et vos dix dernières parties.',
   // later additions found by reading the sources
   'Utility power is out! The grid should be back in about {s} h.': 'Le courant est coupé ! Le réseau devrait revenir dans environ {s} h.',
   'The generator is serviced and on standby.': 'Le groupe est entretenu et en veille.',

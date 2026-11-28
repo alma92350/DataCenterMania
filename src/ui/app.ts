@@ -14,6 +14,7 @@ import { CHAPTERS } from '../data/chapters';
 import { spofReport } from '../sim/spof';
 import { tl } from './i18n';
 import { Telemetry } from './telemetry';
+import { entryFor } from './logbook';
 import { serialize, deserialize } from '../sim/save';
 import { applyAccessibility, DEFAULT_A11Y, type A11ySettings, type TextSize } from './a11y';
 import { APP_VERSION } from './version';
@@ -121,7 +122,7 @@ export class App {
     const today = dailyIdFor(new Date());
     const best = this.store.loadDaily()[today] ?? null;
     this.html('#screen', startScreen(this.store.loadProgress(), this.settings, this.store.loadGame()?.progress.status === 'playing', {
-      daily: dailySpec(today), dailyBest: best, sandboxBest: this.store.loadSandboxBest(), achievements: this.store.loadAchievements(), slots: this.store.listSlots(),
+      daily: dailySpec(today), dailyBest: best, sandboxBest: this.store.loadSandboxBest(), achievements: this.store.loadAchievements(), slots: this.store.listSlots(), logbook: this.store.loadLogbook(),
     }), true);
   }
 
@@ -243,6 +244,7 @@ export class App {
       progress = this.store.recordResult(s.chapter, s.difficulty, s.progress.status === 'won' ? s.progress.stars : 0);
       this.endExtras = { newAchievements: [] };
     }
+    this.store.addLogEntry(entryFor(s, Date.now()));
     this.endExtras.newAchievements = this.store.unlockAchievements(earnedAchievements(s, progress));
     this.telemetry.record('chapterEnd', { chapter: s.chapter, won: s.progress.status === 'won', stars: s.progress.stars, minutes: s.minute - CHAPTERS[s.chapter].startMinute });
     this.store.clearGame();

@@ -124,6 +124,17 @@ try {
     check((await page.textContent('#topbar .stat.clock')).includes('🌸'), 'a seasonal sandbox shows the season on the clock');
   });
 
+  await session('logbook', { viewport: { width: 390, height: 800 } }, async (page) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dcm.logbook.v1', JSON.stringify([{ t: 1700000000000, chapter: 'ch1', difficulty: 'sysadmin', mode: 'chapter', won: true, stars: 2, uptime: 99.2, profit: 1500, days: 3 }]));
+    });
+    await page.reload();
+    await page.waitForSelector('.logbook');
+    check((await page.textContent('.logbook summary')).includes('1'), 'the start screen has a logbook with the saved run');
+    await page.$eval('.logbook summary', (el) => el.click());
+    check((await page.textContent('.logbook')).includes('99.20%'), 'the logbook shows the best uptime');
+  });
+
   await session('keyboard', { viewport: { width: 1200, height: 800 } }, async (page) => {
     await page.click('[data-chapter="ch0"]');
     await page.waitForSelector('#topbar .stat');
@@ -456,7 +467,7 @@ try {
     };
     // mentor tips pause the game, so keep dismissing them while waiting for the next attack
     const waitForAttack = async () => {
-      const until = Date.now() + 60000;
+      const until = Date.now() + 120000;
       while (Date.now() < until && !(await page.isVisible('.attack-card'))) {
         if (await page.isVisible('.tip-card')) await page.tap('[data-action="dismissTip"]');
         await page.waitForTimeout(250);

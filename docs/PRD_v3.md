@@ -53,3 +53,14 @@ Results sections follow, one per release.
 - **Events from the dice** (seeded, so saves replay identically): in summer a heatwave (+7°C for two days, 18% a day) and in winter a holiday rush (1.5× traffic for ten hours, 25% a day), using the existing heat and surge machinery. A season icon sits next to the chapter label on the clock, and each new season is announced in the log.
 - No new system for the campaign: the state gains one optional field (`season`), saves load unchanged.
 - 7 new tests: off by default, the turn of the seasons, temperatures by season, events only in their season, save and reload continuing identically, a chosen starting season, UI and French.
+
+## 3.5 "The Logbook" results
+
+- **A line per finished run** (chapter, replay, daily or sandbox; win or loss; stars, SLA uptime, profit, game days, score for sandbox and daily), kept in the browser (last 100). Site visits are not logged.
+- **Start-screen card** *Logbook*: runs, win rate, current winning streak, best uptime, best profit, longest sandbox, and a **trend** (average stars of the last five chapter runs against the five before: 📈, ➡️ or 📉), then the last ten runs. Empty until the first run ends.
+- Data stays local like the saves, the progress and the play log. Pure statistics in `src/ui/logbook.ts`, tested on records, streak, trend, the 100-run cap and corrupt storage.
+- 4 new tests.
+
+## Phase 3 summary
+
+3.0 Incident Replays, 3.1 For Everyone, 3.2 The Advisor, 3.3 Save Slots, 3.4 Four Seasons and 3.5 The Logbook are shipped, each with tests, a phone e2e, French and release notes. Still open and outside what a coding session can settle: the 20-player playtest (use the v2.6 playtest kit), and balance of the three scenarios against real players rather than the bot.
