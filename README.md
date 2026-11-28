@@ -55,6 +55,7 @@ Controls: tap/click a rack to open it, drag to pan, pinch/scroll to zoom. Keys: 
 | Version and update check (v2.5.1) | The start screen and pause menu show the version; the game checks `version.json` on load, every 30 minutes and when the tab returns, and offers a Reload banner when a newer build is live (it saves first). Bump `version` in `package.json` for each release |
 | Playtest kit (v2.6) | With the play log on, the pause menu has one-tap feedback (1–5 "feels like the job", unfair / slow / hard / confusing); `npx vite-node scripts/playtest-report.ts log1.json log2.json …` turns testers' exported logs into the PRD §10 metrics |
 | What's new (v2.7) | Release notes in the game: opened once after an update for returning players, always available as a list; every note has French |
+| Meta Quest mode (v4.0) | Auto-detected in the Quest Browser (or `?quest=1`): bigger text and tap targets, hover feedback and thick scrollbars for the laser pointer |
 | The logbook (v3.5) | Every finished run is logged (kept in the browser): win rate, streak, records, trend and the last ten runs on the start screen |
 | Four seasons (v3.4) | Optional Sandbox seasons: a 28-day year with hotter summers, heatwaves, cold winters and holiday rushes |
 | Save slots (v3.3) | Three named slots in the pause menu (load from the start screen too), plus download and load a save file |

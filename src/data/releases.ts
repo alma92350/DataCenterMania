@@ -6,6 +6,7 @@ export interface Release {
 }
 
 export const RELEASES: Release[] = [
+  { version: '4.0.0', title: 'Quest mode', notes: ['Play in the Meta Quest browser: bigger text and targets and hover feedback for the laser pointer, switched on automatically.'] },
   { version: '3.5.0', title: 'The logbook', notes: ['A career logbook on the start screen: win rate, records, your trend and your last ten runs.'] },
   { version: '3.4.0', title: 'Four seasons', notes: ['Sandbox seasons: a 28-day year that moves the air temperature, with summer heatwaves and winter holiday rushes. Switch them on in the Sandbox card.'] },
   { version: '3.3.0', title: 'Save slots', notes: ['Three save slots in the pause menu, and download or load a save file to keep it or move it to another device.'] },

@@ -135,6 +135,16 @@ try {
     check((await page.textContent('.logbook')).includes('99.20%'), 'the logbook shows the best uptime');
   });
 
+  {
+    const browser = await chromium.launch();
+    const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
+    await page.goto(`${base}${base.includes('?') ? '&' : '?'}quest=1`);
+    await page.waitForSelector('.start');
+    check(await page.evaluate(() => document.body.classList.contains('quest')), 'the quest flag turns on the Meta Quest profile');
+    const h = await page.$eval('.start button.primary, .start button', (b) => b.getBoundingClientRect().height);
+    check(h >= 56, `buttons are laser-pointer sized in Quest mode (${Math.round(h)}px)`);
+    await browser.close();
+  }
   await session('keyboard', { viewport: { width: 1200, height: 800 } }, async (page) => {
     await page.click('[data-chapter="ch0"]');
     await page.waitForSelector('#topbar .stat');
@@ -463,7 +473,7 @@ try {
     const minTargets = { w: 999, h: 999 };
     const noteSize = async (sel) => {
       const sizes = await page.$$eval(sel, (els) => els.map((e) => { const r = e.getBoundingClientRect(); return [r.width, r.height]; }));
-      for (const [w, h] of sizes) { minTargets.w = Math.min(minTargets.w, w); minTargets.h = Math.min(minTargets.h, h); }
+      for (const [w, h] of sizes) { if (w === 0 || h === 0) continue; minTargets.w = Math.min(minTargets.w, w); minTargets.h = Math.min(minTargets.h, h); }
     };
     // mentor tips pause the game, so keep dismissing them while waiting for the next attack
     const waitForAttack = async () => {

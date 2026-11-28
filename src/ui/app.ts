@@ -27,7 +27,7 @@ import { drawFrame, techColor, type Overlay } from '../render/renderer';
 import { Sound } from './audio';
 import { effectiveSpeed, minutesToAdvance, shouldAutoPause } from './clock';
 import { Persistence, type Settings } from './storage';
-import { browserEnv, resolveEink, shouldRedraw } from './display';
+import { browserEnv, resolveEink, resolveQuest, shouldRedraw } from './display';
 import { morph } from './morph';
 import { setMonoIcons } from './icons';
 import { attackPrompt, miniGameModal, miniResultModal, outcomeOf, type MiniOutcome } from './cyberViews';
@@ -60,6 +60,8 @@ export class App {
   private panel: PanelId = 'alarms';
   private sheetOpen = false;
   private modal: Modal = null;
+  /** Meta Quest browser profile (v4.0). */
+  quest = false;
   private build: BuildMode = null;
   private hover: { x: number; y: number } | null = null;
   private tips: string[] = [];
@@ -107,6 +109,9 @@ export class App {
     this.eink = resolveEink(this.settings.display, browserEnv());
     setMonoIcons(this.eink);
     document.body.classList.toggle('eink', this.eink);
+    this.quest = resolveQuest(this.settings.display, browserEnv());
+    document.body.classList.toggle('quest', this.quest);
+    if (!this.settings.a11y) applyAccessibility({ ...DEFAULT_A11Y, textSize: this.quest ? 'large' : 'normal' });
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', this.eink ? '#ffffff' : '#0b0f15');
     this.lastDrawKey = '';
     if (this.eink && this.settings.autoPause === 'critical') this.settings.autoPause = 'major';

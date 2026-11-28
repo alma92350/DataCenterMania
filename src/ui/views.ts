@@ -887,7 +887,7 @@ export function settingsForm(settings: Settings): string {
     <label><input type="checkbox" data-action="setting" data-key="nightSkip" ${settings.nightSkip ? 'checked' : ''}> ${t('Night skip (fast nights when quiet)')}</label>
     <label><input type="checkbox" data-action="setting" data-key="sound" ${settings.sound ? 'checked' : ''}> ${t('Sound')}</label>
     <label>${t('Display')} <select data-action="setting" data-key="display">
-      ${([['auto', 'Auto-detect'], ['color', 'Colour screen'], ['eink', 'E-ink (Kindle Scribe)']] as const)
+      ${([['auto', 'Auto-detect'], ['color', 'Colour screen'], ['eink', 'E-ink (Kindle Scribe)'], ['quest', 'Meta Quest']] as const)
         .map(([v, l]) => `<option value="${v}" ${settings.display === v ? 'selected' : ''}>${t(l)}</option>`).join('')}
     </select></label>
     <label><input type="checkbox" data-action="setting" data-key="telemetry" ${settings.telemetry ? 'checked' : ''}> ${t('Keep a play log on this device')}</label>

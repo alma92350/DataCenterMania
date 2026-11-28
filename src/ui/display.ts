@@ -3,7 +3,7 @@
  * Detection uses the CSS Media Queries 4 `update: slow` / `monochrome` features, the
  * Kindle browser's user agent, or an explicit `?eink=1|0` URL flag.
  */
-export type DisplaySetting = 'auto' | 'color' | 'eink';
+export type DisplaySetting = 'auto' | 'color' | 'eink' | 'quest';
 
 export interface DisplayEnv {
   ua: string;
@@ -18,8 +18,21 @@ export function detectEink(env: DisplayEnv): boolean {
   return env.slowUpdate || env.monochrome || /Kindle|Silk\//i.test(env.ua);
 }
 
+/** Meta Quest browser (v4.0): the Oculus Browser user agent, or an explicit `?quest=1|0` flag. */
+export function detectQuest(env: DisplayEnv): boolean {
+  const flag = /[?&]quest=([01])/.exec(env.query);
+  if (flag) return flag[1] === '1';
+  return /OculusBrowser|Quest\b|Quest 2|Quest 3|Quest Pro/i.test(env.ua);
+}
+
+export function resolveQuest(setting: DisplaySetting, env: DisplayEnv): boolean {
+  if (setting === 'quest') return true;
+  if (setting === 'color' || setting === 'eink') return false;
+  return detectQuest(env);
+}
+
 export function resolveEink(setting: DisplaySetting, env: DisplayEnv): boolean {
-  if (setting === 'eink') return true;
+  if (setting === 'eink' || setting === 'quest') return setting === 'eink';
   if (setting === 'color') return false;
   return detectEink(env);
 }

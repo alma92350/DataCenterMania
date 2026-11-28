@@ -1,4 +1,4 @@
-import { detectEink, resolveEink, shouldRedraw } from '../src/ui/display';
+import { detectQuest, resolveQuest, detectEink, resolveEink, shouldRedraw } from '../src/ui/display';
 import { paletteFor, heatColor } from '../src/render/renderer';
 import { DEFAULT_SETTINGS } from '../src/ui/storage';
 
@@ -44,5 +44,27 @@ describe('e-ink rendering', () => {
     expect(shouldRedraw({ key: 'b', lastKey: 'a', now: 10_000, lastDraw: 9_900, eink: true })).toBe(false);
     expect(shouldRedraw({ key: 'b', lastKey: 'a', now: 10_000, lastDraw: 9_000, eink: true })).toBe(true);
     expect(shouldRedraw({ key: 'a', lastKey: 'a', now: 10_000, lastDraw: 9_999, eink: false })).toBe(true);
+  });
+});
+
+describe('Meta Quest browser profile (v4.0)', () => {
+  const q = (o: Partial<{ ua: string; query: string; slowUpdate: boolean }> = {}) => ({ ua: '', slowUpdate: false, monochrome: false, query: '', ...o });
+  const QUEST_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) OculusBrowser/38.0.0.4.64 SamsungBrowser/4.0 Chrome/134.0.0.0 VR Safari/537.36';
+
+  it('is detected from the Oculus Browser user agent and the quest flag', () => {
+    expect(detectQuest(q({ ua: QUEST_UA }))).toBe(true);
+    expect(detectQuest(q({ ua: 'Mozilla/5.0 (Linux; Android 12; Quest 2) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36' }))).toBe(true);
+    expect(detectQuest(q({ ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/120' }))).toBe(false);
+    expect(detectQuest(q({ query: '?quest=1' }))).toBe(true);
+    expect(detectQuest(q({ ua: QUEST_UA, query: '?quest=0' }))).toBe(false);
+  });
+
+  it('the display setting decides, auto follows detection, and Quest never means e-ink', () => {
+    expect(resolveQuest('quest', q())).toBe(true);
+    expect(resolveQuest('color', q({ ua: QUEST_UA }))).toBe(false);
+    expect(resolveQuest('eink', q({ ua: QUEST_UA }))).toBe(false);
+    expect(resolveQuest('auto', q({ ua: QUEST_UA }))).toBe(true);
+    expect(resolveEink('quest', q({ slowUpdate: true }))).toBe(false);
+    expect(detectEink(q({ ua: QUEST_UA }))).toBe(false);
   });
 });

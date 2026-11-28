@@ -281,6 +281,9 @@ export const LOG_FR: Record<string, string> = {
   'Winning streak': 'Série de victoires', 'Best uptime': 'Meilleure disponibilité', 'Best profit': 'Meilleur bénéfice', 'Longest sandbox': 'Plus long bac à sable',
   'The logbook': 'Le journal de bord',
   'A career logbook on the start screen: win rate, records, your trend and your last ten runs.': 'Un journal de bord de carrière sur l’écran d’accueil : taux de victoire, records, votre tendance et vos dix dernières parties.',
+  'Meta Quest': 'Meta Quest',
+  'Quest mode': 'Mode Quest',
+  'Play in the Meta Quest browser: bigger text and targets and hover feedback for the laser pointer, switched on automatically.': 'Jouez dans le navigateur Meta Quest : texte et cibles plus grands et retour au survol pour le pointeur laser, activés automatiquement.',
   // later additions found by reading the sources
   'Utility power is out! The grid should be back in about {s} h.': 'Le courant est coupé ! Le réseau devrait revenir dans environ {s} h.',
   'The generator is serviced and on standby.': 'Le groupe est entretenu et en veille.',
